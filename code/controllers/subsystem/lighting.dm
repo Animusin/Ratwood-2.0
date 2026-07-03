@@ -24,9 +24,54 @@ SUBSYSTEM_DEF(lighting)
 		create_all_lighting_objects()
 		initialized = TRUE
 
-	fire(FALSE, TRUE)
+	init_all_queues()
 
 	return ..()
+
+// Drains all three lighting queues during init in one go.
+// Must not call stoplag()/sleep: explicit sleeps amid the initial lighting
+// appearance churn hard-crash Linux DreamDaemon 516.1679 ("BUG: Unable to
+// read icon" followed by an illegal operation). Background yielding is the
+// only suspension mechanism observed to survive it, so this proc relies on
+// set background instead of the stoplag() ticking fire() uses.
+/datum/controller/subsystem/lighting/proc/init_all_queues()
+	set background = TRUE
+
+	var/list/queue = sources_queue
+	var/current_index = 0
+	while(current_index < length(queue))
+		current_index += 1
+		var/datum/light_source/source = queue[current_index]
+		source.update_corners()
+		// source.update_corners() can qdel(source) in certain conditions,
+		// which removes it from the queue and shifts the list left
+		if(!QDELING(source))
+			source.needs_update = LIGHTING_NO_UPDATE
+		else
+			current_index -= 1
+	queue.Cut()
+
+	queue = corners_queue
+	current_index = 0
+	while(current_index < length(queue))
+		current_index += 1
+		var/datum/lighting_corner/corner = queue[current_index]
+		corner.update_objects()
+		corner.needs_update = FALSE //update_objects() can call qdel if the corner is storing no data
+		if(QDELING(corner))
+			current_index -= 1
+	queue.Cut()
+
+	queue = objects_queue
+	current_index = 0
+	while(current_index < length(queue))
+		current_index += 1
+		var/atom/movable/lighting_object/lighting_object = queue[current_index]
+		// these can't delete themselves in update() and so nothing in this should be qdeleted
+		ASSERT(!QDELETED(lighting_object))
+		lighting_object.update()
+		lighting_object.needs_update = FALSE
+	queue.Cut()
 
 /datum/controller/subsystem/lighting/fire(resumed, init_tick_checks)
 	MC_SPLIT_TICK_INIT(3)

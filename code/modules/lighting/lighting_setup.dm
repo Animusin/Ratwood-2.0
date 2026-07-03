@@ -1,7 +1,9 @@
 /proc/create_all_lighting_objects()
-	// Explicit CHECK_TICK calls copy and schedule this entire nested iterator through stoplag().
-	// With hundreds of thousands of turfs, that crashes DreamDaemon 516.1679 during startup.
-	// Background processing yields at loop boundaries without sending the iterator through stoplag().
+	// Must not call stoplag()/sleep (this is what CHECK_TICK did here): explicit
+	// sleeps amid the initial lighting appearance churn hard-crash Linux
+	// DreamDaemon 516.1679 ("BUG: Unable to read icon" + illegal operation).
+	// Background yielding survives it, so we rely on set background instead.
+	// See also /datum/controller/subsystem/lighting/proc/init_all_queues().
 	set background = TRUE
 
 	for(var/area/A in world)

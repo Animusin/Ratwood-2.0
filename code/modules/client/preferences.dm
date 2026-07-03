@@ -8,6 +8,11 @@ GLOBAL_LIST_EMPTY(chosen_names)
 	var/path
 	var/default_slot = 1				//Holder so it doesn't default to slot 1, rather the last one used
 	var/max_save_slots = 60
+	/// Set when an existing savefile could not be read (engine bug or corruption).
+	/// Blocks save_preferences()/save_character() for the whole session so we
+	/// never overwrite a player's data with freshly generated defaults.
+	var/save_locked = FALSE
+	var/save_lock_warned = FALSE
 
 	//non-preference stuff
 	var/muted = 0

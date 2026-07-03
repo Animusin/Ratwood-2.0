@@ -54,6 +54,16 @@ SAVEFILE UPDATING/VERSIONING - 'Simplified', or rather, more coder-friendly ~Car
 	var/savefile_version
 	S["version"] >> savefile_version
 
+	if(!isnum(savefile_version))
+		// Version is unreadable. An empty directory is just a fresh slot; a
+		// non-empty one means data exists that we failed to read (corruption
+		// or an engine savefile regression — see the 516.1679 incident where
+		// every pre-existing save read as null and got wiped+overwritten).
+		// Never wipe here, and lock saving so defaults can't clobber the file.
+		if(length(S.dir))
+			save_locked = TRUE
+			log_world("PREFS: unreadable savefile version for [parent] at [path] (cd=[S.cd]) — locking saves to protect data")
+		return -2
 	if(savefile_version < SAVEFILE_VERSION_MIN)
 		S.dir.Cut()
 		return -2
@@ -392,8 +402,21 @@ SAVEFILE UPDATING/VERSIONING - 'Simplified', or rather, more coder-friendly ~Car
 
 	DIRECT_OUTPUT(src, ftp(exportable_file, file_name))
 
+/// TRUE if saving must be blocked because the existing savefile could not be
+/// read this session — writing now would overwrite real data with defaults.
+/datum/preferences/proc/save_is_locked()
+	if(!save_locked)
+		return FALSE
+	if(!save_lock_warned)
+		save_lock_warned = TRUE
+		log_world("PREFS: blocked save for [parent] ([path]) — savefile was unreadable at load")
+		to_chat(parent, span_userdanger("Your savefile exists but could not be read. Saving is disabled for this session so your data does not get overwritten. Please contact an admin."))
+	return TRUE
+
 /datum/preferences/proc/save_preferences()
 	if(!path)
+		return FALSE
+	if(save_is_locked())
 		return FALSE
 	var/savefile/S = new /savefile(path)
 	if(!S)
@@ -1075,6 +1098,8 @@ SAVEFILE UPDATING/VERSIONING - 'Simplified', or rather, more coder-friendly ~Car
 
 /datum/preferences/proc/save_character()
 	if(!path)
+		return FALSE
+	if(save_is_locked())
 		return FALSE
 	var/savefile/S = new /savefile(path)
 	if(!S)

@@ -1,5 +1,10 @@
 # You can use the "$include" directive to split your configs however you want
 
+# Diagnostic probe: if the running server reads THIS config directory, the boot
+# log will contain: Unknown setting in configuration: 'zzzprobe_repo'
+# Remove once the config-directory situation with the hoster is resolved.
+ZZZPROBE_REPO 1
+
 $include game_options.txt
 $include dbconfig.txt
 $include comms.txt

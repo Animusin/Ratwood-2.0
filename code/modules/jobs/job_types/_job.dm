@@ -35,6 +35,8 @@
 
 	//Whether this job clears a slot when you get a rename prompt.
 	var/antag_job = FALSE
+	/// How much capacity this job consumes from the storyteller antagonist cap when latejoining.
+	var/antag_cap_weight = 1
 
 	//Supervisors, who this person answers to directly
 	var/supervisors = ""
@@ -319,6 +321,8 @@
 
 //Used for a special check of whether to allow a client to latejoin as this job.
 /datum/job/proc/special_check_latejoin(client/C)
+	if(antag_job && SSgamemode && !SSgamemode.can_add_antag_weight(antag_cap_weight))
+		return FALSE
 	return TRUE
 
 /datum/job/proc/GetAntagRep()

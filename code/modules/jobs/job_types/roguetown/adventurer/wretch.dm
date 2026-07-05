@@ -2,6 +2,7 @@
 /datum/job/roguetown/wretch
 	title = "Wretch"
 	flag = WRETCH
+	antag_job = TRUE
 	department_flag = WANDERERS
 	faction = "Station"
 	total_positions = 5

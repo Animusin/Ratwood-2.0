@@ -14,6 +14,8 @@
 	var/outfit
 	/// Typepath of the antag datum for the migrant role
 	var/antag_datum
+	/// Capacity consumed from the storyteller antagonist cap when this role has an antag datum.
+	var/antag_cap_weight = 1
 	/// If defined they'll get adv class rolls
 	var/list/advclass_cat_rolls
 	/// Text to greet player of this role in the wave
@@ -62,4 +64,3 @@
 
 /datum/outfit/job/roguetown/cloak/surcoat/pre_equip(mob/living/carbon/human/H)
 	cloak = /obj/item/clothing/cloak/stabard/surcoat
-

@@ -84,7 +84,7 @@
 			string += ","
 		string += "Lack of players"
 	if(checks_antag_cap)
-		if(!roundstart && !SSgamemode.can_inject_antags())
+		if(!SSgamemode.can_inject_antags())
 			if(string)
 				string += ","
 			string += "Too Many Villians"
@@ -123,6 +123,8 @@
 	if(req_omen)
 		if(!GLOB.badomens.len)
 			return FALSE
+	if(checks_antag_cap && !SSgamemode.can_inject_antags())
+		return FALSE
 	if(!name)
 		return FALSE
 	return TRUE

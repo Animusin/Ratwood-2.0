@@ -10,6 +10,8 @@
 	var/antag_flag
 	/// The antag datum to be applied
 	var/antag_datum
+	/// Capacity consumed by each selected antagonist. Override the proc for mixed-weight events.
+	var/antag_cap_weight = 1
 	/// Prompt players for consent to turn them into antags before doing so. Dont allow this for roundstart.
 	var/prompted_picking = FALSE
 	/// A list of extra events to force whenever this one is chosen by the storyteller.
@@ -31,6 +33,8 @@
 	if(!.)
 		return
 	var/antag_amt = get_antag_amount()
+	if(antag_amt <= 0)
+		return FALSE
 	var/list/candidates = get_candidates()
 	if(length(candidates) < antag_amt)
 		return FALSE
@@ -38,7 +42,22 @@
 /datum/round_event_control/antagonist/solo/proc/get_antag_amount()
 	var/people = SSgamemode.get_correct_popcount()
 	var/amount = base_antags + FLOOR(people / denominator, 1)
-	return min(amount, maximum_antags)
+	amount = min(amount, maximum_antags)
+	if(!checks_antag_cap)
+		return amount
+
+	var/remaining_capacity = SSgamemode.get_remaining_antag_capacity()
+	var/allowed_amount = 0
+	for(var/index in 1 to amount)
+		var/next_weight = get_antag_cap_weight(index)
+		if(next_weight > remaining_capacity)
+			break
+		remaining_capacity -= next_weight
+		allowed_amount++
+	return allowed_amount
+
+/datum/round_event_control/antagonist/solo/proc/get_antag_cap_weight(index)
+	return antag_cap_weight
 
 /datum/round_event_control/antagonist/solo/proc/get_candidates()
 	var/round_started = SSticker.HasRoundStarted()

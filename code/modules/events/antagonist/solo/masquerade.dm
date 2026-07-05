@@ -20,6 +20,7 @@
 
 	typepath = /datum/round_event/antagonist/solo/masquerade
 	antag_datum = /datum/antagonist/vampire
+	antag_cap_weight = 2
 
 	restricted_roles = DEFAULT_ANTAG_BLACKLISTED_ROLES
 

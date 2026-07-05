@@ -43,6 +43,14 @@
 		amount += roles[role_type]
 	return amount
 
+/// Total antagonist capacity required to spawn this wave atomically.
+/datum/migrant_wave/proc/get_antag_cap_weight()
+	. = 0
+	for(var/role_type in roles)
+		var/datum/migrant_role/role = MIGRANT_ROLE(role_type)
+		if(role?.antag_datum)
+			. += roles[role_type] * role.antag_cap_weight
+
 /datum/migrant_wave/pilgrim
 	name = "Pilgrimage"
 	downgrade_wave = /datum/migrant_wave/pilgrim_down_one

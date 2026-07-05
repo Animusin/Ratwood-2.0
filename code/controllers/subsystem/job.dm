@@ -72,6 +72,20 @@ SUBSYSTEM_DEF(job)
 		SetupOccupations()
 	return type_occupations[jobtype]
 
+/// Antagonist weight reserved by roundstart job assignments. Their antagonist datums do not exist yet.
+/datum/controller/subsystem/job/proc/get_roundstart_antag_weight()
+	. = 0
+	for(var/datum/job/job as anything in occupations)
+		if(job.antag_job && job.current_positions > 0)
+			. += job.current_positions * job.antag_cap_weight
+
+/datum/controller/subsystem/job/proc/can_assign_antag_job(datum/job/job)
+	if(!job?.antag_job || !SSgamemode)
+		return TRUE
+	if(!SSticker.HasRoundStarted())
+		return SSgamemode.can_add_antag_weight(job.antag_cap_weight, get_roundstart_antag_weight())
+	return SSgamemode.can_add_antag_weight(job.antag_cap_weight)
+
 /datum/controller/subsystem/job/proc/AssignRole(mob/player, rank, latejoin = FALSE)
 	JobDebug("Running AR, Player: [player], Rank: [rank], LJ: [latejoin]")
 	if(player && player.mind && rank)
@@ -83,6 +97,8 @@ SUBSYSTEM_DEF(job)
 		if(!job.player_old_enough(player.client))
 			return FALSE
 		if(job.required_playtime_remaining(player.client))
+			return FALSE
+		if(!can_assign_antag_job(job))
 			return FALSE
 		var/position_limit = job.total_positions
 		if(!latejoin)

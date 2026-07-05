@@ -177,6 +177,8 @@
 	var/social_rank = SOCIAL_RANK_DIRT
 
 /datum/job/proc/special_job_check(mob/dead/new_player/player)
+	if(antag_job && SSjob && !SSjob.can_assign_antag_job(src))
+		return FALSE
 	return TRUE
 
 /datum/job/proc/get_used_title(mob/player)
@@ -321,7 +323,7 @@
 
 //Used for a special check of whether to allow a client to latejoin as this job.
 /datum/job/proc/special_check_latejoin(client/C)
-	if(antag_job && SSgamemode && !SSgamemode.can_add_antag_weight(antag_cap_weight))
+	if(antag_job && SSjob && !SSjob.can_assign_antag_job(src))
 		return FALSE
 	return TRUE
 

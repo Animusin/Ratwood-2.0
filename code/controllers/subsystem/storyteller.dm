@@ -329,7 +329,7 @@ SUBSYSTEM_DEF(gamemode)
 
 /// Whether an antagonist of the supplied weight fits under the current cap.
 /datum/controller/subsystem/gamemode/proc/can_add_antag_weight(weight = 1, current_weight = null)
-	return weight <= get_remaining_antag_capacity(current_weight)
+	return max(weight, 0) <= get_remaining_antag_capacity(current_weight)
 
 /// Gets candidates for antagonist roles.
 /datum/controller/subsystem/gamemode/proc/get_candidates(be_special, job_ban, observers, ready_newplayers, living_players, required_time, inherit_required_time = TRUE, midround_antag_pref, no_antags = TRUE, list/restricted_roles, list/required_roles)

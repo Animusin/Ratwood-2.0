@@ -8,6 +8,7 @@
 	roundstart = TRUE
 	antag_flag = ROLE_ASSASSIN
 	shared_occurence_type = SHARED_MINOR_THREAT
+	checks_antag_cap = FALSE // Assassin datum is FLAG_FAKE_ANTAG.
 
 	restricted_roles = list(
 		"Grand Duke",

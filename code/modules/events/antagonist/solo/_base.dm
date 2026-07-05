@@ -49,7 +49,7 @@
 	var/remaining_capacity = SSgamemode.get_remaining_antag_capacity()
 	var/allowed_amount = 0
 	for(var/index in 1 to amount)
-		var/next_weight = get_antag_cap_weight(index)
+		var/next_weight = max(get_antag_cap_weight(index), 0)
 		if(next_weight > remaining_capacity)
 			break
 		remaining_capacity -= next_weight

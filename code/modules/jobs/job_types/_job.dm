@@ -35,6 +35,8 @@
 
 	//Whether this job clears a slot when you get a rename prompt.
 	var/antag_job = FALSE
+	/// How much capacity this job consumes from the storyteller antagonist cap when latejoining.
+	var/antag_cap_weight = 1
 
 	//Supervisors, who this person answers to directly
 	var/supervisors = ""
@@ -175,6 +177,8 @@
 	var/social_rank = SOCIAL_RANK_DIRT
 
 /datum/job/proc/special_job_check(mob/dead/new_player/player)
+	if(antag_job && SSjob && !SSjob.can_assign_antag_job(src))
+		return FALSE
 	return TRUE
 
 /datum/job/proc/get_used_title(mob/player)
@@ -319,6 +323,8 @@
 
 //Used for a special check of whether to allow a client to latejoin as this job.
 /datum/job/proc/special_check_latejoin(client/C)
+	if(antag_job && SSjob && !SSjob.can_assign_antag_job(src))
+		return FALSE
 	return TRUE
 
 /datum/job/proc/GetAntagRep()

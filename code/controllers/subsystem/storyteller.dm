@@ -320,6 +320,17 @@ SUBSYSTEM_DEF(gamemode)
 /datum/controller/subsystem/gamemode/proc/can_inject_antags()
 	return (get_antag_cap() > get_antag_count())
 
+/// Remaining antagonist capacity. An explicit current weight is used while roundstart jobs are
+/// being assigned, before those players have antagonist datums that get_antag_count() can see.
+/datum/controller/subsystem/gamemode/proc/get_remaining_antag_capacity(current_weight = null)
+	if(isnull(current_weight))
+		current_weight = get_antag_count()
+	return max(get_antag_cap() - current_weight, 0)
+
+/// Whether an antagonist of the supplied weight fits under the current cap.
+/datum/controller/subsystem/gamemode/proc/can_add_antag_weight(weight = 1, current_weight = null)
+	return max(weight, 0) <= get_remaining_antag_capacity(current_weight)
+
 /// Gets candidates for antagonist roles.
 /datum/controller/subsystem/gamemode/proc/get_candidates(be_special, job_ban, observers, ready_newplayers, living_players, required_time, inherit_required_time = TRUE, midround_antag_pref, no_antags = TRUE, list/restricted_roles, list/required_roles)
 	var/list/candidates = list()

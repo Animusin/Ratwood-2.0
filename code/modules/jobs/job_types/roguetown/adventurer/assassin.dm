@@ -8,6 +8,7 @@
 	min_pq = 25		//This is a class that lets you effectively no-esc someone. So.. responsibility.
 	max_pq = null
 	antag_job = TRUE
+	antag_cap_weight = 0 // Assassin datum is FLAG_FAKE_ANTAG and is ignored by the storyteller cap.
 	allowed_races = RACES_ALL_KINDS
 	tutorial = "Long ago you did a crime worthy of your bounty being hung on the wall outside of the local inn. You now live with your fellow freemen in the bog, and generally get up to no good."
 

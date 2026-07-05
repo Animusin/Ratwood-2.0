@@ -21,6 +21,7 @@
 
 	typepath = /datum/round_event/antagonist/solo/lich
 	antag_datum = /datum/antagonist/lich
+	antag_cap_weight = 3
 
 	restricted_roles = DEFAULT_ANTAG_BLACKLISTED_ROLES
 

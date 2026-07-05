@@ -76,6 +76,10 @@ SUBSYSTEM_DEF(migrants)
 
 /datum/controller/subsystem/migrants/proc/try_spawn_wave()
 	var/datum/migrant_wave/wave = MIGRANT_WAVE(current_wave)
+	var/wave_antag_weight = wave.get_antag_cap_weight()
+	if(wave_antag_weight && SSgamemode && !SSgamemode.can_add_antag_weight(wave_antag_weight))
+		log_game("Migrants: [wave.name] requires [wave_antag_weight] antagonist capacity, but only [SSgamemode.get_remaining_antag_capacity()] remains.")
+		return FALSE
 	/// Create initial assignment list
 	var/list/assignments = list()
 	/// Populate it

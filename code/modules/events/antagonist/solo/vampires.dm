@@ -24,6 +24,9 @@
 
 	restricted_roles = DEFAULT_ANTAG_BLACKLISTED_ROLES
 
+/datum/round_event_control/antagonist/solo/vampires/get_antag_cap_weight(index)
+	return index == 1 ? 3 : 2
+
 /datum/round_event/antagonist/solo/vampire
 	var/leader = FALSE
 

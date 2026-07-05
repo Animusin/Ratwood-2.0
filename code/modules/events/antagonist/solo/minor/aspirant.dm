@@ -8,6 +8,7 @@
 	antag_flag = ROLE_ASPIRANT
 	shared_occurence_type = SHARED_MINOR_THREAT
 	minor_roleset = TRUE
+	checks_antag_cap = FALSE // Aspirants and their supporters are FLAG_FAKE_ANTAG.
 
 	needed_job = list(
 		"Consort",

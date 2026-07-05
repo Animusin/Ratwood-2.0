@@ -86,7 +86,6 @@
 
 // BEGIN_INCLUDE
 #include "anchored_mobs.dm"
-#include "antag_cap.dm"
 #include "colorblind_hud_palette.dm"
 #include "component_tests.dm"
 #include "create_and_destroy.dm"

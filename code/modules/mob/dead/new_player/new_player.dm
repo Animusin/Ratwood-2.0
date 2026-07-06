@@ -519,13 +519,18 @@ GLOBAL_LIST_INIT(roleplay_readme, world.file2list("strings/rt/rp_prompt.txt"))
 		arrivals_docked = SSshuttle.arrivals.mode != SHUTTLE_CALL
 */
 
-	//Remove the player from the join queue if he was in one and reset the timer
+	testing("basedtest 1")
+
+	// Recheck during assignment: another latejoiner may have consumed the last slot
+	// or antagonist-cap capacity after IsJobUnavailable() ran.
+	if(!SSjob.AssignRole(src, rank, TRUE))
+		to_chat(src, span_warning("[rank] is no longer available."))
+		return FALSE
+
+	// Remove the player from the join queue only after the role was assigned.
 	SSticker.queued_players -= src
 	SSticker.queue_delay = 4
 
-	testing("basedtest 1")
-
-	SSjob.AssignRole(src, rank, 1)
 	testing("basedtest 2")
 	var/mob/living/character = create_character(TRUE)	//creates the human and transfers vars and mind
 	testing("basedtest 3")
@@ -628,6 +633,7 @@ GLOBAL_LIST_INIT(roleplay_readme, world.file2list("strings/rt/rp_prompt.txt"))
 	omegalist += list(GLOB.wanderer_positions)
 	omegalist += list(GLOB.youngfolk_positions)
 	omegalist += list(GLOB.tribal_positions)
+	var/remaining_antag_capacity = SSgamemode ? SSgamemode.get_remaining_antag_capacity() : null
 
 	for(var/list/category in omegalist)
 		if(!SSjob.name_occupations[category[1]])
@@ -639,7 +645,8 @@ GLOBAL_LIST_INIT(roleplay_readme, world.file2list("strings/rt/rp_prompt.txt"))
 			var/datum/job/job_datum = SSjob.name_occupations[job]
 			if(!job_datum)
 				continue
-			// Make sure hiv+ jobs always appear on list, even if unavailable
+			// Persistent jobs stay visible even when unavailable. Capped antagonist jobs
+			// are rendered below with a dynamic limit and without an active join link.
 			var/is_job_available = (IsJobUnavailable(job_datum.title, TRUE) == JOB_AVAILABLE)
 			if(job_datum.always_show_on_latechoices)
 				is_job_available = TRUE
@@ -697,13 +704,20 @@ GLOBAL_LIST_INIT(roleplay_readme, world.file2list("strings/rt/rp_prompt.txt"))
 					var/command_bold = FALSE
 					if(job in GLOB.noble_positions)
 						command_bold = TRUE
+					var/display_position_limit = SSjob.get_latejoin_position_limit(job_datum, remaining_antag_capacity)
+					var/antag_capacity_full = job_datum.antag_job && job_datum.antag_cap_weight > 0 && display_position_limit <= job_datum.current_positions
 					var/used_name = job_datum.display_title || job_datum.title
 					if(client.prefs.pronouns == SHE_HER && job_datum.f_title)
 						used_name = job_datum.f_title
-					if(job_datum in SSjob.prioritized_jobs)
+					if(job_datum in SSjob.prioritized_jobs && !job_datum.antag_job)
 						dat += "<a class='job[command_bold]' href='byond://?src=[REF(src)];SelectedJob=[job_datum.title]'><span class='priority'>[used_name] ([job_datum.current_positions])</span></a>"
 					else
-						dat += "<font size = 3>[do_elaborate ? "<a href='?src=[REF(job_datum)];jobsubclassinfo=1'><b><font color = '#6b6743'>(!)</font></b></a>" : ""]<a href='byond://?src=[REF(src)];SelectedJob=[job_datum.title]'>[command_bold ? "<b>" : ""][used_name] ([job_datum.current_positions]/[job_datum.total_positions])[command_bold ? "</b>" : ""]</a></font>"
+						var/subclass_info = do_elaborate ? "<a href='?src=[REF(job_datum)];jobsubclassinfo=1'><b><font color='#6b6743'>(!)</font></b></a>" : ""
+						var/job_label = "[command_bold ? "<b>" : ""][used_name] ([job_datum.current_positions]/[display_position_limit])[command_bold ? "</b>" : ""]"
+						if(antag_capacity_full)
+							dat += "<font size=3 color='#777777'>[subclass_info]<span title='Antagonist capacity is full'>[job_label]</span></font>"
+						else
+							dat += "<font size=3>[subclass_info]<a href='byond://?src=[REF(src)];SelectedJob=[job_datum.title]'>[job_label]</a></font>"
 						dat += "<br>"
 
 			dat += "</fieldset><br>"

@@ -519,13 +519,18 @@ GLOBAL_LIST_INIT(roleplay_readme, world.file2list("strings/rt/rp_prompt.txt"))
 		arrivals_docked = SSshuttle.arrivals.mode != SHUTTLE_CALL
 */
 
-	//Remove the player from the join queue if he was in one and reset the timer
+	testing("basedtest 1")
+
+	// Recheck during assignment: another latejoiner may have consumed the last slot
+	// or antagonist-cap capacity after IsJobUnavailable() ran.
+	if(!SSjob.AssignRole(src, rank, TRUE))
+		to_chat(src, span_warning("[rank] is no longer available."))
+		return FALSE
+
+	// Remove the player from the join queue only after the role was assigned.
 	SSticker.queued_players -= src
 	SSticker.queue_delay = 4
 
-	testing("basedtest 1")
-
-	SSjob.AssignRole(src, rank, 1)
 	testing("basedtest 2")
 	var/mob/living/character = create_character(TRUE)	//creates the human and transfers vars and mind
 	testing("basedtest 3")
@@ -639,9 +644,10 @@ GLOBAL_LIST_INIT(roleplay_readme, world.file2list("strings/rt/rp_prompt.txt"))
 			var/datum/job/job_datum = SSjob.name_occupations[job]
 			if(!job_datum)
 				continue
-			// Make sure hiv+ jobs always appear on list, even if unavailable
+			// Keep explicitly persistent jobs visible, except real antagonist jobs when
+			// the storyteller antagonist cap has no room for them.
 			var/is_job_available = (IsJobUnavailable(job_datum.title, TRUE) == JOB_AVAILABLE)
-			if(job_datum.always_show_on_latechoices)
+			if(job_datum.always_show_on_latechoices && (!job_datum.antag_job || SSjob.can_assign_antag_job(job_datum)))
 				is_job_available = TRUE
 			if(is_job_available)
 				available_jobs += job

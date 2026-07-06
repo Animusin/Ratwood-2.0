@@ -86,6 +86,19 @@ SUBSYSTEM_DEF(job)
 		return SSgamemode.can_add_antag_weight(job.antag_cap_weight, get_roundstart_antag_weight())
 	return SSgamemode.can_add_antag_weight(job.antag_cap_weight)
 
+/// The slot limit shown in latejoin. Real antagonist jobs share the storyteller capacity,
+/// so their visible limit is their occupied slots plus however many still fit in that capacity.
+/datum/controller/subsystem/job/proc/get_latejoin_position_limit(datum/job/job, remaining_antag_capacity = null)
+	if(!job)
+		return 0
+	if(!job.antag_job || job.antag_cap_weight <= 0 || isnull(remaining_antag_capacity))
+		return job.total_positions
+	var/remaining_positions = FLOOR(max(remaining_antag_capacity, 0) / job.antag_cap_weight, 1)
+	var/cap_position_limit = job.current_positions + remaining_positions
+	if(job.total_positions < 0)
+		return cap_position_limit
+	return min(job.total_positions, cap_position_limit)
+
 /datum/controller/subsystem/job/proc/AssignRole(mob/player, rank, latejoin = FALSE)
 	JobDebug("Running AR, Player: [player], Rank: [rank], LJ: [latejoin]")
 	if(player && player.mind && rank)

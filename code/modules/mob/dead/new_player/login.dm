@@ -32,6 +32,8 @@
 	if(GLOB.rogue_round_id)
 		to_chat(src, span_info("ROUND ID: [GLOB.rogue_round_id]"))
 
+	client.sync_donation_info()
+
 	if(client.is_new_player())
 		to_chat(src, span_userdanger("Due to an invasion of goblins trying to play ROGUETOWN, you need to register your discord account or support us on patreon to join."))
 		to_chat(src, span_info("We dislike discord too, but it's necessary. To register your discord or patreon, please click the 'Register' tab in the top right of the window, and then choose one of the options."))
@@ -51,6 +53,11 @@
 			if(5)
 				shown_patreon_level = "Lord"
 		to_chat(src, span_info("Donator Level: [shown_patreon_level]"))
+	if(client.donation_info_loaded)
+		to_chat(src, span_info("Opyxes: [client.opyxes]"))
+		to_chat(src, span_info("Donator Tier: [donation_tier_display_name(client.donation_tier)]"))
+	else if(!client.donation_database_available())
+		to_chat(src, span_warning("Donation DB is not connected."))
 	client.changelog()
 
 	var/server_address = CONFIG_GET(string/server)

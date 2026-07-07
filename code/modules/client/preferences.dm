@@ -284,6 +284,8 @@ GLOBAL_LIST_EMPTY(chosen_names)
 	// Vrell - I fucking hate how inconsistent the variable style is for this shit. underscores? all lowercase? camelcase?
 	var/patreon_say_color = "ff7a05"
 	var/patreon_say_color_enabled = FALSE
+	var/donation_ooc_color_enabled = TRUE
+	var/donation_ooc_font_size_enabled = TRUE
 	// END PATREON
 
 
@@ -520,6 +522,25 @@ GLOBAL_LIST_EMPTY(chosen_names)
 			if(SStriumphs.triumph_buys_enabled)
 				dat += "<a style='white-space:nowrap;' href='?_src_=prefs;preference=triumph_buy_menu'>Triumph Buy</a>"
 			dat += "</td>"
+
+			dat += "<td style='width:33%;text-align:right'>"
+			var/client/player_client = user.client
+			if(player_client?.donation_database_available())
+				if(!player_client.donation_info_loaded)
+					player_client.sync_donation_info()
+				if(player_client.donation_info_loaded)
+					dat += "<b>DONATOR TIER:</b> [donation_tier_display_name(player_client.donation_tier)]<br>"
+					dat += "<b>OPYXES:</b> [player_client.opyxes]<br>"
+					dat += "<a style='white-space:nowrap;' href='?_src_=prefs;preference=donation_store;task=menu'>Donation Store</a>"
+				else
+					dat += "<b>DONATIONS:</b> DB not connected<br>"
+					dat += "<a style='white-space:nowrap;' href='?_src_=prefs;preference=donation_store;task=menu'>Donation Store</a>"
+			else
+				dat += "<b>DONATIONS:</b> DB not connected<br>"
+				dat += "<a style='white-space:nowrap;' href='?_src_=prefs;preference=donation_store;task=menu'>Donation Store</a>"
+			dat += "</td>"
+			dat += "</tr>"
+			dat += "</table>"
 
 			if(CONFIG_GET(flag/roundstart_traits))
 				dat += "<center><h2>Quirk Setup</h2>"
@@ -1474,6 +1495,77 @@ Slots: [job.spawn_positions] [job.round_contrib_points ? "RCP: +[job.round_contr
 	popup.set_content(dat.Join())
 	popup.open(FALSE)
 
+/datum/preferences/proc/ShowDonationStore(mob/user)
+	if(!user?.client)
+		return
+
+	var/client/player_client = user.client
+	var/list/dat = list()
+	dat += "<center><h2>Donation Store</h2></center>"
+	dat += "<b>OOC Tier Color:</b> <a href='?_src_=prefs;preference=donation_store;task=toggle_ooc_color'>[donation_ooc_color_enabled ? "Enabled" : "Disabled"]</a><br>"
+	dat += "<b>OOC Tier Font Size:</b> <a href='?_src_=prefs;preference=donation_store;task=toggle_ooc_font_size'>[donation_ooc_font_size_enabled ? "Enabled" : "Disabled"]</a><br>"
+
+	if(!player_client.donation_database_available() || !player_client.sync_donation_info())
+		dat += "<br><center><b>Donation DB is not connected.</b></center>"
+	else
+		dat += "<b>Donator Tier:</b> [donation_tier_display_name(player_client.donation_tier)]<br>"
+		var/donation_color = donation_tier_ooc_color(player_client.donation_tier)
+		if(donation_color)
+			dat += "<b>Tier Color:</b> <span style='border: 1px solid #161616; background-color: [donation_color];'>&nbsp;&nbsp;&nbsp;</span><br>"
+		var/donation_font_size = donation_tier_ooc_font_size(player_client.donation_tier)
+		if(donation_font_size)
+			dat += "<b>Tier Font Size:</b> [donation_font_size]%<br>"
+		dat += "<b>Opyxes:</b> [player_client.opyxes]<hr>"
+		dat += "<b>1 Opyx</b> -> <b>2 Triumphs</b><br>"
+		if(player_client.opyxes >= 1)
+			dat += "<a href='?_src_=prefs;preference=donation_store;task=buy_triumphs'>Exchange</a>"
+		else
+			dat += "Not enough Opyxes."
+
+	var/datum/browser/noclose/popup = new(user, "donation_store", "<div align='center'>Donation Store</div>", 320, 220)
+	popup.set_content(dat.Join())
+	popup.open(FALSE)
+
+/datum/preferences/proc/BuyDonationTriumphs(mob/user)
+	if(!user?.client)
+		return
+
+	var/client/player_client = user.client
+	if(!player_client.donation_database_available() || !player_client.sync_donation_info())
+		to_chat(user, span_warning("Donation DB is not connected."))
+		ShowDonationStore(user)
+		ShowChoices(user)
+		return
+
+	if(player_client.opyxes < 1)
+		to_chat(user, span_warning("Not enough Opyxes."))
+		ShowDonationStore(user)
+		ShowChoices(user)
+		return
+
+	if(!player_client.spend_opyxes(1, "Ratwood triumph exchange: 1 opyx for 2 triumphs"))
+		to_chat(user, span_warning("Unable to exchange Opyxes right now."))
+		ShowDonationStore(user)
+		ShowChoices(user)
+		return
+
+	player_client.adjust_triumphs(2)
+	to_chat(user, span_notice("Exchanged 1 Opyx for 2 Triumphs."))
+	ShowDonationStore(user)
+	ShowChoices(user)
+
+/datum/preferences/proc/ToggleDonationOOCColor(mob/user)
+	donation_ooc_color_enabled = !donation_ooc_color_enabled
+	save_preferences()
+	to_chat(user, span_notice("OOC tier color is now [donation_ooc_color_enabled ? "enabled" : "disabled"]."))
+	ShowDonationStore(user)
+
+/datum/preferences/proc/ToggleDonationOOCFontSize(mob/user)
+	donation_ooc_font_size_enabled = !donation_ooc_font_size_enabled
+	save_preferences()
+	to_chat(user, span_notice("OOC tier font size is now [donation_ooc_font_size_enabled ? "enabled" : "disabled"]."))
+	ShowDonationStore(user)
+
 
 /datum/preferences/Topic(href, href_list, hsrc)			//yeah, gotta do this I guess..
 	. = ..()
@@ -1605,6 +1697,17 @@ Slots: [job.spawn_positions] [job.round_contrib_points ? "RCP: +[job.round_contr
 		return
 	else if(href_list["preference"] == "triumph_buy_menu")
 		SStriumphs.startup_triumphs_menu(user.client)
+
+	else if(href_list["preference"] == "donation_store")
+		switch(href_list["task"])
+			if("buy_triumphs")
+				BuyDonationTriumphs(user)
+			if("toggle_ooc_color")
+				ToggleDonationOOCColor(user)
+			if("toggle_ooc_font_size")
+				ToggleDonationOOCFontSize(user)
+			else
+				ShowDonationStore(user)
 
 	else if(href_list["preference"] == "keybinds")
 		switch(href_list["task"])

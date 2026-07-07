@@ -203,9 +203,18 @@ GLOBAL_LIST_INIT(agevet_dedup_reason_keywords, list(
 /// Computes and (optionally) applies the correction for a single ckey.
 /// mode: "keyword" (default, safest), "ten", "all", or "none".
 /// Returns the net delta that was (or would be) applied. dry_run reports only.
-/// The correction removes duplicate +10 bonuses down to a single entitlement and
-/// hands back manual admin removals selected by `mode`, capped so we never restore
-/// more PQ than the duplicates cost in the first place.
+///
+/// Safety model - this can NOT eat legitimately-held PQ:
+///  - Only lines tagged "Age verification bonus" (written solely by add_agevet,
+///    always +10) count as dupes. Commends, rounds, revives, admin awards etc.
+///    use other reason strings and are never in scope.
+///  - Removal is netted against ALL manual admin removals the player already took
+///    (`already_removed`). If an admin has already clawed a dupe back by hand, we
+///    will NOT remove it again. Worst case we under-correct (leave a dupe), which
+///    upsets nobody, rather than double-remove and eat real PQ.
+///  - We only hand back PQ that was removed BEYOND what the dupes were worth
+///    (`over_removed`), filtered by `mode`. In keyword mode a punishment whose
+///    reason has no dupe keyword is never reversed.
 /proc/fix_agevet_pq_single(target_ckey, mode = "keyword", dry_run = TRUE, admin_ckey, force = FALSE)
 	target_ckey = ckey(target_ckey)
 	if(!target_ckey)
@@ -222,26 +231,32 @@ GLOBAL_LIST_INIT(agevet_dedup_reason_keywords, list(
 	// even under a dry run (this only records that a bonus exists; it grants nothing).
 	if(!dry_run)
 		mark_agevet_bonus_paid(target_ckey)
-	var/excess = info["bonus_total"] - 10 // keep exactly one +10
+	var/excess = info["bonus_total"] - 10 // keep exactly one +10 entitlement
 	if(excess < 0)
 		excess = 0
-	var/restore = 0
+	// PQ admins have already manually removed. Netting against this is what makes
+	// double-removal (and therefore eating real PQ) impossible.
+	var/already_removed = info["restore_all"]
+	var/live_dupe = max(0, excess - already_removed) // dupe still inflating the score
+	var/over_removed = max(0, already_removed - excess) // taken beyond the dupes' worth
+	var/selected = 0
 	switch(mode)
 		if("keyword")
-			restore = info["restore_keyword"]
+			selected = info["restore_keyword"]
 		if("ten")
-			restore = info["restore_ten"]
+			selected = info["restore_ten"]
 		if("all")
-			restore = info["restore_all"]
+			selected = info["restore_all"]
 		else
-			restore = 0
-	restore = min(restore, excess) // never hand back more than the dupes cost
-	var/net_delta = restore - excess
+			selected = 0
+	var/restore = min(selected, over_removed) // only hand back genuine over-removal
+	var/net_delta = restore - live_dupe
 	if(!dry_run)
 		if(net_delta != 0)
-			adjust_playerquality(net_delta, target_ckey, admin_ckey, "Whitelist bonus dedup (removed [excess] dupe, restored [restore] manual)")
+			adjust_playerquality(net_delta, target_ckey, admin_ckey, "Whitelist bonus dedup (removed [live_dupe] live dupe, restored [restore] over-removed)")
 		WRITE_FILE(file(marker), json_encode(list(
-			"applied" = net_delta, "excess" = excess, "restored" = restore,
+			"applied" = net_delta, "live_dupe" = live_dupe, "restored" = restore,
+			"excess" = excess, "already_removed" = already_removed,
 			"bonus_count" = bonus_count, "mode" = mode, "round" = GLOB.rogue_round_id)))
 	return net_delta
 
@@ -282,7 +297,7 @@ GLOBAL_LIST_INIT(agevet_dedup_reason_keywords, list(
 				affected++
 				total_delta += delta
 				if(dry_run)
-					to_chat(src, span_info("[the_ckey]: [info["bonus_count"]] bonuses, would apply [delta] (excess -[info["bonus_total"] - 10], restore capped by mode '[mode]')."))
+					to_chat(src, span_info("[the_ckey]: [info["bonus_count"]] bonuses (+[info["bonus_total"]]), already manually removed -[info["restore_all"]] -> would apply [delta] (mode '[mode]')."))
 			CHECK_TICK
 	var/msg = "[src.ckey] ran whitelist-bonus dedup ([dry_run ? "DRY RUN" : "APPLIED"], mode '[mode]'): [scanned] scanned, [affected] affected, net [total_delta] PQ."
 	to_chat(src, "<span class=\"admin\"><span class=\"prefix\">ADMIN LOG:</span> <span class=\"message linkify\">[msg]</span></span>")

@@ -34,6 +34,9 @@ GLOBAL_LIST_INIT(special_traits, build_special_traits())
 /proc/apply_character_post_equipment(mob/living/carbon/human/character, client/player)
 	if(!player)
 		player = character.client
+	if(!player?.prefs)
+		// No client/prefs (e.g. class preview dummy) - nothing prefs-based to apply.
+		return
 	apply_charflaw_equipment(character, player)
 	apply_prefs_special(character, player)
 	apply_prefs_virtue(character, player)
@@ -77,6 +80,10 @@ GLOBAL_LIST_INIT(special_traits, build_special_traits())
 		assigned_job.clamp_stats(character)
 
 /proc/apply_voicepacks(mob/living/carbon/human/character, client/player)
+	if(!player)
+		player = character.client
+	if(!player?.prefs)
+		return
 	if(player.prefs.voice_pack != "Default")
 		var/datum/voicepack/VP = GLOB.voice_packs_list[player.prefs.voice_pack]
 		character.dna.species.soundpack_m = new VP()
@@ -249,7 +256,9 @@ GLOBAL_LIST_INIT(special_traits, build_special_traits())
 		to_chat(character, special.greet_text)
 
 /proc/apply_prefs_origin(mob/living/carbon/human/character, client/player)
-	if(!player.prefs)
+	if(!player)
+		player = character.client
+	if(!player?.prefs)
 		return
 	var/datum/origin/O = player.prefs.origin
 	if(!O)

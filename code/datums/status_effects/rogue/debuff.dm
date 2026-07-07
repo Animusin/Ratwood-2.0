@@ -886,7 +886,7 @@
 		for(var/obj/item/rogueweapon/huntingknife/idagger/harpy_talons/talons in harpy.held_items)
 			harpy.dropItemToGround(talons, TRUE)
 			return
-	var/mob/buckled_rider = buckled_mob.resolve()
+	var/mob/buckled_rider = buckled_mob?.resolve()
 	if(!isnull(buckled_rider))
 		buckled_rider.movement_type &= ~FLYING
 	buckled_mob = null
@@ -953,8 +953,8 @@
 /// Updates flight when a mob is unbuckled as a harpy is already in flight
 /datum/status_effect/debuff/harpy_flight/proc/harpy_mob_unbuckle(datum/source, mob/living/M, force = FALSE)
 	SIGNAL_HANDLER
-	var/mob/living/unbuckling_mob = buckled_mob.resolve()
-	if(!unbuckling_mob && isnull(M))
+	var/mob/living/unbuckling_mob = buckled_mob?.resolve()
+	if(!unbuckling_mob)
 		buckled_mob = null
 		return
 	unbuckling_mob.movement_type &= ~FLYING

@@ -9,6 +9,8 @@ GLOBAL_PROTECT(admin_verbs_default)
 	/client/proc/adjust_pq,
 	/client/proc/recalc_pq_bulk,
 	/client/proc/recalc_pq_single,
+	/client/proc/fix_agevet_pq_bulk,
+	/client/proc/fix_agevet_pq_lookup,
 	/client/proc/hearallasghost,
 	/client/proc/hearglobalLOOC,
 	/client/proc/togglespawnmessages,

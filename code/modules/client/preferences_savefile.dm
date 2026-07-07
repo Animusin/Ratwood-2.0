@@ -299,6 +299,8 @@ SAVEFILE UPDATING/VERSIONING - 'Simplified', or rather, more coder-friendly ~Car
 	// Patreon-dependent settings
 	S["patreon_say_color"]			>> patreon_say_color
 	S["patreon_say_color_enabled"]	>> patreon_say_color_enabled
+	S["donation_ooc_color_enabled"]	>> donation_ooc_color_enabled
+	S["donation_ooc_font_size_enabled"]	>> donation_ooc_font_size_enabled
 
 	// Custom hotkeys
 	S["key_bindings"]		>> key_bindings
@@ -353,6 +355,8 @@ SAVEFILE UPDATING/VERSIONING - 'Simplified', or rather, more coder-friendly ~Car
 	ambiencevol = sanitize_integer(ambiencevol, 0, 100, initial(ambiencevol))
 	mastervol = sanitize_integer(mastervol, 0, 100, initial(mastervol))
 	hide_unavailable_emotes = sanitize_integer(hide_unavailable_emotes, 0, 1, initial(hide_unavailable_emotes))
+	donation_ooc_color_enabled = sanitize_integer(donation_ooc_color_enabled, 0, 1, initial(donation_ooc_color_enabled))
+	donation_ooc_font_size_enabled = sanitize_integer(donation_ooc_font_size_enabled, 0, 1, initial(donation_ooc_font_size_enabled))
 
 	//ROGUETOWN
 	parallax = PARALLAX_INSANE
@@ -477,6 +481,8 @@ SAVEFILE UPDATING/VERSIONING - 'Simplified', or rather, more coder-friendly ~Car
 	WRITE_FILE(S["runmode"], runmode)
 	WRITE_FILE(S["patreon_say_color"], patreon_say_color)
 	WRITE_FILE(S["patreon_say_color_enabled"], patreon_say_color_enabled)
+	WRITE_FILE(S["donation_ooc_color_enabled"], donation_ooc_color_enabled)
+	WRITE_FILE(S["donation_ooc_font_size_enabled"], donation_ooc_font_size_enabled)
 	WRITE_FILE(S["compliance_notifs"], compliance_notifs)
 	WRITE_FILE(S["skillcap_notifs"], skillcap_notifs)
 

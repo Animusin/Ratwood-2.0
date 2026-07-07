@@ -100,6 +100,9 @@ GLOBAL_VAR(PatreonsLoaded)
 	for(var/X in GLOB.temporary_donators)
 		if(X == ckey)
 			return GLOB.temporary_donators[X]
+	var/db_donation_level = SSdonations?.get_cached_patreon_level_for_ckey(ckey)
+	if(db_donation_level)
+		return db_donation_level
 	if(!GLOB.PatreonsLoaded)
 		return get_patreon_manual(ckey)
 	var/num1 = 0

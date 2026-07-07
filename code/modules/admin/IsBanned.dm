@@ -265,6 +265,8 @@ GLOBAL_VAR(last_connection)
 /proc/IsPatreon(ckey)
 	if(ckey in GLOB.allpatreons)
 		return TRUE
+	if(SSdonations?.is_donator_ckey(ckey))
+		return TRUE
 	else
 		return FALSE
 

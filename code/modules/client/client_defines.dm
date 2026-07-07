@@ -56,6 +56,9 @@
 
 	var/patreonlevel = -1
 	var/is_donator = FALSE
+	var/donation_info_loaded = FALSE
+	var/donation_tier = "none"
+	var/opyxes = 0
 
 		////////////
 		//SECURITY//

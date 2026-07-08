@@ -278,11 +278,6 @@ GLOBAL_LIST_INIT(agevet_dedup_reason_keywords, list(
 	var/scanned = 0
 	var/affected = 0
 	var/total_delta = 0
-	// Legacy/duplicate prefix dirs (old 2-char scheme alongside the current 1-char
-	// one) mean the same ckey can be reached twice. analyze/fix always resolve to
-	// the canonical save via ckey, so processing is correct either way, but we dedup
-	// here so the report and totals aren't doubled.
-	var/list/seen = list()
 	for(var/pfx in flist("data/player_saves/"))
 		if(copytext(pfx, length(pfx)) != "/")
 			continue
@@ -292,9 +287,6 @@ GLOBAL_LIST_INIT(agevet_dedup_reason_keywords, list(
 			var/the_ckey = ckey(copytext(ckey_dir, 1, length(ckey_dir)))
 			if(!the_ckey)
 				continue
-			if(seen[the_ckey])
-				continue
-			seen[the_ckey] = TRUE
 			scanned++
 			var/list/info = analyze_agevet_pq(the_ckey)
 			if(info["bonus_count"] <= 1) // 0 or 1 bonus = nothing to dedup

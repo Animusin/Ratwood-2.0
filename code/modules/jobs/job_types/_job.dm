@@ -85,7 +85,9 @@
 	var/job_greet_text = TRUE
 	var/tutorial = null
 
-	var/whitelist_req = FALSE
+	/// Whether this role is unavailable to players outside the server whitelist.
+	/// Keep this enabled by default so newly added roles do not accidentally become public.
+	var/whitelist_req = TRUE
 
 	var/bypass_jobban = FALSE
 	var/bypass_lastclass = TRUE

@@ -5,6 +5,7 @@
 	faction = "Station"
 	total_positions = 2
 	spawn_positions = 2
+	whitelist_req = FALSE
 
 	allowed_races = RACES_ALL_KINDS
 	allowed_ages = list(AGE_ADULT, AGE_MIDDLEAGED)

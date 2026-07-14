@@ -25,4 +25,7 @@ GLOBAL_PROTECT(whitelist)
 		return TRUE
 #endif
 	return (ckey in GLOB.whitelist)
+
+/client/proc/has_whitelist_access()
+	return check_whitelist(ckey) || GLOB.admin_datums[ckey] || GLOB.deadmins[ckey]
 #undef WHITELISTFILE

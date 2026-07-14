@@ -35,17 +35,6 @@ GLOBAL_VAR(last_connection)
 
 	var/client/C = GLOB.directory[ckey]
 
-	//Whitelist
-	if(!real_bans_only && !C && CONFIG_GET(flag/usewhitelist))
-		if(!check_whitelist(ckey))
-			if (admin)
-				log_admin("The admin [key] has been allowed to bypass the whitelist")
-				if (message)
-					message_admins(span_adminnotice("The admin [key] has been allowed to bypass the whitelist"))
-					addclientmessage(ckey,span_adminnotice("I have been allowed to bypass the whitelist"))
-			else
-				log_access("Failed Login: [key] - Not on whitelist")
-				return list("reason"="whitelist", "desc" = "\nContact server staff to become whitelisted.")
 /*
 #ifdef MATURESERVER
 	if(!check_whitelist(ckey))

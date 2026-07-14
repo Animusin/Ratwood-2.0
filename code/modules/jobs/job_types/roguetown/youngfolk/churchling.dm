@@ -5,6 +5,7 @@
 	faction = "Station"
 	total_positions = 2
 	spawn_positions = 2
+	whitelist_req = FALSE
 
 	allowed_races = ACCEPTED_RACES
 	allowed_sexes = list(MALE, FEMALE)
@@ -107,4 +108,3 @@
 	H.church_favor += 1200
 	H.reset_clergy_devotion(CLERIC_T1, CLERIC_REGEN_DEVOTEE, FALSE, CLERIC_REQ_1)
 	to_chat(H, span_notice("I embrace the radical path."))
-

@@ -5,6 +5,7 @@
 	faction = "Station"
 	total_positions = 1
 	spawn_positions = 1
+	whitelist_req = FALSE
 
 	allowed_races = ACCEPTED_RACES
 	allowed_sexes = list(MALE, FEMALE)

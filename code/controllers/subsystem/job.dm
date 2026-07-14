@@ -105,6 +105,8 @@ SUBSYSTEM_DEF(job)
 		var/datum/job/job = GetJob(rank)
 		if(!job)
 			return FALSE
+		if(CONFIG_GET(flag/usewhitelist) && job.whitelist_req && !player.client.has_whitelist_access())
+			return FALSE
 		if(is_banned_from(player.ckey, rank) || QDELETED(player))
 			return FALSE
 		if(!job.player_old_enough(player.client))
@@ -198,7 +200,7 @@ SUBSYSTEM_DEF(job)
 			JobDebug("FOC player did not pass special check, Player: [player], Job:[job.title]")
 			continue
 		if(CONFIG_GET(flag/usewhitelist))
-			if(job.whitelist_req && (!player.client.whitelisted()))
+			if(job.whitelist_req && !player.client.has_whitelist_access())
 				continue
 		if(player.client.prefs.job_preferences[job.title] == level)
 			JobDebug("FOC pass, Player: [player], Level:[level]")
@@ -288,7 +290,7 @@ SUBSYSTEM_DEF(job)
 			continue
 
 		if(CONFIG_GET(flag/usewhitelist))
-			if(job.whitelist_req && (!player.client.whitelisted()))
+			if(job.whitelist_req && !player.client.has_whitelist_access())
 				continue
 
 //		if((player.client.prefs.lastclass == job.title) && (!job.bypass_lastclass))
@@ -550,7 +552,7 @@ SUBSYSTEM_DEF(job)
 					continue
 
 				if(CONFIG_GET(flag/usewhitelist))
-					if(job.whitelist_req && (!player.client.whitelisted()))
+					if(job.whitelist_req && !player.client.has_whitelist_access())
 						continue
 
 				if(length(job.allowed_ages) && !(player.client.prefs.age in job.allowed_ages))
@@ -646,7 +648,7 @@ SUBSYSTEM_DEF(job)
 					continue
 
 				if(CONFIG_GET(flag/usewhitelist))
-					if(job.whitelist_req && (!player.client.whitelisted()))
+					if(job.whitelist_req && !player.client.has_whitelist_access())
 						continue
 
 				if(length(job.allowed_ages) && !(player.client.prefs.age in job.allowed_ages))

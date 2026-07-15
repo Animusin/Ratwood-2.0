@@ -74,9 +74,8 @@ GLOBAL_VAR_INIT(adventurer_hugbox_duration_still, 3 MINUTES)
 		/datum/advclass/foreigner/bluthund,
 	)
 
-/datum/job/roguetown/adventurer/get_latejoin_position_limit()
-	// Include the prospective latejoiner so a join that lands exactly at 30% is allowed.
-	return floor((get_active_player_count() + 1) * ADVENTURER_LATEJOIN_POPULATION_RATIO)
+/datum/job/roguetown/adventurer/get_position_limit(latejoin = FALSE)
+	return floor(GLOB.clients.len * ADVENTURER_LATEJOIN_POPULATION_RATIO)
 
 /mob/living/carbon/human/proc/adv_hugboxing_start()
 	to_chat(src, span_warning("I will be in danger once I start moving."))

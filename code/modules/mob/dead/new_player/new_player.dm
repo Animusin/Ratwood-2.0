@@ -473,7 +473,7 @@ GLOBAL_LIST_INIT(roleplay_readme, world.file2list("strings/rt/rp_prompt.txt"))
 	if((job.same_job_respawn_delay) && (ckey in GLOB.job_respawn_delays))
 		if(world.time < GLOB.job_respawn_delays[ckey])
 			return JOB_UNAVAILABLE_JOB_COOLDOWN
-	var/position_limit = latejoin ? SSjob.get_latejoin_position_limit(job) : job.total_positions
+	var/position_limit = latejoin ? SSjob.get_latejoin_position_limit(job) : job.get_position_limit(FALSE)
 	if((job.current_positions >= position_limit) && position_limit != -1)
 		if(job.title == "Assistant")
 			if(isnum(client.player_age) && client.player_age <= 14) //Newbies can always be assistants

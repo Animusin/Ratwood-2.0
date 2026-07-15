@@ -331,9 +331,9 @@
 		return FALSE
 	return TRUE
 
-/// Returns the live slot cap used for latejoin availability, assignment, and display.
-/datum/job/proc/get_latejoin_position_limit()
-	return total_positions
+/// Returns the live slot cap used for availability, assignment, and display.
+/datum/job/proc/get_position_limit(latejoin = FALSE)
+	return latejoin ? total_positions : spawn_positions
 
 /datum/job/proc/GetAntagRep()
 	. = CONFIG_GET(keyed_list/antag_rep)[LOWER_TEXT(title)]

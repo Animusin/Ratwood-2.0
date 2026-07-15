@@ -91,13 +91,14 @@ SUBSYSTEM_DEF(job)
 /datum/controller/subsystem/job/proc/get_latejoin_position_limit(datum/job/job, remaining_antag_capacity = null)
 	if(!job)
 		return 0
+	var/job_position_limit = job.get_position_limit(TRUE)
 	if(!job.antag_job || job.antag_cap_weight <= 0 || isnull(remaining_antag_capacity))
-		return job.total_positions
+		return job_position_limit
 	var/remaining_positions = FLOOR(max(remaining_antag_capacity, 0) / job.antag_cap_weight, 1)
 	var/cap_position_limit = job.current_positions + remaining_positions
-	if(job.total_positions < 0)
+	if(job_position_limit < 0)
 		return cap_position_limit
-	return min(job.total_positions, cap_position_limit)
+	return min(job_position_limit, cap_position_limit)
 
 /datum/controller/subsystem/job/proc/AssignRole(mob/player, rank, latejoin = FALSE)
 	JobDebug("Running AR, Player: [player], Rank: [rank], LJ: [latejoin]")
@@ -116,8 +117,12 @@ SUBSYSTEM_DEF(job)
 		if(!can_assign_antag_job(job))
 			return FALSE
 		var/position_limit = job.total_positions
-		if(!latejoin)
-			position_limit = job.spawn_positions
+		if(latejoin)
+			position_limit = get_latejoin_position_limit(job)
+			if(!job.bypass_latejoin_position_limit && position_limit != -1 && job.current_positions >= position_limit)
+				return FALSE
+		else
+			position_limit = job.get_position_limit(FALSE)
 		JobDebug("Player: [player] is now Rank: [rank], JCP:[job.current_positions], JPL:[position_limit]")
 		if(player.mind.assigned_role)
 			var/datum/job/old_job = SSjob.GetJob(player.mind.assigned_role)
@@ -297,8 +302,9 @@ SUBSYSTEM_DEF(job)
 //			JobDebug("GRJ incompatible with lastclass, Player: [player], Job: [job.title]")
 //			continue
 
-		if(job.spawn_positions)
-			if((job.current_positions < job.spawn_positions) || job.spawn_positions == -1)
+		var/position_limit = job.get_position_limit(FALSE)
+		if(position_limit)
+			if((job.current_positions < position_limit) || position_limit == -1)
 				JobDebug("GRJ Random job given, Player: [player], Job: [job]")
 				if(AssignRole(player, job.title))
 					return TRUE
@@ -356,7 +362,7 @@ SUBSYSTEM_DEF(job)
 			var/datum/job/job = GetJob(noble_position)
 			if(!job)
 				continue
-			if(job.current_positions >= job.spawn_positions)
+			if(job.current_positions >= job.get_position_limit(FALSE))
 				continue
 			var/list/candidates = FindOccupationCandidates(job, level)
 			if(!candidates.len)
@@ -374,7 +380,7 @@ SUBSYSTEM_DEF(job)
 		var/datum/job/job = GetJob(noble_position)
 		if(!job)
 			continue
-		if(job.current_positions >= job.spawn_positions)
+		if(job.current_positions >= job.get_position_limit(FALSE))
 			continue
 		var/list/candidates = FindOccupationCandidates(job, level)
 		if(!candidates.len)
@@ -570,7 +576,8 @@ SUBSYSTEM_DEF(job)
 				// If the player wants that job on this level, then try give it to him.
 				if(player.client.prefs.job_preferences[job.title] == level)
 					// If the job isn't filled
-					if((job.current_positions < job.spawn_positions) || job.spawn_positions == -1)
+					var/position_limit = job.get_position_limit(FALSE)
+					if((job.current_positions < position_limit) || position_limit == -1)
 						testing("DO pass, Player: [player], Level:[level], Job:[job.title]")
 						AssignRole(player, job.title)
 						unassigned -= player

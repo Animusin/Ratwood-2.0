@@ -3,6 +3,10 @@ GLOBAL_LIST_EMPTY(billagerspawns)
 GLOBAL_VAR_INIT(adventurer_hugbox_duration, 40 SECONDS)
 GLOBAL_VAR_INIT(adventurer_hugbox_duration_still, 3 MINUTES)
 
+#define ADVENTURER_POPULATION_RATIO 0.3
+#define ADVENTURER_MIN_POSITIONS 5
+#define ADVENTURER_MAX_POSITIONS 20
+
 /datum/job/roguetown/adventurer
 	title = "Adventurer"
 	flag = ADVENTURER
@@ -72,6 +76,9 @@ GLOBAL_VAR_INIT(adventurer_hugbox_duration_still, 3 MINUTES)
 		/datum/advclass/foreigner/bluthund,
 	)
 
+/datum/job/roguetown/adventurer/get_position_limit(latejoin = FALSE)
+	return clamp(floor(GLOB.clients.len * ADVENTURER_POPULATION_RATIO), ADVENTURER_MIN_POSITIONS, ADVENTURER_MAX_POSITIONS)
+
 /mob/living/carbon/human/proc/adv_hugboxing_start()
 	to_chat(src, span_warning("I will be in danger once I start moving."))
 	status_flags |= GODMODE
@@ -95,3 +102,7 @@ GLOBAL_VAR_INIT(adventurer_hugbox_duration_still, 3 MINUTES)
 	status_flags &= ~GODMODE
 	REMOVE_TRAIT(src, TRAIT_PACIFISM, HUGBOX_TRAIT)
 	to_chat(src, span_danger("My joy is gone! Danger surrounds me."))
+
+#undef ADVENTURER_POPULATION_RATIO
+#undef ADVENTURER_MIN_POSITIONS
+#undef ADVENTURER_MAX_POSITIONS

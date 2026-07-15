@@ -270,11 +270,11 @@
 /obj/effect/proc_holder/spell/invoked/abscond/proc/reset(silent = FALSE)
 	if(tile_effect && destination_turf)
 		destination_turf.cut_overlay(tile_effect)
-		qdel(tile_effect)
+		tile_effect = null
 		destination_turf = null
 	if(user_turf && target_effect)
 		user_turf.cut_overlay(target_effect)
-		qdel(target_effect)
+		target_effect = null
 		user_turf = null
 	update_icon()
 
@@ -456,7 +456,8 @@
 /obj/item/melee/touch_attack/parlor_trick/dropped()
 	..()
 	disrupt()
-	qdel(src)
+	if(!QDELING(src))
+		qdel(src)
 
 /obj/item/melee/touch_attack/parlor_trick/equipped()
 	..()

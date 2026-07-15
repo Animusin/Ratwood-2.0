@@ -49,6 +49,9 @@
 
 /obj/shapeshift_holder/proc/casterDeath()
 	//Something kills the stored caster through direct damage.
+	//Specialized holders, such as ooze_death, do not have a spell source.
+	if(!source)
+		return
 	if(source.revert_on_death)
 		restore(death=TRUE)
 	else
@@ -56,6 +59,8 @@
 
 /obj/shapeshift_holder/proc/shapeDeath()
 	//Shape dies.
+	if(!source)
+		return
 	if(source.die_with_shapeshifted_form)
 		if(source.revert_on_death)
 			restore(death=TRUE)

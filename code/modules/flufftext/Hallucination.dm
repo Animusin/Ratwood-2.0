@@ -1105,7 +1105,8 @@ GLOBAL_LIST_INIT(hallucination_list, list(
 			sleep(rand(20,40)) //Only seen for a brief moment.
 			if(target.client)
 				target.client.images -= target.halbody
-			QDEL_NULL(target.halbody)
+			// /image instances are not qdel-able; dropping the reference is enough.
+			target.halbody = null
 	qdel(src)
 
 /datum/hallucination/voices

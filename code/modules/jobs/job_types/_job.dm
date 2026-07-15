@@ -32,6 +32,8 @@
 
 	//How many players have this job
 	var/current_positions = 0
+	/// Special jobs such as migrant waves assign their own roster and do not use latejoin slots.
+	var/bypass_latejoin_position_limit = FALSE
 
 	//Whether this job clears a slot when you get a rename prompt.
 	var/antag_job = FALSE
@@ -328,6 +330,10 @@
 	if(antag_job && SSjob && !SSjob.can_assign_antag_job(src))
 		return FALSE
 	return TRUE
+
+/// Returns the live slot cap used for latejoin availability, assignment, and display.
+/datum/job/proc/get_latejoin_position_limit()
+	return total_positions
 
 /datum/job/proc/GetAntagRep()
 	. = CONFIG_GET(keyed_list/antag_rep)[LOWER_TEXT(title)]

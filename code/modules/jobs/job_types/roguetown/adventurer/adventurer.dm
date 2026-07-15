@@ -3,6 +3,8 @@ GLOBAL_LIST_EMPTY(billagerspawns)
 GLOBAL_VAR_INIT(adventurer_hugbox_duration, 40 SECONDS)
 GLOBAL_VAR_INIT(adventurer_hugbox_duration_still, 3 MINUTES)
 
+#define ADVENTURER_LATEJOIN_POPULATION_RATIO 0.3
+
 /datum/job/roguetown/adventurer
 	title = "Adventurer"
 	flag = ADVENTURER
@@ -72,6 +74,10 @@ GLOBAL_VAR_INIT(adventurer_hugbox_duration_still, 3 MINUTES)
 		/datum/advclass/foreigner/bluthund,
 	)
 
+/datum/job/roguetown/adventurer/get_latejoin_position_limit()
+	// Include the prospective latejoiner so a join that lands exactly at 30% is allowed.
+	return floor((get_active_player_count() + 1) * ADVENTURER_LATEJOIN_POPULATION_RATIO)
+
 /mob/living/carbon/human/proc/adv_hugboxing_start()
 	to_chat(src, span_warning("I will be in danger once I start moving."))
 	status_flags |= GODMODE
@@ -95,3 +101,5 @@ GLOBAL_VAR_INIT(adventurer_hugbox_duration_still, 3 MINUTES)
 	status_flags &= ~GODMODE
 	REMOVE_TRAIT(src, TRAIT_PACIFISM, HUGBOX_TRAIT)
 	to_chat(src, span_danger("My joy is gone! Danger surrounds me."))
+
+#undef ADVENTURER_LATEJOIN_POPULATION_RATIO

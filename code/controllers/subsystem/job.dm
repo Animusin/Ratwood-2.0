@@ -91,13 +91,14 @@ SUBSYSTEM_DEF(job)
 /datum/controller/subsystem/job/proc/get_latejoin_position_limit(datum/job/job, remaining_antag_capacity = null)
 	if(!job)
 		return 0
+	var/job_position_limit = job.get_latejoin_position_limit()
 	if(!job.antag_job || job.antag_cap_weight <= 0 || isnull(remaining_antag_capacity))
-		return job.total_positions
+		return job_position_limit
 	var/remaining_positions = FLOOR(max(remaining_antag_capacity, 0) / job.antag_cap_weight, 1)
 	var/cap_position_limit = job.current_positions + remaining_positions
-	if(job.total_positions < 0)
+	if(job_position_limit < 0)
 		return cap_position_limit
-	return min(job.total_positions, cap_position_limit)
+	return min(job_position_limit, cap_position_limit)
 
 /datum/controller/subsystem/job/proc/AssignRole(mob/player, rank, latejoin = FALSE)
 	JobDebug("Running AR, Player: [player], Rank: [rank], LJ: [latejoin]")
@@ -116,7 +117,11 @@ SUBSYSTEM_DEF(job)
 		if(!can_assign_antag_job(job))
 			return FALSE
 		var/position_limit = job.total_positions
-		if(!latejoin)
+		if(latejoin)
+			position_limit = get_latejoin_position_limit(job)
+			if(!job.bypass_latejoin_position_limit && position_limit != -1 && job.current_positions >= position_limit)
+				return FALSE
+		else
 			position_limit = job.spawn_positions
 		JobDebug("Player: [player] is now Rank: [rank], JCP:[job.current_positions], JPL:[position_limit]")
 		if(player.mind.assigned_role)

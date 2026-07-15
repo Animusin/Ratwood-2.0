@@ -473,7 +473,8 @@ GLOBAL_LIST_INIT(roleplay_readme, world.file2list("strings/rt/rp_prompt.txt"))
 	if((job.same_job_respawn_delay) && (ckey in GLOB.job_respawn_delays))
 		if(world.time < GLOB.job_respawn_delays[ckey])
 			return JOB_UNAVAILABLE_JOB_COOLDOWN
-	if((job.current_positions >= job.total_positions) && job.total_positions != -1)
+	var/position_limit = latejoin ? SSjob.get_latejoin_position_limit(job) : job.total_positions
+	if((job.current_positions >= position_limit) && position_limit != -1)
 		if(job.title == "Assistant")
 			if(isnum(client.player_age) && client.player_age <= 14) //Newbies can always be assistants
 				return JOB_AVAILABLE
@@ -615,9 +616,10 @@ GLOBAL_LIST_INIT(roleplay_readme, world.file2list("strings/rt/rp_prompt.txt"))
 		character.client.update_ooc_verb_visibility()
 
 /mob/dead/new_player/proc/LateChoices()
-	var/list/dat = list("<div class='notice' style='font-style: normal; font-size: 14px; margin-bottom: 2px; padding-bottom: 0px'>Round Duration: [DisplayTimeText(world.time - SSticker.round_start_time, 1)]</div>")
+	var/list/dat = list("<div class='notice' style='font-style: normal; font-size: 14px; margin-bottom: 2px; padding-bottom: 0px'>Round Duration: [DisplayTimeText(world.time - SSticker.round_start_time, 1)] &mdash; <a href='byond://?src=[REF(src)];late_join=1'>Refresh slots</a></div>")
 	for(var/datum/job/prioritized_job in SSjob.prioritized_jobs)
-		if(prioritized_job.current_positions >= prioritized_job.total_positions)
+		var/prioritized_position_limit = SSjob.get_latejoin_position_limit(prioritized_job)
+		if(prioritized_position_limit != -1 && prioritized_job.current_positions >= prioritized_position_limit)
 			SSjob.prioritized_jobs -= prioritized_job
 	dat += "<table><tr><td valign='top'>"
 	var/column_counter = 0
@@ -705,17 +707,18 @@ GLOBAL_LIST_INIT(roleplay_readme, world.file2list("strings/rt/rp_prompt.txt"))
 					if(job in GLOB.noble_positions)
 						command_bold = TRUE
 					var/display_position_limit = SSjob.get_latejoin_position_limit(job_datum, remaining_antag_capacity)
-					var/antag_capacity_full = job_datum.antag_job && job_datum.antag_cap_weight > 0 && display_position_limit <= job_datum.current_positions
+					var/position_full = display_position_limit != -1 && display_position_limit <= job_datum.current_positions
 					var/used_name = job_datum.display_title || job_datum.title
 					if(client.prefs.pronouns == SHE_HER && job_datum.f_title)
 						used_name = job_datum.f_title
-					if(job_datum in SSjob.prioritized_jobs && !job_datum.antag_job)
-						dat += "<a class='job[command_bold]' href='byond://?src=[REF(src)];SelectedJob=[job_datum.title]'><span class='priority'>[used_name] ([job_datum.current_positions])</span></a>"
+					if(job_datum in SSjob.prioritized_jobs && !job_datum.antag_job && !position_full)
+						dat += "<a class='job[command_bold]' href='byond://?src=[REF(src)];SelectedJob=[job_datum.title]'><span class='priority'>[used_name] ([job_datum.current_positions]/[display_position_limit])</span></a>"
 					else
 						var/subclass_info = do_elaborate ? "<a href='?src=[REF(job_datum)];jobsubclassinfo=1'><b><font color='#6b6743'>(!)</font></b></a>" : ""
 						var/job_label = "[command_bold ? "<b>" : ""][used_name] ([job_datum.current_positions]/[display_position_limit])[command_bold ? "</b>" : ""]"
-						if(antag_capacity_full)
-							dat += "<font size=3 color='#777777'>[subclass_info]<span title='Antagonist capacity is full'>[job_label]</span></font>"
+						if(position_full)
+							var/full_reason = job_datum.antag_job && job_datum.antag_cap_weight > 0 ? "Antagonist capacity or job slots are full" : "Job slots are full"
+							dat += "<font size=3 color='#777777'>[subclass_info]<span title='[full_reason]'>[job_label]</span></font>"
 						else
 							dat += "<font size=3>[subclass_info]<a href='byond://?src=[REF(src)];SelectedJob=[job_datum.title]'>[job_label]</a></font>"
 						dat += "<br>"

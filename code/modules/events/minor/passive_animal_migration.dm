@@ -33,6 +33,9 @@ GLOBAL_LIST_INIT(animal_migration_points, list())
 /datum/round_event/animal_migration/start()
 	. = ..()
 
+	if(!length(GLOB.animal_migration_points) || !length(animals))
+		return
+
 	var/turf/start_turf = get_turf(pick(GLOB.animal_migration_points))
 	var/turf/end_turf = get_turf(pick(GLOB.animal_migration_points))
 	var/mob/living/simple_animal/hostile/retaliate/rogue/animal = pick(animals)

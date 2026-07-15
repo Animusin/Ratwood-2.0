@@ -31,6 +31,10 @@
 
 
 /obj/effect/proc_holder/spell/self/conjure_armor/cast(list/targets, mob/living/user = usr)
+	if(!ishuman(user))
+		to_chat(user, span_warning("I cannot wear conjured armor in this form!"))
+		revert_cast()
+		return FALSE
 	var/mob/living/carbon/human/H = user
 	var/targetac = H.highest_ac_worn()
 	if(targetac > 1)

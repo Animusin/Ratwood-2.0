@@ -1288,6 +1288,15 @@
 /obj/item/reagent_containers/food/snacks/rogue/hcake,
 /turf/open/floor/rogue/church,
 /area/rogue/under)
+"bjI" = (
+/obj/effect/decal/shadow_floor{
+	dir = 4
+	},
+/obj/effect/landmark/start/knight,
+/turf/open/floor/rogue/tile/masonic{
+	dir = 1
+	},
+/area/rogue/indoors)
 "bjR" = (
 /obj/structure/stairs{
 	icon_state = "stairs";
@@ -3173,6 +3182,15 @@
 "djR" = (
 /turf/open/floor/rogue/ruinedwood/chevron,
 /area/rogue/indoors)
+"dkN" = (
+/obj/structure/toilet,
+/obj/structure/bars/grille,
+/obj/item/rogueweapon/shovel,
+/obj/item/rogueweapon/hoe,
+/obj/item/rogueweapon/whip,
+/obj/item/reagent_containers/glass/mortar,
+/turf/open/transparent/openspace,
+/area/rogue/indoors/town/church)
 "dlu" = (
 /obj/item/natural/cloth,
 /obj/item/natural/cloth,
@@ -4589,6 +4607,11 @@
 /obj/item/natural/thorn,
 /turf/open/floor/rogue/blocks,
 /area/rogue/indoors)
+"eyv" = (
+/obj/structure/fluff/railing/border,
+/obj/effect/landmark/start/priest,
+/turf/open/floor/rogue/ruinedwood,
+/area/rogue/indoors/town/church/chapel)
 "eyx" = (
 /obj/structure/stairs{
 	icon_state = "stairs";
@@ -8918,6 +8941,12 @@
 /obj/structure/bars,
 /turf/open/floor/rogue/cobblerock,
 /area/rogue/under/town/basement)
+"iFp" = (
+/obj/structure/floordoor{
+	redstone_id = "throneroom_grille"
+	},
+/turf/open/transparent/openspace,
+/area/rogue/indoors)
 "iFu" = (
 /obj/structure/fluff/railing/border{
 	icon_state = "border";
@@ -11102,6 +11131,14 @@
 	name = "fruit seeds"
 	},
 /turf/open/floor/rogue/dirt/road,
+/area/rogue/indoors)
+"kQw" = (
+/obj/item/natural/cloth,
+/obj/item/natural/cloth,
+/obj/item/natural/bundle/curred_hide,
+/obj/item/roguekey/tailor,
+/obj/effect/landmark/start/tailor,
+/turf/open/floor/rogue/wood,
 /area/rogue/indoors)
 "kRh" = (
 /obj/item/candle/yellow{
@@ -58116,7 +58153,7 @@ biW
 biW
 vtK
 aiE
-aiE
+kQw
 aiE
 aiE
 vtK
@@ -58310,7 +58347,7 @@ biW
 fbg
 bHS
 pzv
-bgj
+iwd
 iwd
 iwd
 bHS
@@ -61166,7 +61203,7 @@ aHx
 vCx
 tZR
 gFz
-ntG
+iFp
 wkC
 eqW
 eqW
@@ -61554,7 +61591,7 @@ dGK
 cOl
 rRP
 mOQ
-cSd
+bjI
 qpc
 erC
 cSd
@@ -63138,7 +63175,7 @@ cWm
 rbU
 rbU
 vst
-piy
+eyv
 tiG
 gtN
 xvT
@@ -63524,7 +63561,7 @@ dZz
 dZz
 chk
 bgc
-nDy
+dkN
 qeT
 rQc
 qXX

@@ -3470,8 +3470,8 @@
 /area/rogue/indoors)
 "dzd" = (
 /obj/structure/fluff/traveltile{
-	aportalgoesto = "bogrtin";
-	aportalid = "bogrtout"
+	aportalgoesto = "forestin";
+	aportalid = "forestout"
 	},
 /turf/open/floor/rogue/cobblerock,
 /area/rogue)
@@ -9686,8 +9686,8 @@
 /area/rogue/under/town/basement)
 "jsb" = (
 /obj/structure/fluff/traveltile{
-	aportalgoesto = "bogrtin2";
-	aportalid = "bogrtout2"
+	aportalgoesto = "forestriverin";
+	aportalid = "forestriverout"
 	},
 /turf/open/floor/rogue/cobblerock,
 /area/rogue/outdoors)
@@ -23266,8 +23266,8 @@
 /area/rogue/indoors)
 "xMA" = (
 /obj/structure/fluff/traveltile{
-	aportalgoesto = "forestdecapout";
-	aportalid = "forestdecapin"
+	aportalgoesto = "forestin";
+	aportalid = "forestout"
 	},
 /turf/open/floor/rogue/naturalstone,
 /area/rogue/outdoors/mountains/decap)

@@ -373,6 +373,7 @@
 /obj/structure/mineral_door/bars{
 	locked = 1;
 	lockid = "tower";
+	lockdifficulty = 3;
 	max_integrity = 100000
 	},
 /turf/open/floor/rogue/tile,
@@ -2162,6 +2163,7 @@
 /turf/open/transparent/openspace,
 /area/rogue/indoors)
 "bZQ" = (
+/obj/structure/roguemachine/goldface,
 /obj/item/book/rogue/secret/xylix,
 /obj/item/book/rogue/law,
 /turf/open/floor/rogue/tile,
@@ -6614,6 +6616,7 @@
 /turf/open/floor/rogue/cobble,
 /area/rogue/indoors)
 "gjs" = (
+/obj/structure/roguemachine/bounty,
 /obj/item/ammo_casing/caseless/rogue/bolt,
 /turf/open/floor/rogue/grass,
 /area/rogue/outdoors)
@@ -7915,6 +7918,7 @@
 /turf/open/floor/rogue/naturalstone,
 /area/rogue/under/cave)
 "hEM" = (
+/obj/structure/roguemachine/crier,
 /obj/item/grown/log/tree/stick,
 /obj/item/grown/log/tree/stick,
 /turf/open/floor/rogue/grass,
@@ -12144,6 +12148,7 @@
 /turf/open/water/swamp,
 /area/rogue/under/cave)
 "lOm" = (
+/obj/structure/roguemachine/noticeboard,
 /obj/structure/flora/roguegrass,
 /obj/item/grown/log/tree/stick,
 /turf/open/floor/rogue/grass,
@@ -13117,6 +13122,7 @@
 /obj/structure/mineral_door/bars{
 	locked = 1;
 	lockid = "mage";
+	lockdifficulty = 3;
 	max_integrity = 100000
 	},
 /turf/open/floor/rogue/dirt/road,
@@ -13924,8 +13930,9 @@
 "nBV" = (
 /obj/structure/mineral_door/wood/window{
 	desc = "This is a deceivingly strong door, just what did they make this thing with?";
-	keylock = 0;
+	keylock = 1;
 	locked = 1;
+	lockdifficulty = 3;
 	max_integrity = 10000;
 	name = "Guild Captain's Quarters";
 	lockid = "merc"
@@ -18090,6 +18097,7 @@
 /turf/open/water/sewer,
 /area/rogue/outdoors/exposed/under/sewer)
 "rVL" = (
+/obj/structure/roguemachine/contractledger,
 /obj/structure/fluff/wallclock,
 /turf/open/floor/rogue/cobble,
 /area/rogue/indoors)
@@ -19621,6 +19629,7 @@
 /turf/open/floor/rogue/dirt,
 /area/rogue/outdoors)
 "tJh" = (
+/obj/machinery/artificer_table,
 /obj/item/reagent_containers/glass/cup/wooden,
 /turf/open/floor/rogue/herringbone,
 /area/rogue/indoors)
@@ -22391,7 +22400,7 @@
 /turf/open/floor/rogue/grass,
 /area/rogue/outdoors)
 "wOS" = (
-/obj/structure/mineral_door/wood/red{
+/obj/structure/mineral_door/wood/donjon/tough{
 	lockid = "vault";
 	locked = 1
 	},
@@ -23367,6 +23376,7 @@
 /turf/open/floor/rogue/dirt/road,
 /area/rogue/outdoors)
 "xQC" = (
+/obj/structure/roguemachine/vaultbank,
 /obj/item/perfume/random,
 /turf/open/floor/rogue/carpet/lord/center,
 /area/rogue/indoors/town/vault)

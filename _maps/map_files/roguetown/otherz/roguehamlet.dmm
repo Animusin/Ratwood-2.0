@@ -2164,8 +2164,6 @@
 /area/rogue/indoors)
 "bZQ" = (
 /obj/structure/roguemachine/goldface,
-/obj/item/book/rogue/secret/xylix,
-/obj/item/book/rogue/law,
 /turf/open/floor/rogue/tile,
 /area/rogue/indoors/town/shop)
 "bZV" = (
@@ -7918,7 +7916,6 @@
 /turf/open/floor/rogue/naturalstone,
 /area/rogue/under/cave)
 "hEM" = (
-/obj/structure/roguemachine/crier,
 /obj/item/grown/log/tree/stick,
 /obj/item/grown/log/tree/stick,
 /turf/open/floor/rogue/grass,
@@ -12148,7 +12145,6 @@
 /turf/open/water/swamp,
 /area/rogue/under/cave)
 "lOm" = (
-/obj/structure/roguemachine/noticeboard,
 /obj/structure/flora/roguegrass,
 /obj/item/grown/log/tree/stick,
 /turf/open/floor/rogue/grass,
@@ -14542,6 +14538,7 @@
 "ofX" = (
 /obj/item/roguegear,
 /obj/item/rogueweapon/whip/antique,
+/obj/item/perfume/random,
 /turf/open/floor/rogue/carpet/lord/center,
 /area/rogue/indoors/town/vault)
 "ogp" = (
@@ -14795,6 +14792,8 @@
 /area/rogue/outdoors/town/roofs)
 "opH" = (
 /obj/structure/table/vtable/v2,
+/obj/item/book/rogue/secret/xylix,
+/obj/item/book/rogue/law,
 /obj/item/paper/scroll{
 	pixel_y = 3
 	},
@@ -23377,7 +23376,6 @@
 /area/rogue/outdoors)
 "xQC" = (
 /obj/structure/roguemachine/vaultbank,
-/obj/item/perfume/random,
 /turf/open/floor/rogue/carpet/lord/center,
 /area/rogue/indoors/town/vault)
 "xQH" = (
@@ -23732,6 +23730,22 @@
 "ylD" = (
 /turf/closed/wall/mineral/rogue/roofwall/outercorner,
 /area/rogue/indoors/town/garrison)
+"zzA" = (
+/obj/structure/roguemachine/crier,
+/turf/open/floor/rogue/grass,
+/area/rogue/outdoors)
+"zzB" = (
+/obj/structure/roguemachine/noticeboard,
+/turf/open/floor/rogue/grass,
+/area/rogue/outdoors)
+"zzC" = (
+/obj/effect/landmark/start/manorguardsman,
+/turf/open/floor/rogue/carpet/lord/left,
+/area/rogue/indoors)
+"zzD" = (
+/obj/effect/landmark/start/manorguardsman,
+/turf/open/floor/rogue/carpet/lord/right,
+/area/rogue/indoors)
 
 (1,1,1) = {"
 lnu
@@ -61016,7 +61030,7 @@ chk
 boT
 emq
 iwL
-tUQ
+zzC
 pVx
 avc
 xNI
@@ -61404,7 +61418,7 @@ agY
 boT
 emq
 ftP
-kbl
+zzD
 kfw
 rTz
 ony
@@ -61706,7 +61720,7 @@ fcg
 jxt
 jjy
 fzl
-chk
+zzA
 agY
 aAr
 aAr
@@ -62094,7 +62108,7 @@ jBK
 xKU
 hEM
 eUD
-chk
+zzB
 gcU
 wTk
 oTe

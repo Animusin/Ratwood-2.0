@@ -7,6 +7,10 @@
 /datum/map_adjustment/template/rockhill/roguehamlet
 	map_file_name = "roguehamlet.dmm"
 	realm_name = "Rogue Hamlet"
+	threat_regions = list(
+		THREAT_REGION_AZURE_GROVE,
+		THREAT_REGION_MOUNT_DECAP,
+	)
 
 /datum/map_adjustment/template/rockhill/roguehamlet/job_change()
 	// Unlike Rockhill, the compact Hamlet garrison has a dedicated sergeant start.

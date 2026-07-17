@@ -185,7 +185,7 @@
  */
 /mob/proc/get_message_mode(message)
 	var/key = copytext_char(message, 1, 2)
-	if(key == "#")
+	if(key == "+")
 		return MODE_WHISPER
 	else if(key == ";")
 		return MODE_HEADSET

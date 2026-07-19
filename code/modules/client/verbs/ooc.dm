@@ -11,15 +11,16 @@ GLOBAL_VAR_INIT(normal_ooc_colour, "#002eb8")
 	return donation_tier_ooc_color(donation_tier)
 
 /client/proc/get_ooc_message_color(default_color, admin_recipient_color)
+	var/donation_color = get_donation_ooc_color()
+	if(donation_color)
+		return donation_color
 	if(holder)
 		return "#4972bc"
 	if(prefs?.unlock_content && prefs.ooccolor)
 		return prefs.ooccolor
-	return get_donation_ooc_color() || admin_recipient_color || default_color
+	return admin_recipient_color || default_color
 
 /client/proc/get_donation_ooc_font_size()
-	if(holder)
-		return
 	if(!prefs?.donation_ooc_font_size_enabled)
 		return
 	if(ckey in GLOB.anonymize)

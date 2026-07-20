@@ -249,3 +249,6 @@
   - balance: buff to ww and gnoll armor (it was broken)
   - code_imp: added additional set of brackets to line of code in species.dm, Line
       2036
+2026-07-18:
+  awwliedacoder:
+  - bugfix: message on forced drug sniffing

@@ -1,0 +1,5 @@
+author: "Animusin"
+delete-after: True
+changes:
+  - balance: "Wretch Necromancers now count as two antagonists and require at least 25 effective town strength to appear."
+  - code_imp: "Added reusable advanced-class settings for town-strength gates and Wretch antagonist-cap weights."

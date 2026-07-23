@@ -170,7 +170,11 @@ SUBSYSTEM_DEF(gamemode)
 	var/constructor = 0
 	var/garrison = 0
 	var/holy_warrior = 0
-	/// Calculated effective pop after weighing garrison & holy warriors at 2x
+	/// Active adventurers and inhumen worshippers excluded from antagonist cap population.
+	var/antag_cap_excluded_players = 0
+	/// Population used by the antagonist cap after exclusions and combatant bonuses.
+	var/antag_cap_population = 0
+	/// Full town strength used by class requirements such as the Necromancer gate.
 	var/effective_pop = 0
 
 	var/storyteller_name = "Unknown"
@@ -285,9 +289,15 @@ SUBSYSTEM_DEF(gamemode)
 
 /// Gets the number of antagonists the antagonist injection events will stop rolling after.
 /datum/controller/subsystem/gamemode/proc/get_antag_cap()
-	var/town_strength = get_town_strength()
-	var/cap = FLOOR((town_strength / ANTAG_CAP_DENOMINATOR), 1) + ANTAG_CAP_FLAT
+	var/cap_population = get_antag_cap_population()
+	var/cap = FLOOR((cap_population / ANTAG_CAP_DENOMINATOR), 1) + ANTAG_CAP_FLAT
 	return cap
+
+/// Gets the population used by the antagonist cap, excluding people who are not part of the town.
+/datum/controller/subsystem/gamemode/proc/get_antag_cap_population()
+	var/town_strength = get_town_strength()
+	antag_cap_population = max(town_strength - antag_cap_excluded_players, 0)
+	return antag_cap_population
 
 /// Gets the effective town strength after weighing garrison and holy warriors more heavily.
 /datum/controller/subsystem/gamemode/proc/get_town_strength()
@@ -408,9 +418,40 @@ SUBSYSTEM_DEF(gamemode)
 /// We need to calculate ready players for the sake of roundstart events becoming eligible.
 /datum/controller/subsystem/gamemode/proc/calculate_ready_players()
 	ready_players = 0
+	antag_cap_excluded_players = 0
+	garrison = 0
+	holy_warrior = 0
+	// Jobs are assigned after storyteller pre-setup. Reserve the maximum number of still-possible
+	// adventurers so roundstart antagonist assignments use the projected town population.
+	var/unassigned_adventurer_candidates = 0
+	var/assigned_adventurers = 0
+	var/datum/job/adventurer_job = SSjob.GetJobType(/datum/job/roguetown/adventurer)
 	for(var/mob/dead/new_player/player as anything in GLOB.new_player_list)
-		if(player.ready == PLAYER_READY_TO_PLAY)
-			ready_players++
+		if(player.ready != PLAYER_READY_TO_PLAY)
+			continue
+		ready_players++
+		var/is_inhumen = istype(player.client?.prefs?.selected_patron, /datum/patron/inhumen)
+		var/datum/job/assigned_job = SSjob.GetJob(player.mind?.assigned_role)
+		var/is_adventurer = assigned_job?.type == /datum/job/roguetown/adventurer
+		var/datum/outfit/job/roguetown/assigned_outfit
+		if(assigned_job)
+			assigned_outfit = initial(assigned_job.outfit)
+		if(ispath(assigned_outfit, /datum/outfit/job/roguetown))
+			var/assigned_job_bitflag = initial(assigned_outfit.job_bitflag)
+			if(assigned_job_bitflag & BITFLAG_GARRISON)
+				garrison++
+			if(assigned_job_bitflag & BITFLAG_HOLY_WARRIOR)
+				holy_warrior++
+		if(is_inhumen || is_adventurer)
+			antag_cap_excluded_players++
+		if(is_adventurer)
+			assigned_adventurers++
+		else if(adventurer_job && !assigned_job && !is_inhumen && player.client?.prefs?.job_preferences[adventurer_job.title])
+			unassigned_adventurer_candidates++
+	if(adventurer_job)
+		var/adventurer_limit = adventurer_job.get_position_limit(FALSE)
+		var/remaining_adventurer_slots = max(adventurer_limit - assigned_adventurers, 0)
+		antag_cap_excluded_players += min(unassigned_adventurer_candidates, remaining_adventurer_slots)
 
 /// We roll points to be spent for roundstart events, including antagonists.
 /datum/controller/subsystem/gamemode/proc/roll_pre_setup_points()
@@ -507,6 +548,7 @@ SUBSYSTEM_DEF(gamemode)
 	constructor = 0
 	holy_warrior = 0
 	garrison = 0
+	antag_cap_excluded_players = 0
 	for(var/mob/player_mob as anything in GLOB.player_list)
 		if(!player_mob.client)
 			continue
@@ -516,7 +558,11 @@ SUBSYSTEM_DEF(gamemode)
 			continue
 		if(!ishuman(player_mob))
 			continue
+		var/mob/living/carbon/human/human_player = player_mob
 		active_players++
+		var/datum/job/player_job = SSjob.GetJob(player_mob.mind?.assigned_role)
+		if(player_job?.type == /datum/job/roguetown/adventurer || istype(human_player.patron, /datum/patron/inhumen))
+			antag_cap_excluded_players++
 		if(player_mob.mind?.assigned_role)
 			if(player_mob.mind.job_bitflag & BITFLAG_ROYALTY)
 				royalty++
@@ -809,14 +855,16 @@ SUBSYSTEM_DEF(gamemode)
 /// Panel containing information, variables and controls about the gamemode and scheduled event
 /datum/controller/subsystem/gamemode/proc/admin_panel(mob/user)
 	update_crew_infos()
+	var/antag_cap = get_antag_cap()
 	var/round_started = SSticker.HasRoundStarted()
 	var/list/dat = list()
 	dat += "Storyteller: [current_storyteller ? "[current_storyteller.name]" : "None"] "
 	dat += " <a href='byond://?src=[REF(src)];panel=main;action=halt_storyteller' [halted_storyteller ? "class='linkOn'" : ""]>HALT Storyteller</a> <a href='byond://?src=[REF(src)];panel=main;action=open_stats'>Event Panel</a> <a href='byond://?src=[REF(src)];panel=main;action=set_storyteller'>Set Storyteller</a> <a href='byond://?src=[REF(user.client)];panel=main;viewinfluences=1'>View Influences</a> <a href='byond://?src=[REF(src)];panel=main'>Refresh</a>"
 	dat += "<BR><font color='#888888'><i>Storyteller determines points gained, event chances, and is the entity responsible for rolling events.</i></font>"
 	dat += "<BR>Active Players: [active_players]   (Royalty: [royalty], Garrison: [garrison], Town Workers: [constructor], Holy Warriors: [holy_warrior])"
-	dat += "<BR>Effective Population: [effective_pop] (Total: [active_players] + Garrison Bonus: [garrison * 2] + Holy Warrior Bonus: [holy_warrior * 2])"
-	dat += "<BR>Antagonist Count vs Maximum: [get_antag_count()] / [get_antag_cap()]"
+	dat += "<BR>Town Strength: [effective_pop] (Total: [active_players] + Garrison Bonus: [garrison * TOWN_COMBATANT_ADDITIONAL_WEIGHT] + Holy Warrior Bonus: [holy_warrior * TOWN_COMBATANT_ADDITIONAL_WEIGHT])"
+	dat += "<BR>Antagonist Cap Population: [antag_cap_population] (Town Strength: [effective_pop] - Adventurers/Inhumen: [antag_cap_excluded_players])"
+	dat += "<BR>Antagonist Count vs Maximum: [get_antag_count()] / [antag_cap]"
 	dat += "<HR>"
 	dat += "<a href='byond://?src=[REF(src)];panel=main;action=tab;tab=[GAMEMODE_PANEL_MAIN]' [panel_page == GAMEMODE_PANEL_MAIN ? "class='linkOn'" : ""]>Main</a>"
 	dat += " <a href='byond://?src=[REF(src)];panel=main;action=tab;tab=[GAMEMODE_PANEL_VARIABLES]' [panel_page == GAMEMODE_PANEL_VARIABLES ? "class='linkOn'" : ""]>Variables</a>"

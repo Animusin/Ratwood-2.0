@@ -285,10 +285,15 @@ SUBSYSTEM_DEF(gamemode)
 
 /// Gets the number of antagonists the antagonist injection events will stop rolling after.
 /datum/controller/subsystem/gamemode/proc/get_antag_cap()
-	var/total_number = get_correct_popcount() + (garrison * TOWN_COMBATANT_ADDITIONAL_WEIGHT) + (holy_warrior * TOWN_COMBATANT_ADDITIONAL_WEIGHT)
-	effective_pop = total_number // For panel tracking
-	var/cap = FLOOR((total_number / ANTAG_CAP_DENOMINATOR), 1) + ANTAG_CAP_FLAT
+	var/town_strength = get_town_strength()
+	var/cap = FLOOR((town_strength / ANTAG_CAP_DENOMINATOR), 1) + ANTAG_CAP_FLAT
 	return cap
+
+/// Gets the effective town strength after weighing garrison and holy warriors more heavily.
+/datum/controller/subsystem/gamemode/proc/get_town_strength()
+	var/town_strength = get_correct_popcount() + (garrison * TOWN_COMBATANT_ADDITIONAL_WEIGHT) + (holy_warrior * TOWN_COMBATANT_ADDITIONAL_WEIGHT)
+	effective_pop = town_strength // For panel tracking
+	return town_strength
 
 /datum/controller/subsystem/gamemode/proc/get_antag_count()
 	. = 0

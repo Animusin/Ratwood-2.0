@@ -13,6 +13,10 @@
 	var/maximum_possible_slots = -1
 	var/total_slots_occupied = 0
 	var/min_pq = -100
+	/// Minimum effective town strength required before this class can be selected.
+	var/minimum_town_strength = 0
+	/// Weight contributed by this class when represented by the Wretch antagonist datum.
+	var/wretch_antag_cap_weight = 1
 	var/class_select_category
 
 	var/horse = FALSE
@@ -180,6 +184,10 @@
 		if(total_slots_occupied >= maximum_possible_slots)
 			return FALSE
 
+	if(minimum_town_strength > 0)
+		if(SSgamemode.get_town_strength() < minimum_town_strength)
+			return FALSE
+
 	if(length(virtue_restrictions) && H.client)
 		for(var/virtuetype in virtue_restrictions)
 			if(istype(H.client.prefs?.virtue, virtuetype) || istype(H.client.prefs?.virtuetwo, virtuetype))
@@ -203,4 +211,3 @@
 
 //Final proc in the set for really silly shit
 ///datum/advclass/proc/extra_slop_proc_ending(mob/living/carbon/human/H)
-

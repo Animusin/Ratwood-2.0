@@ -290,8 +290,9 @@
 		if(L.anti_magic_check() || !firer)
 			L.visible_message(span_warning("[src] vanishes on contact with [target]!"))
 			return BULLET_ACT_BLOCK
-		L.throw_at(throw_target, 200, 4)
-		new /datum/magic_throw_slip_watcher(L)
+		if (!L.Adjacent(firer))
+			L.throw_at(throw_target, 200, 4)
+			new /datum/magic_throw_slip_watcher(L)
 	else
 		if(isitem(target))
 			var/obj/item/I = target
@@ -456,7 +457,9 @@
 	if(ismob(target))
 		var/mob/living/M = target
 		var/atom/throw_target = get_edge_target_turf(M, angle2dir(Angle))
-		M.throw_at(throw_target, exp_light, EXPLOSION_THROW_SPEED)
+		// я больше не буду делать фиксы баланса или фичи
+		if(exp_light > 0)
+			M.throw_at(throw_target, exp_light, EXPLOSION_THROW_SPEED)
 
 /obj/projectile/magic/aoe/fireball/infernal
 	name = "infernal fireball"

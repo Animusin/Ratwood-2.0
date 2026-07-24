@@ -15,4 +15,5 @@
 			if(!IS_DYNAMIC_LIGHTING(T))
 				continue
 
-			new/atom/movable/lighting_object(T)
+			T.underlays += GLOB.lighting_underlay_dark
+			T.luminosity = 0

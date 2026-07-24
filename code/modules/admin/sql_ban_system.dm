@@ -113,7 +113,7 @@
 	panel.add_stylesheet("banpanelcss", 'html/admin/banpanel.css')
 	panel.add_stylesheet("admin_panelscss3", 'html/admin/admin_panels_css3.css')
 	panel.add_script("banpaneljs", 'html/admin/banpanel.js')
-	var/list/output = list("<form method='get' action='?src=[REF(src)]'>[HrefTokenFormField()]")
+	var/list/output = list("<form method='get' action='?src=[REF(src)]' accept-charset='UTF-8'>[HrefTokenFormField()]")
 	output += {"<input type='hidden' name='src' value='[REF(src)]'>
 	<label class='inputlabel checkbox'>Key:
 	<input type='checkbox' id='keycheck' name='keycheck' value='1'[player_key ? " checked": ""]>

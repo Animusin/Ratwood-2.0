@@ -457,6 +457,7 @@
 	if(ismob(target))
 		var/mob/living/M = target
 		var/atom/throw_target = get_edge_target_turf(M, angle2dir(Angle))
+		// я больше не буду делать фиксы баланса или фичи
 		if(exp_light > 0)
 			M.throw_at(throw_target, exp_light, EXPLOSION_THROW_SPEED)
 

@@ -77,6 +77,8 @@ GLOBAL_VAR_INIT(adventurer_hugbox_duration_still, 3 MINUTES)
 	)
 
 /datum/job/roguetown/adventurer/get_position_limit(latejoin = FALSE)
+	if(type != /datum/job/roguetown/adventurer)
+		return ..()
 	return clamp(floor(GLOB.clients.len * ADVENTURER_POPULATION_RATIO), ADVENTURER_MIN_POSITIONS, ADVENTURER_MAX_POSITIONS)
 
 /mob/living/carbon/human/proc/adv_hugboxing_start()

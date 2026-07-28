@@ -3,8 +3,8 @@ GLOBAL_LIST_EMPTY(billagerspawns)
 GLOBAL_VAR_INIT(adventurer_hugbox_duration, 40 SECONDS)
 GLOBAL_VAR_INIT(adventurer_hugbox_duration_still, 3 MINUTES)
 
-#define ADVENTURER_POPULATION_RATIO 0.3
-#define ADVENTURER_MIN_POSITIONS 5
+#define ADVENTURER_POPULATION_RATIO 0.2
+#define ADVENTURER_MIN_POSITIONS 4
 #define ADVENTURER_MAX_POSITIONS 20
 
 /datum/job/roguetown/adventurer
@@ -79,7 +79,7 @@ GLOBAL_VAR_INIT(adventurer_hugbox_duration_still, 3 MINUTES)
 /datum/job/roguetown/adventurer/get_position_limit(latejoin = FALSE)
 	if(type != /datum/job/roguetown/adventurer)
 		return ..()
-	return clamp(floor(GLOB.clients.len * ADVENTURER_POPULATION_RATIO), ADVENTURER_MIN_POSITIONS, ADVENTURER_MAX_POSITIONS)
+	return clamp(floor(get_slot_scaling_population(latejoin) * ADVENTURER_POPULATION_RATIO), ADVENTURER_MIN_POSITIONS, ADVENTURER_MAX_POSITIONS)
 
 /mob/living/carbon/human/proc/adv_hugboxing_start()
 	to_chat(src, span_warning("I will be in danger once I start moving."))

@@ -126,8 +126,8 @@
 	set category = "Options"
 	set hidden = 1
 
-	if(key && !GLOB.respawntimes[key])
-		GLOB.respawntimes[key] = world.time
+	if(ckey && !GLOB.respawntimes[ckey])
+		GLOB.respawntimes[ckey] = world.time
 
 	log_game("[key_name(usr)] respawned from underworld")
 
@@ -255,8 +255,8 @@
 	return FALSE
 
 /proc/burial_rite_return_ghost_to_lobby(mob/dead/observer/ghost)
-	if(ghost.key)
-		GLOB.respawntimes[ghost.key] = world.time - RESPAWNTIME
+	if(ghost.ckey && !GLOB.respawntimes[ghost.ckey])
+		GLOB.respawntimes[ghost.ckey] = world.time
 
 	log_game("[key_name(ghost)] returned to lobby from burial rites.")
 

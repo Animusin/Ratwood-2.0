@@ -8,6 +8,7 @@
 #define ALLOWPLAY
 
 #define RESPAWNTIME 0
+// Applied only to players who are not in border-control whitelist.
 #define NON_WHITELISTED_RESPAWNTIME (30 MINUTES)
 //0 test
 //12 minutes norma

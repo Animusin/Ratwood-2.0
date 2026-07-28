@@ -236,6 +236,8 @@ SUBSYSTEM_DEF(migrants)
 /datum/controller/subsystem/migrants/proc/spawn_migrant(datum/migrant_wave/wave, datum/migrant_assignment/assignment, spawn_on_location)
 	var/rank = "Migrant"
 	var/mob/dead/new_player/newplayer = assignment.client.mob
+	if(!newplayer?.check_respawn_cooldown(FALSE))
+		return FALSE
 
 	SSjob.AssignRole(newplayer, rank, TRUE)
 
@@ -594,6 +596,8 @@ SUBSYSTEM_DEF(migrants)
 		if(!player.client)
 			continue
 		if(!player.client.prefs)
+			continue
+		if(!player.check_respawn_cooldown(FALSE))
 			continue
 		if(!player.client.prefs.migrant.active)
 			continue

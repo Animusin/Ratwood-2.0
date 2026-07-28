@@ -1,5 +1,5 @@
-#define MERCENARY_POPULATION_RATIO 0.15
-#define MERCENARY_MIN_POSITIONS 3
+#define MERCENARY_POPULATION_RATIO 0.1
+#define MERCENARY_MIN_POSITIONS 2
 #define MERCENARY_MAX_POSITIONS 8
 
 /datum/job/roguetown/mercenary
@@ -66,4 +66,4 @@
 	)
 
 /datum/job/roguetown/mercenary/get_position_limit(latejoin = FALSE)
-	return clamp(floor(GLOB.clients.len * MERCENARY_POPULATION_RATIO), MERCENARY_MIN_POSITIONS, MERCENARY_MAX_POSITIONS)
+	return clamp(floor(get_slot_scaling_population(latejoin) * MERCENARY_POPULATION_RATIO), MERCENARY_MIN_POSITIONS, MERCENARY_MAX_POSITIONS)

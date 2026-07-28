@@ -335,6 +335,16 @@
 /datum/job/proc/get_position_limit(latejoin = FALSE)
 	return latejoin ? total_positions : spawn_positions
 
+/// Returns the population used to scale dynamic job slots.
+/// Roundstart uses players ready to spawn; latejoin uses players currently alive.
+/datum/job/proc/get_slot_scaling_population(latejoin = FALSE)
+	if(latejoin)
+		return living_player_count()
+	. = 0
+	for(var/mob/dead/new_player/player as anything in GLOB.new_player_list)
+		if(player.ready == PLAYER_READY_TO_PLAY)
+			.++
+
 /datum/job/proc/GetAntagRep()
 	. = CONFIG_GET(keyed_list/antag_rep)[LOWER_TEXT(title)]
 	if(. == null)

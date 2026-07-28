@@ -503,7 +503,7 @@ This is the proc mobs get to turn into a ghost. Forked from ghostize due to comp
 	if(key)
 		if(modifier)
 			GLOB.respawntimes[key] = world.time + modifier
-		else
+		else if(!GLOB.respawntimes[key])
 			GLOB.respawntimes[key] = world.time
 
 	log_game("[key_name(src)] used abandon mob.")

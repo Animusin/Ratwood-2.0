@@ -210,14 +210,15 @@ GLOBAL_LIST_INIT(roleplay_readme, world.file2list("strings/rt/rp_prompt.txt"))
 			to_chat(usr, span_boldwarning("You are in the migrant queue."))
 			return
 
+		var/respawn_delay = client?.whitelisted() == 1 ? RESPAWNTIME : NON_WHITELISTED_RESPAWNTIME
+		if(key && GLOB.respawntimes[key] && (world.time < GLOB.respawntimes[key] + respawn_delay))
+			var/remaining_respawn_time = GLOB.respawntimes[key] + respawn_delay - world.time
+			to_chat(usr, span_warning("I can return in [DisplayTimeText(remaining_respawn_time)]."))
+			return
+
 		if(href_list["late_join"] == "override")
 			LateChoices()
 			return
-/*#ifdef MATURESERVER
-		if(key && (world.time < GLOB.respawntimes[key] + RESPAWNTIME))
-			to_chat(usr, span_warning("I can return in [GLOB.respawntimes[key] + RESPAWNTIME - world.time]."))
-			return
-#else*/
 
 
 		var/timetojoin = 5 MINUTES

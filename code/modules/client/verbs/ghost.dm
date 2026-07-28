@@ -56,7 +56,7 @@ GLOBAL_LIST_INIT(ghost_verbs, list(
 	set category = "Options"
 	set hidden = 1
 
-	if(key)
+	if(key && !GLOB.respawntimes[key])
 		GLOB.respawntimes[key] = world.time
 
 	log_game("[key_name(usr)] respawned from underworld")

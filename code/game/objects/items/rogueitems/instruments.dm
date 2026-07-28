@@ -368,7 +368,7 @@ GLOBAL_LIST_EMPTY(instrument_band_lobbies)
 			var/choice
 			while(TRUE)
 				var/list/options = song_list.Copy()
-				if(user.mind && user.get_skill_level(/datum/skill/misc/music) >= 4)
+				if(user.mind && user.get_skill_level(/datum/skill/misc/music) >= 4 && user.can_upload_custom_music())
 					options[" "] = " "
 					options["Upload New Song"] = "upload"
 				choice = input(user, "Which song?", "Music", name) as null|anything in options
@@ -382,6 +382,9 @@ GLOBAL_LIST_EMPTY(instrument_band_lobbies)
 				return
 				
 			if(choice == "Upload New Song" || choice == "upload")
+				if(!user.can_upload_custom_music())
+					to_chat(user, span_warning("Custom music uploads require Scientist patron tier or higher, or an active admin account."))
+					return
 				if(lastfilechange && world.time < lastfilechange + 3 MINUTES)
 					say("NOT YET!")
 					return
@@ -389,6 +392,9 @@ GLOBAL_LIST_EMPTY(instrument_band_lobbies)
 				var/infile = input(user, "CHOOSE A NEW SONG", src) as null|file
 
 				if(!infile)
+					return
+				if(!user.can_upload_custom_music())
+					to_chat(user, span_warning("Custom music uploads require Scientist patron tier or higher, or an active admin account."))
 					return
 				if(playing || !(src in user.held_items) && !(not_held) || user.get_inactive_held_item())
 					return

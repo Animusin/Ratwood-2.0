@@ -81,6 +81,9 @@ GLOBAL_VAR_INIT(musicboxes_last_play, 0) //last time of the last played track, t
 		return
 	if(playing)
 		return
+	if(!user.can_upload_custom_music())
+		to_chat(user, span_warning("Custom music uploads require Scientist patron tier or higher, or an active admin account."))
+		return
 	user.changeNext_move(CLICK_CD_MELEE)
 	if(lastfilechange)
 		if(world.time < lastfilechange + 3 MINUTES)
@@ -94,9 +97,14 @@ GLOBAL_VAR_INIT(musicboxes_last_play, 0) //last time of the last played track, t
 
 /obj/item/dmusicbox/proc/upload_file(mob/user)
 	set waitfor = FALSE
+	if(!user.can_upload_custom_music())
+		return
 	var/infile = input(user, "CHOOSE A NEW SONG", src) as null|file
 
 	if(!infile)
+		return
+	if(!user.can_upload_custom_music())
+		to_chat(user, span_warning("Custom music uploads require Scientist patron tier or higher, or an active admin account."))
 		return
 
 	if(!loaded)

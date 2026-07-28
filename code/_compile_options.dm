@@ -8,7 +8,7 @@
 #define ALLOWPLAY
 
 #define RESPAWNTIME 0
-// Applied only to players who are not in border-control whitelist.
+// Applied only to players who are not in config/roguetown/wl_mat.txt.
 #define NON_WHITELISTED_RESPAWNTIME (30 MINUTES)
 //0 test
 //12 minutes norma

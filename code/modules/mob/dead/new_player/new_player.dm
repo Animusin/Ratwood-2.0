@@ -118,7 +118,7 @@ GLOBAL_LIST_INIT(roleplay_readme, world.file2list("strings/rt/rp_prompt.txt"))
 /mob/dead/new_player/proc/get_respawn_time_left()
 	if(!ckey)
 		return 0
-	if(client?.holder || GLOB.deadmins[ckey] || BC_IsKeyWhitelisted(ckey))
+	if(client?.has_whitelist_access())
 		return 0
 	var/respawn_started_at = GLOB.respawntimes[ckey]
 	if(!respawn_started_at)

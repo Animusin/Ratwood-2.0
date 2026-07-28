@@ -93,6 +93,10 @@ GLOBAL_LIST_EMPTY(last_words)
 	stat = DEAD
 	unset_machine()
 	timeofdeath = world.time
+	if(!was_dead_before)
+		var/respawn_ckey = ckey(key || mind?.key)
+		if(respawn_ckey)
+			GLOB.respawntimes[respawn_ckey] = timeofdeath
 	tod = station_time_timestamp()
 //	var/turf/T = get_turf(src)
 	for(var/obj/item/I in contents)

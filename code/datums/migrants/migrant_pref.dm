@@ -15,6 +15,10 @@
 /datum/migrant_pref/proc/set_active(new_state, silent = FALSE)
 	if(active == new_state)
 		return
+	if(new_state)
+		var/mob/dead/new_player/new_player = prefs.parent?.mob
+		if(istype(new_player) && !new_player.check_respawn_cooldown(!silent))
+			return
 	active = new_state
 	role_preferences.Cut()
 	if(!silent && prefs.parent)

@@ -8,6 +8,8 @@
 #define ALLOWPLAY
 
 #define RESPAWNTIME 0
+// Applied only to players who are not in config/roguetown/wl_mat.txt.
+#define NON_WHITELISTED_RESPAWNTIME (30 MINUTES)
 //0 test
 //12 minutes norma
 //#define ROUNDTIMERBOAT (300 MINUTES)
@@ -83,4 +85,3 @@
 #define USES_PQ
 // Comment this to remove traits based skill gating (The traits exist, but it will not have any effect)
 #define USES_TRAIT_SKILL_GATING
-

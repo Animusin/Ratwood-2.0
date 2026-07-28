@@ -500,11 +500,11 @@ This is the proc mobs get to turn into a ghost. Forked from ghostize due to comp
 //		to_chat(usr, span_warning("I can return in [mind.current.timeofdeath + RESPAWNTIME - world.time]."))
 //		return
 
-	if(key)
+	if(ckey)
 		if(modifier)
-			GLOB.respawntimes[key] = world.time + modifier
-		else
-			GLOB.respawntimes[key] = world.time
+			GLOB.respawntimes[ckey] = world.time + modifier
+		else if(!GLOB.respawntimes[ckey])
+			GLOB.respawntimes[ckey] = world.time
 
 	log_game("[key_name(src)] used abandon mob.")
 
@@ -820,7 +820,7 @@ This is the proc mobs get to turn into a ghost. Forked from ghostize due to comp
 		if(world.time > bt + 5 MINUTES)
 			to_chat(src, span_warning("Too late."))
 			return FALSE
-		returntolobby(RESPAWNTIME*-1)
+		returntolobby(NON_WHITELISTED_RESPAWNTIME * -1)
 
 
 /mob/dead/observer/proc/updateghostimages()

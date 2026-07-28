@@ -114,6 +114,26 @@ GLOBAL_LIST_INIT(roleplay_readme, world.file2list("strings/rt/rp_prompt.txt"))
 		if(client.prefs)
 			client.prefs.ShowChoices(src, 4)
 
+/// Returns the remaining respawn cooldown for an untrusted player.
+/mob/dead/new_player/proc/get_respawn_time_left()
+	if(!ckey)
+		return 0
+	if(client?.has_whitelist_access())
+		return 0
+	var/respawn_started_at = GLOB.respawntimes[ckey]
+	if(!respawn_started_at)
+		return 0
+	return max(respawn_started_at + NON_WHITELISTED_RESPAWNTIME - world.time, 0)
+
+/// Authoritative guard used by every path that can create a latejoin character.
+/mob/dead/new_player/proc/check_respawn_cooldown(show_message = TRUE)
+	var/time_left = get_respawn_time_left()
+	if(time_left <= 0)
+		return TRUE
+	if(show_message)
+		to_chat(src, span_warning("I can return in [DisplayTimeText(time_left)]."))
+	return FALSE
+
 /mob/dead/new_player/Topic(href, href_list[])
 	if(src != usr)
 		return 0
@@ -210,14 +230,12 @@ GLOBAL_LIST_INIT(roleplay_readme, world.file2list("strings/rt/rp_prompt.txt"))
 			to_chat(usr, span_boldwarning("You are in the migrant queue."))
 			return
 
+		if(!check_respawn_cooldown())
+			return
+
 		if(href_list["late_join"] == "override")
 			LateChoices()
 			return
-/*#ifdef MATURESERVER
-		if(key && (world.time < GLOB.respawntimes[key] + RESPAWNTIME))
-			to_chat(usr, span_warning("I can return in [GLOB.respawntimes[key] + RESPAWNTIME - world.time]."))
-			return
-#else*/
 
 
 		var/timetojoin = 5 MINUTES
@@ -499,6 +517,9 @@ GLOBAL_LIST_INIT(roleplay_readme, world.file2list("strings/rt/rp_prompt.txt"))
 	return JOB_AVAILABLE
 
 /mob/dead/new_player/proc/AttemptLateSpawn(rank)
+	if(!check_respawn_cooldown())
+		return FALSE
+
 	var/error = IsJobUnavailable(rank, latejoin = TRUE)
 	if(error != JOB_AVAILABLE)
 		to_chat(src, span_warning("[get_job_unavailable_error_message(error, rank)]"))
@@ -616,6 +637,9 @@ GLOBAL_LIST_INIT(roleplay_readme, world.file2list("strings/rt/rp_prompt.txt"))
 		character.client.update_ooc_verb_visibility()
 
 /mob/dead/new_player/proc/LateChoices()
+	if(!check_respawn_cooldown())
+		return
+
 	var/list/dat = list("<div class='notice' style='font-style: normal; font-size: 14px; margin-bottom: 2px; padding-bottom: 0px'>Round Duration: [DisplayTimeText(world.time - SSticker.round_start_time, 1)] &mdash; <a href='byond://?src=[REF(src)];late_join=1'>Refresh slots</a></div>")
 	for(var/datum/job/prioritized_job in SSjob.prioritized_jobs)
 		var/prioritized_position_limit = SSjob.get_latejoin_position_limit(prioritized_job)

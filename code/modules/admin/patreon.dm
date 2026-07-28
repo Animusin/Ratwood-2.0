@@ -239,6 +239,13 @@ GLOBAL_LIST_EMPTY(temporary_donators)
 		patreonlevel = check_patreon_lvl(ckey)
 		return patreonlevel
 
+#define CUSTOM_MUSIC_MINIMUM_PATREON_LEVEL 3 // Scientist
+
+/mob/proc/can_upload_custom_music()
+	return client && (client.holder || client.patreonlevel() >= CUSTOM_MUSIC_MINIMUM_PATREON_LEVEL)
+
+#undef CUSTOM_MUSIC_MINIMUM_PATREON_LEVEL
+
 /proc/patemail2ckey(input)
 	if(!input)
 		return

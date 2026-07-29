@@ -248,9 +248,17 @@ SUBSYSTEM_DEF(vote)
 			SEND_SOUND(new_voter, sound(current_vote.vote_sound))
 
 		if(SSvote.initialized && new_voter.prefs.voting_popup)
-			SSvote.ui_interact(new_voter.mob)
+			// Opening TGUI can sleep while assets are sent to the client. Votes may be
+			// started from another subsystem's fire(), so never block that subsystem.
+			INVOKE_ASYNC(src, PROC_REF(open_vote_popup), new_voter)
 			
 	return TRUE
+
+/// Opens the voting UI without allowing a slow or disconnected client to block vote initiation.
+/datum/controller/subsystem/vote/proc/open_vote_popup(client/voter)
+	if(!voter?.mob || !voter.prefs?.voting_popup || current_vote == null)
+		return
+	ui_interact(voter.mob)
 
 /**
  * Checks if we can start a vote.

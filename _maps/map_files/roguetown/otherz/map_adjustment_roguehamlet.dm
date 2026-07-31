@@ -15,7 +15,25 @@
 /datum/map_adjustment/template/rockhill/roguehamlet/job_change()
 	// Unlike Rockhill, the compact Hamlet garrison has a dedicated sergeant start.
 	blacklist -= /datum/job/roguetown/sergeant
-	return ..()
+	. = ..()
+
+	// Keep roundstart populations within the number of distinct physical starts.
+	// Otherwise SSjob reuses an occupied landmark and stacks players on one tile.
+	change_job_position(/datum/job/roguetown/monk, 1)
+	change_job_position(/datum/job/roguetown/nightmaiden, 2)
+	change_job_position(/datum/job/roguetown/councillor, 2)
+	change_job_position(/datum/job/roguetown/druid, 2)
+	change_job_position(/datum/job/roguetown/wapprentice, 1)
+	change_job_position(/datum/job/roguetown/orthodoxist, 2)
+	change_job_position(/datum/job/roguetown/prisonerr, 2)
+	change_job_position(/datum/job/roguetown/servant, 4)
+	change_job_position(/datum/job/roguetown/farmer, 4)
+	change_job_position(/datum/job/roguetown/squire, 2)
+	change_job_position(/datum/job/roguetown/knavewench, 2)
+	change_job_position(/datum/job/roguetown/templar, 1)
+	change_job_position(/datum/job/roguetown/villager, 5)
+	change_job_position(/datum/job/roguetown/orphan, 4)
+	return .
 
 /*
 	Compatibility aliases for the compact wilderness map which originally

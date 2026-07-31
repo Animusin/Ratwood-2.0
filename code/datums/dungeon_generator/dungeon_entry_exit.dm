@@ -9,7 +9,10 @@ GLOBAL_LIST_INIT(dungeon_exits, list())
 /obj/structure/dungeon_entry/hamlet
 	dungeon_id = "hamlet"
 	target_exit_id = "center"
-	claim_free_exit = TRUE
+
+/obj/structure/dungeon_entry/forest
+	dungeon_id = "forest"
+	target_exit_id = "hamlet"
 
 /obj/structure/dungeon_entry
 	name = "The Tomb of Alotheos"

@@ -587,3 +587,7 @@
 	name = "thick dungeon shroud"
 	icon = 'icons/turf/roguewall.dmi'
 	icon_state = "shroud1"
+
+// An exact-type boundary for keeping independent procedural dungeon branches apart.
+// Dungeon generators only replace /turf/closed/dungeon_void itself.
+/turf/closed/dungeon_void/separator

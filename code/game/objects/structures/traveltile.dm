@@ -226,4 +226,9 @@
 	icon = 'icons/roguetown/misc/structure.dmi'
 	icon_state = "underworldportal"
 
+/obj/structure/fluff/traveltile/rockhillentrance/Initialize(mapload)
+	if(SSmapping?.config?.map_name == "Rogue Hamlet" && aportalid == "REPLACETHIS" && aportalgoesto in list("rockhill1", "rockhill2", "rockhill3", "rockhill4", "rockhillsilly"))
+		aportalid = aportalgoesto
+	return ..()
+
 /obj/structure/fluff/traveltile/eventarea

@@ -139,7 +139,7 @@
 	return ..()
 
 /datum/vote/map_vote/finalize_vote(winning_option)
-	SSmap_vote.finalize_map_vote(src)
+	SSmap_vote.finalize_map_vote(src, winning_option)
 /datum/controller/subsystem/map_vote/proc/get_valid_map_vote_choices()
 	var/list/choices = list()
 

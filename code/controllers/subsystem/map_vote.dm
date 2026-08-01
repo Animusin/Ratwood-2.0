@@ -63,7 +63,7 @@ SUBSYSTEM_DEF(map_vote)
 	var/list/messages = args.Copy()
 	to_chat(world, span_purple(examine_block("Map Vote\n<hr>\n[messages.Join("\n")]")))
 
-/datum/controller/subsystem/map_vote/proc/finalize_map_vote(datum/vote/map_vote/map_vote)
+/datum/controller/subsystem/map_vote/proc/finalize_map_vote(datum/vote/map_vote/map_vote, winning_option)
 	if(already_voted)
 		message_admins("Map vote already finalized.")
 		return
@@ -96,12 +96,13 @@ SUBSYSTEM_DEF(map_vote)
 		send_map_vote_notice("No valid maps.")
 		return
 
-	// winner is now DIRECTLY a map_id
-	var/winner_id = pick_weight(valid_maps)
-	var/datum/map_config/winner_cfg = config.maplist[winner_id]
+	if(!(winning_option in valid_maps))
+		send_map_vote_notice("Vote winner is not a valid map (bad map_id: [winning_option]).")
+		return
 
+	var/datum/map_config/winner_cfg = config.maplist[winning_option]
 	if(!winner_cfg)
-		send_map_vote_notice("Winner map could not be resolved (bad map_id: [winner_id]).")
+		send_map_vote_notice("Winner map could not be resolved (bad map_id: [winning_option]).")
 		return
 
 	if(!set_next_map(winner_cfg))
@@ -113,12 +114,6 @@ SUBSYSTEM_DEF(map_vote)
 	messages += "Map Selected - [span_bold(next_map_config.map_name)]"
 	messages += ""
 	messages += "The next round will be played on [span_bold(next_map_config.map_name)]."
-
-	// decay winner so it doesn't repeat forever
-	if(length(valid_maps) > 1)
-		map_vote_cache[winner_id] = CONFIG_GET(number/map_vote_minimum_tallies)
-		write_cache()
-		update_tally_printout()
 
 	send_map_vote_notice(arglist(messages))
 
@@ -171,4 +166,3 @@ SUBSYSTEM_DEF(map_vote)
 		data += "[cfg.map_name] - [map_vote_cache[map_id]]"
 
 	tally_printout = boxed_message("Current Tallies\n<hr>[data.Join("\n")]")
-

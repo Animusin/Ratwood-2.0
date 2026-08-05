@@ -933,6 +933,10 @@
 	icon_state = "eye"
 
 /atom/movable/screen/eye_intent/Click(location,control,params)
+	// Observers borrow the target's HUD while watching them; only admin ghosts may control it.
+	if(isobserver(usr) && !IsAdminGhost(usr))
+		return
+
 	var/list/modifiers = params2list(params)
 	var/_y = text2num(params2list(params)["icon-y"])
 

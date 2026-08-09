@@ -205,7 +205,7 @@
 	icon_state = "his_grace"
 	alerttooltipstyle = "hisgrace"
 
-/atom/movable/screen/alert/status_effect/strandling/Click(location, control, params)
+/atom/movable/screen/alert/status_effect/strandling/handle_click(location, control, params)
 	. = ..()
 	if(isobserver(usr) && !IsAdminGhost(usr))
 		return

@@ -3,6 +3,7 @@
 	tutorial = "You have rejected and terrorized civilization in the name of nature. You run wild under the moon, a terror to the townsfolk and a champion of Dendor's wild domain."
 	allowed_sexes = list(MALE, FEMALE)
 	allowed_races = RACES_NO_CONSTRUCT
+	allowed_patrons = list(/datum/patron/divine/dendor)
 	disallowed_races = list(
 		/datum/species/harpy,	//for further clarification, basically, FLYING LUNACY EMBRACERS. embracers getting into sneaky places they shouldn't goes about as well as you'd think
 	)

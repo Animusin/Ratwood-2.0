@@ -7,7 +7,7 @@
 //#define TESTSERVER //UNCOMMENT TO ENABLE IN-GAME INHAND TRANSFORMATION EDITING AND OTHER DEBUG OPTIONS
 #define ALLOWPLAY
 
-#define RESPAWNTIME 0
+#define RESPAWNTIME (10 MINUTES)
 // Applied only to players who are not in config/roguetown/wl_mat.txt.
 #define NON_WHITELISTED_RESPAWNTIME (30 MINUTES)
 //0 test

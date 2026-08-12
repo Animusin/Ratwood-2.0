@@ -114,16 +114,17 @@ GLOBAL_LIST_INIT(roleplay_readme, world.file2list("strings/rt/rp_prompt.txt"))
 		if(client.prefs)
 			client.prefs.ShowChoices(src, 4)
 
-/// Returns the remaining respawn cooldown for an untrusted player.
+/// Returns the remaining respawn cooldown, preserving the longer delay for untrusted players.
 /mob/dead/new_player/proc/get_respawn_time_left()
 	if(!ckey)
-		return 0
-	if(client?.has_whitelist_access())
 		return 0
 	var/respawn_started_at = GLOB.respawntimes[ckey]
 	if(!respawn_started_at)
 		return 0
-	return max(respawn_started_at + NON_WHITELISTED_RESPAWNTIME - world.time, 0)
+	var/respawn_delay = RESPAWNTIME
+	if(!client?.has_whitelist_access())
+		respawn_delay = max(respawn_delay, NON_WHITELISTED_RESPAWNTIME)
+	return max(respawn_started_at + respawn_delay - world.time, 0)
 
 /// Authoritative guard used by every path that can create a latejoin character.
 /mob/dead/new_player/proc/check_respawn_cooldown(show_message = TRUE)

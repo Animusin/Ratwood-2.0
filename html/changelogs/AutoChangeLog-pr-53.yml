@@ -1,0 +1,4 @@
+author: "Animusin"
+delete-after: True
+changes:
+  - balance: "Dead players must wait 10 minutes before joining the same round with a new character. The existing 30-minute delay for unwhitelisted players remains unchanged."

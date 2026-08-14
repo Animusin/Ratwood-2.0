@@ -219,6 +219,58 @@
 			smelted_anything = TRUE
 	return smelted_anything
 
+/obj/machinery/light/rogue/smelter/proc/normalized_smelt_results()
+	var/list/batches = list()
+	for(var/obj/item/item as anything in contained_items)
+		if(!item.smeltresult)
+			continue
+		LAZYADD(batches[item.type], item)
+	var/list/results = list()
+	for(var/item_type in batches)
+		var/list/batch = batches[item_type]
+		var/obj/item/batch_item = batch[1]
+		var/batch_size = max(batch_item.smelt_batch_num, 1)
+		if(batch_size > max_contained_items)
+			continue
+		results[batch_item.smeltresult] += round(batch.len / batch_size)
+	return results
+
+/obj/machinery/light/rogue/smelter/proc/batch_leftovers()
+	var/list/leftovers = list()
+	var/list/batches = list()
+	for(var/obj/item/item as anything in contained_items)
+		if(!item.smeltresult)
+			continue
+		LAZYADD(batches[item.type], item)
+	for(var/item_type in batches)
+		var/list/batch = batches[item_type]
+		var/obj/item/batch_item = batch[1]
+		var/batch_size = max(batch_item.smelt_batch_num, 1)
+		var/consumed = batch.len
+		if(batch_size <= max_contained_items)
+			consumed = round(batch.len / batch_size) * batch_size
+		if(consumed < batch.len)
+			leftovers += batch.Copy(consumed + 1)
+	return leftovers
+
+/obj/machinery/light/rogue/smelter/proc/consume_for_alloy(alloy)
+	var/list/leftovers = batch_leftovers()
+	var/floor_mean_quality = SMELTERY_LEVEL_SPOIL
+	var/ore_deleted = 0
+	for(var/obj/item/item as anything in contained_items.Copy())
+		if(item in leftovers)
+			continue
+		floor_mean_quality += contained_items[item]
+		ore_deleted += 1
+		contained_items -= item
+		qdel(item)
+	if(!ore_deleted)
+		return
+	floor_mean_quality = floor(floor_mean_quality/ore_deleted)
+	for(var/i in 1 to max_contained_items)
+		var/obj/item/result = new alloy(src, floor_mean_quality)
+		contained_items += result
+
 /obj/machinery/light/rogue/smelter/burn_out()
 	smelting_progress = 0
 	actively_smelting = FALSE
@@ -237,7 +289,6 @@
 	climbable = FALSE
 
 /obj/machinery/light/rogue/smelter/great/handle_smelting()
-	smelt_individual_items()
 	var/alloy //moving each alloy to it's own var allows for possible additions later
 	// Steel Alloy requires a 1 coal to 1 iron ratio. Yes. Doesn't make sense but it is to make
 	// Steel more expensive to make
@@ -247,25 +298,16 @@
 	var/purifiedalloy
 	var/blacksteelalloy // Idk why Blacksteel were removed but we don't have an overabundance of steel and such anymore
 
-	for(var/obj/item/item as anything in contained_items)
-		if(item.smeltresult == /obj/item/rogueore/coal)
-			steelalloycoal += 1
-		if(item.smeltresult == /obj/item/rogueore/coal/charcoal)
-			steelalloycoal += 1
-		if(item.smeltresult == /obj/item/ingot/iron)
-			steelalloyiron += 1
-		if(item.smeltresult == /obj/item/ingot/tin)
-			bronzealloy = bronzealloy + 1
-		if(item.smeltresult == /obj/item/ingot/copper)
-			bronzealloy = bronzealloy + 2
-		if(item.smeltresult == /obj/item/ingot/aaslag)
-			purifiedalloy = purifiedalloy + 3
-		if(item.smeltresult == /obj/item/ingot/gold)
-			purifiedalloy = purifiedalloy + 2
-		if(item.smeltresult == /obj/item/ingot/silver)
-			blacksteelalloy = blacksteelalloy + 1
-		if(item.smeltresult == /obj/item/ingot/steel)
-			blacksteelalloy = blacksteelalloy + 2
+	var/list/results = normalized_smelt_results()
+	steelalloycoal += results[/obj/item/rogueore/coal] || 0
+	steelalloycoal += results[/obj/item/rogueore/coal/charcoal] || 0
+	steelalloyiron += results[/obj/item/ingot/iron] || 0
+	bronzealloy += results[/obj/item/ingot/tin] || 0
+	bronzealloy += 2 * (results[/obj/item/ingot/copper] || 0)
+	purifiedalloy += 3 * (results[/obj/item/ingot/aaslag] || 0)
+	purifiedalloy += 2 * (results[/obj/item/ingot/gold] || 0)
+	blacksteelalloy += results[/obj/item/ingot/silver] || 0
+	blacksteelalloy += 2 * (results[/obj/item/ingot/steel] || 0)
 
 	if(steelalloycoal == 1 && steelalloyiron == 3)
 		max_contained_items = 4
@@ -282,18 +324,7 @@
 		alloy = null
 
 	if(alloy)
-		// The smelting quality of all ores added together, divided by the number of ores, and then rounded to the lowest integer (this isn't done until after the for loop)
-		var/floor_mean_quality = SMELTERY_LEVEL_SPOIL
-		var/ore_deleted = 0
-		for(var/obj/item/item in contained_items)
-			floor_mean_quality += contained_items[item]
-			ore_deleted += 1
-			contained_items -= item
-			qdel(item)
-		floor_mean_quality = floor(floor_mean_quality/ore_deleted)
-		for(var/i in 1 to max_contained_items)
-			var/obj/item/result = new alloy(src, floor_mean_quality)
-			contained_items += result
+		consume_for_alloy(alloy)
 	else
 		smelt_individual_items()
 
@@ -316,14 +347,11 @@
 	climbable = FALSE
 
 /obj/machinery/light/rogue/smelter/bronze/handle_smelting()
-	smelt_individual_items()
 	var/alloy //moving each alloy to it's own var allows for possible additions later
 	var/bronzealloy
-	for(var/obj/item/item in contained_items)
-		if(item.smeltresult == /obj/item/ingot/tin)
-			bronzealloy = bronzealloy + 1
-		if(item.smeltresult == /obj/item/ingot/copper)
-			bronzealloy = bronzealloy + 2
+	var/list/results = normalized_smelt_results()
+	bronzealloy += results[/obj/item/ingot/tin] || 0
+	bronzealloy += 2 * (results[/obj/item/ingot/copper] || 0)
 	if(bronzealloy == 7)
 		testing("BRONZE ALLOYED")
 		alloy = /obj/item/ingot/bronze
@@ -331,18 +359,7 @@
 		alloy = null
 
 	if(alloy)
-		// The smelting quality of all ores added together, divided by the number of ores, and then rounded to the lowest integer (this isn't done until after the for loop)
-		var/floor_mean_quality = SMELTERY_LEVEL_SPOIL
-		var/ore_deleted = 0
-		for(var/obj/item/item in contained_items)
-			floor_mean_quality += contained_items[item]
-			ore_deleted += 1
-			contained_items -= item
-			qdel(item)
-		floor_mean_quality = floor(floor_mean_quality/ore_deleted)
-		for(var/i in 1 to max_contained_items)
-			var/obj/item/result = new alloy(src, floor_mean_quality)
-			contained_items += result
+		consume_for_alloy(alloy)
 	else
 		smelt_individual_items()
 

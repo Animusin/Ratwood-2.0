@@ -673,6 +673,7 @@
 	armor_penetration = 60
 	thrown_bclass = BCLASS_PICK				//Bypasses crit protection better than stabbing. Makes it better against heavy-targets.
 	smeltresult = /obj/item/ingot/silver // 2 ingots = 2 javelins so this can smelt.
+	smelt_batch_num = 2
 
 /obj/item/ammo_casing/caseless/rogue/javelin/silver/ComponentInitialize()
 	. = ..()

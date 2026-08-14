@@ -363,6 +363,7 @@
 	thrown_bclass = BCLASS_BLUNT
 	max_integrity = 90
 	smeltresult = /obj/item/ash //It's a wooden dagger. What did you expect to happen?
+	smelt_batch_num = 3
 	associated_skill = /datum/skill/combat/knives
 	anvilrepair = /datum/skill/craft/carpentry //Wood swords get this, too.
 	resistance_flags = FLAMMABLE //...It's made of wood.

@@ -204,16 +204,19 @@
 		var/list/batch = batches[item_type]
 		var/obj/item/batch_item = batch[1]
 		var/batch_size = max(batch_item.smelt_batch_num, 1)
-		if(batch_size > max_contained_items || batch.len < batch_size)
+		if(batch_size > max_contained_items)
 			continue
-		var/result_quality = contained_items[batch[batch_size]]
-		for(var/i in 1 to batch_size)
-			var/obj/item/removed_item = batch[i]
-			contained_items -= removed_item
-			qdel(removed_item)
-		var/obj/item/result = new batch_item.smeltresult(src, result_quality)
-		contained_items += result
-		smelted_anything = TRUE
+		var/batches_to_smelt = round(batch.len / batch_size)
+		for(var/b in 1 to batches_to_smelt)
+			var/result_quality = contained_items[batch[batch_size]]
+			for(var/i in 1 to batch_size)
+				var/obj/item/removed_item = batch[1]
+				contained_items -= removed_item
+				qdel(removed_item)
+				batch -= batch[1]
+			var/obj/item/result = new batch_item.smeltresult(src, result_quality)
+			contained_items += result
+			smelted_anything = TRUE
 	return smelted_anything
 
 /obj/machinery/light/rogue/smelter/burn_out()
@@ -234,6 +237,7 @@
 	climbable = FALSE
 
 /obj/machinery/light/rogue/smelter/great/handle_smelting()
+	smelt_individual_items()
 	var/alloy //moving each alloy to it's own var allows for possible additions later
 	// Steel Alloy requires a 1 coal to 1 iron ratio. Yes. Doesn't make sense but it is to make
 	// Steel more expensive to make
@@ -312,6 +316,7 @@
 	climbable = FALSE
 
 /obj/machinery/light/rogue/smelter/bronze/handle_smelting()
+	smelt_individual_items()
 	var/alloy //moving each alloy to it's own var allows for possible additions later
 	var/bronzealloy
 	for(var/obj/item/item in contained_items)

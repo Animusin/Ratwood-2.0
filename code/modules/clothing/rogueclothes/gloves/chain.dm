@@ -38,6 +38,7 @@
 	icon_state = "psydongloveschain"
 	item_state = "psydongloveschains"
 	// smeltresult = null	//So you can't melt down your start gear for blacksteel brigadines etc.
+	smelt_batch_num = 1
 	var/wrapped = FALSE
 
 /obj/item/clothing/gloves/roguetown/chain/psydon/attack_right(mob/user)

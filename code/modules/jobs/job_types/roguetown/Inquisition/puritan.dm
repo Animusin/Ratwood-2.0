@@ -35,6 +35,7 @@
 
 /obj/item/clothing/gloves/roguetown/chain/blk
 		color = CLOTHING_GREY
+		smelt_batch_num = 1
 
 /obj/item/clothing/under/roguetown/chainlegs/blk
 		color = CLOTHING_GREY

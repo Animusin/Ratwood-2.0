@@ -306,7 +306,7 @@
 /obj/item/contraption/smelter/misfire_result()
 	misfiring = TRUE
 	for(var/obj/object in oview(3, src))
-		if(object.smeltresult)  // Check if the object is within the flame range
+		if(object.smeltresult)
 			if(istype(object, /obj/item/ingot))
 				continue
 			if(istype(object, /obj/item/contraption))
@@ -315,6 +315,10 @@
 					continue
 				addtimer(CALLBACK(I, PROC_REF(misfire_result)), rand(5))
 				continue
+			if(istype(object, /obj/item))
+				var/obj/item/item_object = object
+				if(item_object.smelt_batch_num > 1)
+					continue
 			object.popcorn_smelt()
 
 	explosion(src, flame_range = 3, smoke = TRUE, soundin = pick('sound/misc/explode/bottlebomb (1).ogg','sound/misc/explode/bottlebomb (2).ogg'))

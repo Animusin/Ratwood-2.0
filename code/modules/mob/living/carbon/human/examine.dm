@@ -655,10 +655,10 @@
 	if(!(SLOT_GLASSES in obscured))
 		if(glasses)
 			. += "[m3] [get_examine_item_name_with_hover(user, glasses)] covering [m2] eyes."
-		else if(eye_color == BLOODCULT_EYE)
-			. += span_warning("<B>[m2] eyes are glowing an unnatural red!</B>")
 		else if(!getorganslot(ORGAN_SLOT_EYES))
 			. += span_warning("[m3] no eyes - [m2] sockets are empty!")
+		else if(eye_color == BLOODCULT_EYE)
+			. += span_warning("<B>[m2] eyes are glowing an unnatural red!</B>")
 
 	//ears
 	if(ears && !(SLOT_HEAD in obscured))

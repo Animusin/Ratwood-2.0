@@ -211,7 +211,7 @@
 	var/smelted_anything = FALSE
 	var/list/batches = smelt_batch_groups()
 	for(var/group_key in batches)
-		var/list/batch = batches[item_type]
+		var/list/batch = batches[group_key]
 		var/obj/item/batch_item = batch[1]
 		var/batch_size = max(batch_item.smelt_batch_num, 1)
 		if(batch_size > max_contained_items)
@@ -233,7 +233,7 @@
 	var/list/batches = smelt_batch_groups()
 	var/list/results = list()
 	for(var/group_key in batches)
-		var/list/batch = batches[item_type]
+		var/list/batch = batches[group_key]
 		var/obj/item/batch_item = batch[1]
 		var/batch_size = max(batch_item.smelt_batch_num, 1)
 		if(batch_size > max_contained_items)
@@ -245,7 +245,7 @@
 	var/list/leftovers = list()
 	var/list/batches = smelt_batch_groups()
 	for(var/group_key in batches)
-		var/list/batch = batches[item_type]
+		var/list/batch = batches[group_key]
 		var/obj/item/batch_item = batch[1]
 		var/batch_size = max(batch_item.smelt_batch_num, 1)
 		var/consumed = batch.len

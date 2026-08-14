@@ -152,7 +152,6 @@
 /obj/item/clothing/gloves/roguetown/chain/baotha
 	name = "baothan bracelets"
 	desc = "Powerful baothan magicks protect the exposed flesh beneath."
-	smelt_batch_num = 1
 	icon = 'icons/roguetown/clothing/feet.dmi'
 	icon_state = "anklets"
 	color = "#9c7373"

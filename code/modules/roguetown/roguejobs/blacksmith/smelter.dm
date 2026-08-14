@@ -6,6 +6,11 @@
 // MULTIBAR SMELTING WAS DISABLED FOR BALANCE REASONS
 // DO NOT RE-ENABLE IT UNTIL FURTHER NOTICE
 
+/obj/item/proc/can_be_smelted(max_batch = 1)
+	if(!smeltresult)
+		return FALSE
+	return smelt_batch_num <= max_batch
+
 /obj/machinery/light/rogue/smelter
 	icon = 'icons/roguetown/misc/forge.dmi'
 	name = "stone furnace"
@@ -128,7 +133,7 @@
 	if(!smelting_item)
 		return
 
-	if(smelting_item.smelt_batch_num > max_contained_items)
+	if(smelting_item.smeltresult && !smelting_item.can_be_smelted(max_contained_items))
 		to_chat(user, span_warning("\The [smelting_item.name] only smelts as a full batch of [smelting_item.smelt_batch_num], which cannot fit in \the [src]."))
 		return
 
@@ -193,14 +198,19 @@
 	smelting_progress = smelting_ticks + 1
 	actively_smelting = FALSE
 
-/obj/machinery/light/rogue/smelter/proc/smelt_individual_items()
-	var/smelted_anything = FALSE
+/obj/machinery/light/rogue/smelter/proc/smelt_batch_groups()
 	var/list/batches = list()
 	for(var/obj/item/item as anything in contained_items)
 		if(!item.smeltresult)
 			continue
-		LAZYADD(batches[item.type], item)
-	for(var/item_type in batches)
+		var/group_key = "[item.type]|[item.smeltresult]|[item.smelt_batch_num]"
+		LAZYADD(batches[group_key], item)
+	return batches
+
+/obj/machinery/light/rogue/smelter/proc/smelt_individual_items()
+	var/smelted_anything = FALSE
+	var/list/batches = smelt_batch_groups()
+	for(var/group_key in batches)
 		var/list/batch = batches[item_type]
 		var/obj/item/batch_item = batch[1]
 		var/batch_size = max(batch_item.smelt_batch_num, 1)
@@ -220,13 +230,9 @@
 	return smelted_anything
 
 /obj/machinery/light/rogue/smelter/proc/normalized_smelt_results()
-	var/list/batches = list()
-	for(var/obj/item/item as anything in contained_items)
-		if(!item.smeltresult)
-			continue
-		LAZYADD(batches[item.type], item)
+	var/list/batches = smelt_batch_groups()
 	var/list/results = list()
-	for(var/item_type in batches)
+	for(var/group_key in batches)
 		var/list/batch = batches[item_type]
 		var/obj/item/batch_item = batch[1]
 		var/batch_size = max(batch_item.smelt_batch_num, 1)
@@ -237,12 +243,8 @@
 
 /obj/machinery/light/rogue/smelter/proc/batch_leftovers()
 	var/list/leftovers = list()
-	var/list/batches = list()
-	for(var/obj/item/item as anything in contained_items)
-		if(!item.smeltresult)
-			continue
-		LAZYADD(batches[item.type], item)
-	for(var/item_type in batches)
+	var/list/batches = smelt_batch_groups()
+	for(var/group_key in batches)
 		var/list/batch = batches[item_type]
 		var/obj/item/batch_item = batch[1]
 		var/batch_size = max(batch_item.smelt_batch_num, 1)

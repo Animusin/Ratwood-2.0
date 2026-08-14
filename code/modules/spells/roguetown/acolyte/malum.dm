@@ -157,7 +157,7 @@
 
 /proc/handle_item_smelting(obj/item/target, mob/user, datum/effect_system/spark_spread/sparks, list/nosmeltore)
 	if (!target.smeltresult) return
-	if (target.smelt_batch_num > 1)
+	if (!target.can_be_smelted())
 		show_visible_message(user, "After [user]'s incantation, [target] glows faintly, but refuses to melt - a full batch is needed to smelt it.", "After my incantation, [target] glows faintly, but refuses to melt - a full batch is needed to smelt it.")
 		return
 	var/obj/item/itemtospawn = target.smeltresult

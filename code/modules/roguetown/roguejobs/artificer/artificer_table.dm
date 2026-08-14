@@ -42,8 +42,13 @@
 		if(material.artrecipe.progress == 100)
 			if(islist(material.artrecipe.created_item))
 				var/list/L = material.artrecipe.created_item
+				var/list/created_counts = list()
+				for(var/CT in L)
+					created_counts[CT] += 1
 				for(var/IT in L)
-					new IT(get_turf(src))
+					var/obj/item/new_item = new IT(get_turf(src))
+					if(created_counts[IT] > 1 && new_item.smeltresult)
+						new_item.smelt_batch_num = created_counts[IT]
 			else
 				new material.artrecipe.created_item(get_turf(src))
 			var/obj/item/created_item_instance = new(material.artrecipe.created_item)

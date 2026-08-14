@@ -317,7 +317,7 @@
 				continue
 			if(istype(object, /obj/item))
 				var/obj/item/item_object = object
-				if(item_object.smelt_batch_num > 1)
+				if(!item_object.can_be_smelted())
 					continue
 			object.popcorn_smelt()
 
@@ -351,7 +351,7 @@
 		return
 	if(istype(O, /obj/item))
 		var/obj/item/smeltable_item = O
-		if(smeltable_item.smelt_batch_num > 1)
+		if(!smeltable_item.can_be_smelted())
 			to_chat(user, span_info("\The [O] needs a full batch of [smeltable_item.smelt_batch_num] to smelt, which [name] can't take."))
 			return
 	user.mind.add_sleep_experience(/datum/skill/craft/engineering, (user.STAINT / 3))

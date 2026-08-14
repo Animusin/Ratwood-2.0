@@ -345,6 +345,9 @@
 		S.set_up(1, 1, front)
 		S.start()
 		return
+	if(O.smelt_batch_num > 1)
+		to_chat(user, span_info("\The [O] needs a full batch of [O.smelt_batch_num] to smelt, which [name] can't take."))
+		return
 	user.mind.add_sleep_experience(/datum/skill/craft/engineering, (user.STAINT / 3))
 	charge_deduction(O, user, 1)
 	flick(on_icon, src)

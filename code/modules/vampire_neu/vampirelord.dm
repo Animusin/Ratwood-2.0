@@ -241,6 +241,7 @@
 	name = "ancient ceremonial gloves"
 	icon_state = "vgloves"
 	resistance_flags = FIRE_PROOF | ACID_PROOF
+	smelt_batch_num = 1
 	armor = ARMOR_VAMP
 	body_parts_inherent = FULL_BODY
 	max_integrity = ARMOR_INT_SIDE_ANTAG

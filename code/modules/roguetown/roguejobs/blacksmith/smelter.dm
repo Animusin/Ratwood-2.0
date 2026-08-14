@@ -2,6 +2,7 @@
 /obj/item
 //	var/smeltresult defined on obj within artificer/contraptions
 	var/smelt_bar_num = 1 //variable for tracking how many bars things smelt back into for multi-bar items
+	var/smelt_batch_num = 1
 // MULTIBAR SMELTING WAS DISABLED FOR BALANCE REASONS
 // DO NOT RE-ENABLE IT UNTIL FURTHER NOTICE
 
@@ -127,6 +128,10 @@
 	if(!smelting_item)
 		return
 
+	if(smelting_item.smelt_batch_num > max_contained_items)
+		to_chat(user, span_warning("\The [smelting_item.name] only smelts as a full batch of [smelting_item.smelt_batch_num], which cannot fit in \the [src]."))
+		return
+
 	if(length(contained_items) >= max_contained_items)
 		to_chat(user, span_warning("\The [smelting_item.name] can be smelted, but \the [src] is full."))
 		return
@@ -182,22 +187,34 @@
 	handle_smelting()
 
 /obj/machinery/light/rogue/smelter/proc/handle_smelting()
-	for(var/obj/item/item as anything in contained_items)
-		if(item.smeltresult)
-			// disabled for now, balance reasons
-			// while(item.smelt_bar_num)
-			// 	item.smelt_bar_num--
-			// 	var/obj/item/result = new item.smeltresult(src, contained_items[item])
-			// 	contained_items += result
-			// contained_items -= item
-			var/obj/item/result = new item.smeltresult(src, contained_items[item])
-			contained_items -= item
-			contained_items += result
-			qdel(item)
-	playsound(src,'sound/misc/smelter_fin.ogg', 100, FALSE)
-	visible_message(span_notice("\The [src] finished smelting."))
+	if(smelt_individual_items())
+		playsound(src,'sound/misc/smelter_fin.ogg', 100, FALSE)
+		visible_message(span_notice("\The [src] finished smelting."))
 	smelting_progress = smelting_ticks + 1
 	actively_smelting = FALSE
+
+/obj/machinery/light/rogue/smelter/proc/smelt_individual_items()
+	var/smelted_anything = FALSE
+	var/list/batches = list()
+	for(var/obj/item/item as anything in contained_items)
+		if(!item.smeltresult)
+			continue
+		LAZYADD(batches[item.type], item)
+	for(var/item_type in batches)
+		var/list/batch = batches[item_type]
+		var/obj/item/batch_item = batch[1]
+		var/batch_size = max(batch_item.smelt_batch_num, 1)
+		if(batch_size > max_contained_items || batch.len < batch_size)
+			continue
+		var/result_quality = contained_items[batch[batch_size]]
+		for(var/i in 1 to batch_size)
+			var/obj/item/removed_item = batch[i]
+			contained_items -= removed_item
+			qdel(removed_item)
+		var/obj/item/result = new batch_item.smeltresult(src, result_quality)
+		contained_items += result
+		smelted_anything = TRUE
+	return smelted_anything
 
 /obj/machinery/light/rogue/smelter/burn_out()
 	smelting_progress = 0
@@ -274,12 +291,7 @@
 			var/obj/item/result = new alloy(src, floor_mean_quality)
 			contained_items += result
 	else
-		for(var/obj/item/item in contained_items)
-			if(item.smeltresult)
-				var/obj/item/result = new item.smeltresult(src, contained_items[item])
-				contained_items -= item
-				contained_items += result
-				qdel(item)
+		smelt_individual_items()
 
 	playsound(src,'sound/misc/smelter_fin.ogg', 100, FALSE)
 	visible_message(span_notice("\The [src] finished smelting."))
@@ -327,12 +339,7 @@
 			var/obj/item/result = new alloy(src, floor_mean_quality)
 			contained_items += result
 	else
-		for(var/obj/item/item in contained_items)
-			if(item.smeltresult)
-				var/obj/item/result = new item.smeltresult(src, contained_items[item])
-				contained_items -= item
-				contained_items += result
-				qdel(item)
+		smelt_individual_items()
 
 	playsound(src,'sound/misc/smelter_fin.ogg', 100, FALSE)
 	visible_message(span_notice("\The [src] finished smelting."))

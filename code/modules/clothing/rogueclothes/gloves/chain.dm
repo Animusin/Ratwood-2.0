@@ -15,6 +15,7 @@
 	sewrepair = FALSE
 	anvilrepair = /datum/skill/craft/armorsmithing
 	smeltresult = /obj/item/alch/irondust
+	smelt_batch_num = 2
 	unarmed_bonus = 1.15
 
 /obj/item/clothing/gloves/roguetown/chain/ancient
@@ -22,6 +23,7 @@
 	desc = "Polished gilbranze rings, delicately daisy-chained together into mittens. The filament is ruptured, and it will never heal; Zizo's ascension made sure of that. By the hands of Her disciples, the final obstacle preventing this world's salvation shall be dismantled - lyfe."
 	icon_state = "acgloves"
 	smeltresult = /obj/item/ingot/aaslag
+	smelt_batch_num = 2
 
 /obj/item/clothing/gloves/roguetown/chain/ancient/decrepit
 	name = "decrepit chain gauntlets"
@@ -65,4 +67,5 @@
 	desc = "Gauntlets made of interlinked iron rings. They offer decent protection against common weaponries, except for arrows."
 	anvilrepair = /datum/skill/craft/armorsmithing
 	smeltresult = /obj/item/alch/irondust
+	smelt_batch_num = 2
 	max_integrity = ARMOR_INT_SIDE_IRON

@@ -387,6 +387,7 @@
 	on_damage = 15
 	wdefense = 1 //Metal rod. Offers a pittance-of-a-chance to parry an incoming strike.
 	smeltresult = /obj/item/rogueore/coal
+	smelt_batch_num = 5
 	max_integrity = 100
 	fuel = 120 MINUTES
 	should_self_destruct = FALSE
@@ -458,6 +459,7 @@
 	light_color ="#4ac77e"
 	on = FALSE
 	smeltresult = /obj/item/ingot/bronze
+	smelt_batch_num = 3
 
 /obj/item/flashlight/flare/torch/lantern/bronzelamptern/malums_lamptern //unqiue item as a dungeon reward. Functionally a kite shield and a bronze lamptern combined into one
 	name = "ancient lamptern"
@@ -468,6 +470,7 @@
 	light_color = "#2bd0d6"
 	color = "#2bd0d6"
 	on = TRUE
+	smelt_batch_num = 1
 	slot_flags = ITEM_SLOT_HIP | ITEM_SLOT_BACK
 	force = 20
 	throwforce = 10

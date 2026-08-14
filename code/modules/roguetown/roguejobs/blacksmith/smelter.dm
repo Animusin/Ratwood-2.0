@@ -215,7 +215,7 @@
 				qdel(removed_item)
 				batch -= batch[1]
 			var/obj/item/result = new batch_item.smeltresult(src, result_quality)
-			contained_items += result
+			contained_items[result] = result_quality
 			smelted_anything = TRUE
 	return smelted_anything
 
@@ -269,7 +269,7 @@
 	floor_mean_quality = floor(floor_mean_quality/ore_deleted)
 	for(var/i in 1 to max_contained_items)
 		var/obj/item/result = new alloy(src, floor_mean_quality)
-		contained_items += result
+		contained_items[result] = floor_mean_quality
 
 /obj/machinery/light/rogue/smelter/burn_out()
 	smelting_progress = 0

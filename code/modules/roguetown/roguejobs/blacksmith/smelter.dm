@@ -11,6 +11,29 @@
 		return FALSE
 	return smelt_batch_num <= max_batch
 
+/obj/item/proc/smelt_batch_key()
+	return "[type]|[smeltresult]|[smelt_batch_num]"
+
+/// Collects a full smelting batch of items lying directly on our tile.
+/// Returns exactly smelt_batch_num matching items, or null if the batch is
+/// incomplete or we are not lying loose on a tile. Items inside inventories
+/// and containers on the tile are never taken.
+/obj/item/proc/gather_full_smelt_batch()
+	var/turf/tile = get_turf(src)
+	if(!tile || loc != tile)
+		return null
+	var/batch_size = max(smelt_batch_num, 1)
+	if(batch_size <= 1)
+		return list(src)
+	var/list/batch = list()
+	for(var/obj/item/item in tile.contents)
+		if(item.smelt_batch_key() != smelt_batch_key())
+			continue
+		batch += item
+		if(batch.len >= batch_size)
+			return batch
+	return null
+
 /obj/machinery/light/rogue/smelter
 	icon = 'icons/roguetown/misc/forge.dmi'
 	name = "stone furnace"
@@ -203,8 +226,7 @@
 	for(var/obj/item/item as anything in contained_items)
 		if(!item.smeltresult)
 			continue
-		var/group_key = "[item.type]|[item.smeltresult]|[item.smelt_batch_num]"
-		LAZYADD(batches[group_key], item)
+		LAZYADD(batches[item.smelt_batch_key()], item)
 	return batches
 
 /obj/machinery/light/rogue/smelter/proc/smelt_individual_items()

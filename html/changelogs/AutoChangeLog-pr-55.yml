@@ -1,0 +1,5 @@
+author: "sigmaboy124124"
+delete-after: True
+changes:
+  - bugfix: "Paralyzed people (skullcrack, broken neck) can no longer feint, bait or bite while lying on the ground"
+  - bugfix: "batch-crafted items no longer duplicate materials when smelted individually"

@@ -2106,7 +2106,17 @@
 					else
 						found_ping(get_turf(M), client, "hidden")
 
+		var/mob/living/carbon/human/tracking_investigator
+		if(ishuman(src) && get_skill_level(/datum/skill/misc/tracking) >= SKILL_LEVEL_EXPERT)
+			tracking_investigator = src
+		var/list/blood_clue_turfs
+		var/new_tracking_clue_found = FALSE
 		for(var/obj/O in view(7,src))
+			if(tracking_investigator)
+				if(istype(O, /obj/effect/decal/cleanable/blood))
+					LAZYOR(blood_clue_turfs, get_turf(O))
+				else if(tracking_investigator.discover_tracking_clue(O, 7) == 2)
+					new_tracking_clue_found = TRUE
 			SEND_SIGNAL(O, COMSIG_LOOK_AROUND_SPOTTED, src)
 			if(istype(O, /obj/item/restraints/legcuffs/beartrap))
 				var/obj/item/restraints/legcuffs/beartrap/M = O
@@ -2122,6 +2132,12 @@
 					found_ping(get_turf(M), client, "trap")
 			if(istype(O, /obj/structure/flora/roguegrass/maneater/real))
 				found_ping(get_turf(O), client, "trap")
+		if(tracking_investigator)
+			for(var/turf/blood_turf as anything in blood_clue_turfs)
+				if(tracking_investigator.discover_tracking_clue(blood_turf, 7) == 2)
+					new_tracking_clue_found = TRUE
+			if(new_tracking_clue_found)
+				to_chat(src, span_notice("I notice evidence nearby. I can right-click its clue marker to investigate it."))
 			//Hearthstone port - Tracking
 		for(var/obj/effect/track/potential_track in orange(7, src)) //Can't use view because they're invisible by default.
 			if(!can_see(src, potential_track, 10))

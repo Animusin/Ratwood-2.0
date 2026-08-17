@@ -237,7 +237,9 @@
 			user.break_invisibility()
 			if(locked)
 				user.visible_message(span_warning("[user] bashes into [src]!"))
+				var/was_broken = obj_broken || brokenstate
 				take_damage(200, "brute", "blunt", 1)
+				record_forced_break_transition(was_broken, user)
 			else
 				playsound(src, 'sound/combat/hits/onwood/woodimpact (1).ogg', 100)
 				force_open()
@@ -434,10 +436,31 @@
 			return ..()
 
 /obj/structure/mineral_door/attacked_by(obj/item/I, mob/living/user)
+	var/was_broken = obj_broken || brokenstate
 	..()
-	if(obj_broken || obj_destroyed)
-		var/obj/effect/track/structure/new_track = SStracks.get_track(/obj/effect/track/structure, get_turf(src))
-		new_track.handle_creation(user)
+	record_forced_break_transition(was_broken, user, I)
+
+/obj/structure/mineral_door/hitby(atom/movable/AM, skipcatch, hitpush, blocked, datum/thrownthing/throwingdatum, damage_flag = "blunt")
+	var/was_broken = obj_broken || brokenstate
+	var/mob/living/thrower = throwingdatum?.thrower
+	. = ..()
+	record_forced_break_transition(was_broken, thrower, AM)
+
+/obj/structure/mineral_door/bullet_act(obj/projectile/P)
+	var/was_broken = obj_broken || brokenstate
+	var/mob/living/shooter = P.firer
+	. = ..()
+	record_forced_break_transition(was_broken, shooter, P)
+
+/obj/structure/mineral_door/attack_generic(mob/user, damage_amount = 0, damage_type = BRUTE, damage_flag = 0, sound_effect = 1, armor_penetration = 0)
+	var/was_broken = obj_broken || brokenstate
+	. = ..()
+	var/mob/living/attacker = user
+	record_forced_break_transition(was_broken, attacker)
+
+/obj/structure/mineral_door/proc/record_forced_break_transition(was_broken, mob/living/culprit, atom/tool)
+	if(!was_broken && (obj_broken || brokenstate || obj_destroyed) && culprit)
+		record_forensic_event(FORENSIC_EVENT_FORCED_BREAK, culprit, tool)
 
 /obj/structure/mineral_door/proc/repairdoor(obj/item/I, mob/user)
 	if(brokenstate)
@@ -468,6 +491,7 @@
 						obj_broken = FALSE
 						obj_integrity = max_integrity
 						repair_state = 0
+						clear_forensic_event()
 						user.visible_message(span_notice("[user] repaired [src]."), \
 						span_notice("I repaired [src]."))
 	else
@@ -482,6 +506,7 @@
 				obj_integrity = obj_integrity + (max_integrity/2)
 				if(obj_integrity > max_integrity)
 					obj_integrity = max_integrity
+				clear_forensic_event()
 				user.visible_message(span_notice("[user] repaired [src]."), \
 				span_notice("I repaired [src]."))
 
@@ -679,6 +704,7 @@
 			to_chat(user, "<span class='warning'>Clack.</span>")
 			return
 
+		record_forensic_event(FORENSIC_EVENT_LOCKPICK_ATTEMPT, L, I)
 		var/picked = FALSE
 		user.log_message("attempting to lockpick door \"[src.name]\" (currently [locked ? "locked" : "unlocked"]).", LOG_ATTACK)
 
@@ -700,8 +726,7 @@
 						log_admin("[H.real_name]([key_name(user)]) successfully lockpicked [src.name].")
 						record_featured_stat(FEATURED_STATS_CRIMINALS, user)
 						record_round_statistic(STATS_LOCKS_PICKED)
-						var/obj/effect/track/structure/new_track = SStracks.get_track(/obj/effect/track/structure, get_turf(src))
-						new_track.handle_creation(user)
+					record_forensic_event(FORENSIC_EVENT_LOCKPICK_SUCCESS, L, I)
 					lock_toggle(user)
 					break
 				else

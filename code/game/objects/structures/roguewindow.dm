@@ -37,12 +37,34 @@
 	..()
 
 /obj/structure/roguewindow/attacked_by(obj/item/I, mob/living/user)
+	var/was_broken = obj_broken || brokenstate
 	..()
-	if(obj_broken || obj_destroyed)
-		var/obj/effect/track/structure/new_track = SStracks.get_track(/obj/effect/track/structure, get_turf(src))
+	if(!was_broken && (obj_broken || brokenstate || obj_destroyed))
 		message_admins("Window [obj_destroyed ? "destroyed" : "broken"] by [user?.real_name] using [I] [ADMIN_JMP(src)]")
 		log_admin("Window [obj_destroyed ? "destroyed" : "broken"] by [user?.real_name] at X:[src.x] Y:[src.y] Z:[src.z] in area: [get_area(src)]")
-		new_track.handle_creation(user)
+		record_forensic_event(FORENSIC_EVENT_FORCED_BREAK, user, I)
+
+/obj/structure/roguewindow/hitby(atom/movable/AM, skipcatch, hitpush, blocked, datum/thrownthing/throwingdatum, damage_flag = "blunt")
+	var/was_broken = obj_broken || brokenstate
+	var/mob/living/thrower = throwingdatum?.thrower
+	. = ..()
+	record_forced_break_transition(was_broken, thrower, AM)
+
+/obj/structure/roguewindow/bullet_act(obj/projectile/P)
+	var/was_broken = obj_broken || brokenstate
+	var/mob/living/shooter = P.firer
+	. = ..()
+	record_forced_break_transition(was_broken, shooter, P)
+
+/obj/structure/roguewindow/attack_generic(mob/user, damage_amount = 0, damage_type = BRUTE, damage_flag = 0, sound_effect = 1, armor_penetration = 0)
+	var/was_broken = obj_broken || brokenstate
+	. = ..()
+	var/mob/living/attacker = user
+	record_forced_break_transition(was_broken, attacker)
+
+/obj/structure/roguewindow/proc/record_forced_break_transition(was_broken, mob/living/culprit, atom/tool)
+	if(!was_broken && (obj_broken || brokenstate || obj_destroyed) && culprit)
+		record_forensic_event(FORENSIC_EVENT_FORCED_BREAK, culprit, tool)
 
 /obj/structure/roguewindow/update_icon()
 	if(brokenstate)
@@ -78,6 +100,7 @@
 				opacity = initial(opacity)
 				obj_integrity = max_integrity
 				repair_started = FALSE
+				clear_forensic_event()
 				user.visible_message(span_notice("[user] repaired [src]."), \
 				span_notice("I repaired [src]."))
 	else if(obj_integrity < max_integrity && istype(I, repair_costs[1]))
@@ -91,6 +114,7 @@
 			obj_integrity = obj_integrity + (max_integrity/2)
 			if(obj_integrity > max_integrity)
 				obj_integrity = max_integrity
+			clear_forensic_event()
 			user.visible_message(span_notice("[user] repaired [src]."), \
 			span_notice("I repaired [src]."))
 
@@ -281,6 +305,7 @@
 		else
 			if(!climbable)
 				to_chat(user, ("<span class='deadsay'>I slide [held_knife] through [src] seal...</span>"))
+			record_forensic_event(FORENSIC_EVENT_LOCKPICK_ATTEMPT, opener, held_knife)
 			while(!QDELETED(held_knife) && (lockprogress < locktreshold))
 				if(!do_after(user, picktime, target = src))
 					break
@@ -312,13 +337,14 @@
 					set_climbable(TRUE)
 					opacity = FALSE
 					update_icon()
-					var/obj/effect/track/structure/new_track = new(get_turf(src))
-					new_track.handle_creation(user)
+					record_forensic_event(FORENSIC_EVENT_FORCED_BREAK, opener, held_knife)
 					user.visible_message(
 						span_warning("[user] fucks up! The window is broken!!"),
 						span_danger("I fucked up!! FUCK!!"))
 					return
 
+			if(lockpicking_check_done == 1)
+				record_forensic_event(FORENSIC_EVENT_LOCKPICK_SUCCESS, opener, held_knife)
 			if(climbable && (lockpicking_check_done == 1))
 				close_up(user)
 				user.visible_message(
@@ -326,8 +352,6 @@
 					span_notice("I close the window!"))
 			else if(!climbable && (lockpicking_check_done == 1))
 				to_chat(user, "<span class='deadsay'>The locking mechanism gives...</span>")
-				var/obj/effect/track/structure/new_track = new(get_turf(src))
-				new_track.handle_creation(user)
 				open_up(user)
 				user.visible_message(
 					span_notice("[user] pries open [src] with [held_knife]!!"),
@@ -368,12 +392,17 @@
 	if(isliving(mover))
 		if(mover.throwing)
 			if(!climbable)
+				var/was_broken = obj_broken || brokenstate
+				var/mob/living/culprit = mover.throwing?.thrower
+				if(!culprit)
+					culprit = mover
 				if(!iscarbon(mover))
 					take_damage(10)
 				else
 					var/mob/living/carbon/dude = mover
 					var/base_damage = 20
 					take_damage(base_damage * (dude.STASTR / 10))
+				record_forced_break_transition(was_broken, culprit, mover)
 			if(brokenstate || climbable)
 				if(ishuman(mover))
 					var/mob/living/carbon/human/dude = mover
@@ -390,7 +419,10 @@
 	else if(isitem(mover))
 		var/obj/item/I = mover
 		if(I.throwforce >= 10)
+			var/was_broken = obj_broken || brokenstate
+			var/mob/living/thrower = I.throwing?.thrower
 			take_damage(I.throwforce)
+			record_forced_break_transition(was_broken, thrower, I)
 			if(brokenstate)
 				return 1
 		else
@@ -411,7 +443,9 @@
 		return
 	user.changeNext_move(CLICK_CD_INTENTCAP)
 	if(HAS_TRAIT(user, TRAIT_BASHDOORS))
+		var/was_broken = obj_broken || brokenstate
 		src.take_damage(15)
+		record_forced_break_transition(was_broken, user)
 		return
 	src.visible_message(span_info("[user] knocks on [src]."))
 	add_fingerprint(user)

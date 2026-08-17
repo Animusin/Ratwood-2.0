@@ -8,12 +8,66 @@
 		if(queued_villains[ckey] == job_title)
 			.++
 
+/datum/controller/subsystem/gamemode/proc/get_planned_villain_count(datum/round_event_control/event)
+	if(!event || !(event in planned_villain_counts))
+		return null
+	return planned_villain_counts[event]
+
+/datum/controller/subsystem/gamemode/proc/get_planned_villain_weight(datum/round_event_control/event)
+	if(!event || !(event in planned_villain_weights))
+		return null
+	return planned_villain_weights[event]
+
+/// Clip a plan to the candidates that actually exist and immediately release the unused reserve.
+/datum/controller/subsystem/gamemode/proc/reduce_planned_villain_event(datum/round_event_control/antagonist/solo/event, new_count)
+	if(!event || !(event in planned_villain_counts))
+		return
+	new_count = max(min(new_count, planned_villain_counts[event]), 0)
+	var/new_weight = 0
+	for(var/index in 1 to new_count)
+		new_weight += event.get_antag_cap_weight(index)
+	var/released_weight = max(planned_villain_weights[event] - new_weight, 0)
+	planned_villain_counts[event] = new_count
+	planned_villain_weights[event] = new_weight
+	roundstart_reserved_antag_weight = max(roundstart_reserved_antag_weight - released_weight, 0)
+
+/// Release a start-event reservation after its setup minds have received their datums.
+/datum/controller/subsystem/gamemode/proc/complete_planned_villain_event(datum/round_event_control/event)
+	if(!event || !(event in planned_villain_counts))
+		return
+	roundstart_reserved_antag_weight = max(roundstart_reserved_antag_weight - planned_villain_weights[event], 0)
+	planned_villain_counts -= event
+	planned_villain_weights -= event
+	maybe_complete_roundstart_antag_allocation()
+
+/datum/controller/subsystem/gamemode/proc/maybe_complete_roundstart_antag_allocation()
+	if(round_modifier_policy_name != "ratwood" || roundstart_antag_allocation_complete)
+		return
+	if(length(planned_villain_counts) || length(queued_villains))
+		return
+	roundstart_reserved_antag_weight = 0
+	roundstart_antag_allocation_complete = TRUE
+	message_admins("Ratwood roundstart antagonist allocation completed; dynamic antagonist cap is now active.")
+
+/// Safety valve for a cancelled or deleted event datum. No modifiers are rerolled.
+/datum/controller/subsystem/gamemode/proc/finish_stale_roundstart_antag_reservations()
+	if(roundstart_antag_allocation_complete)
+		return
+	if(length(planned_villain_counts))
+		message_admins("Ratwood released stale roundstart antagonist reservations: [roundstart_reserved_antag_weight].")
+	planned_villain_counts = list()
+	planned_villain_weights = list()
+	roundstart_reserved_antag_weight = 0
+	maybe_complete_roundstart_antag_allocation()
+
 /datum/controller/subsystem/gamemode/proc/open_villain_signups()
 	if(current_storyteller)
 		current_storyteller.guarantees_roundstart_roleset = FALSE
 		current_storyteller.roundstart_prob = 0
 	for(var/datum/round_event_control/event as anything in rolled_villain_events)
-		TriggerEvent(event, TRUE)
+		var/event_result = TriggerEvent(event, TRUE)
+		if(event_result != EVENT_READY)
+			complete_planned_villain_event(event)
 	rolled_villain_events = list()
 	for(var/datum/round_modifier/M in active_modifiers)
 		for(var/event_type in M.trigger_events)
@@ -27,6 +81,9 @@
 		to_chat(player, span_boldwarning("You have been chosen for villainy as a [job_title]!"))
 		player.AttemptLateSpawn(job_title)
 	queued_villains = list()
+	maybe_complete_roundstart_antag_allocation()
+	if(!roundstart_antag_allocation_complete)
+		addtimer(CALLBACK(src, PROC_REF(finish_stale_roundstart_antag_reservations)), 2 MINUTES)
 
 /mob/dead/new_player/proc/VillainChoices()
 	var/list/dat = list()

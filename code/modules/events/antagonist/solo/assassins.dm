@@ -82,6 +82,7 @@
 		SSmapping.retainer.assassins |= antag_mind.current
 		antag_mind.add_antag_datum(/datum/antagonist/assassin)
 	SSrole_class_handler.assassins_in_round = TRUE
+	SSgamemode?.complete_planned_villain_event(control)
 
 /datum/round_event_control/antagonist/solo/assassins/canSpawnEvent(players_amt, gamemode, fake_check)
 	. = ..()

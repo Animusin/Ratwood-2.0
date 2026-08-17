@@ -343,10 +343,11 @@ SUBSYSTEM_DEF(gamemode)
 
 /// Remaining antagonist capacity. An explicit current weight is used while roundstart jobs are
 /// being assigned, before those players have antagonist datums that get_antag_count() can see.
-/datum/controller/subsystem/gamemode/proc/get_remaining_antag_capacity(current_weight = null)
+/datum/controller/subsystem/gamemode/proc/get_remaining_antag_capacity(current_weight = null, include_roundstart_reservations = TRUE)
 	if(isnull(current_weight))
 		current_weight = get_antag_count()
-	return max(get_antag_cap() - current_weight, 0)
+	var/reserved_weight = include_roundstart_reservations && !roundstart_antag_allocation_complete ? roundstart_reserved_antag_weight : 0
+	return max(get_antag_cap() - current_weight - reserved_weight, 0)
 
 /// Whether an antagonist of the supplied weight fits under the current cap.
 /datum/controller/subsystem/gamemode/proc/can_add_antag_weight(weight = 1, current_weight = null)

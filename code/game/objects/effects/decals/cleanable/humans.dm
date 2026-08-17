@@ -33,6 +33,7 @@
 	mouse_opacity = MOUSE_OPACITY_TRANSPARENT
 	appearance_flags = NO_CLIENT_COLOR
 	var/blood_timer
+	var/is_dry = FALSE
 
 /obj/effect/decal/cleanable/blood/Initialize(mapload)
 	. = ..()
@@ -41,23 +42,32 @@
 		return .
 	pixel_x = rand(-5,5)
 	pixel_y = rand(5,5)
-	blood_timer = addtimer(CALLBACK(src, PROC_REF(become_dry)), rand(5 MINUTES,8 MINUTES), TIMER_STOPPABLE)
+	if(!is_dry)
+		blood_timer = addtimer(CALLBACK(src, PROC_REF(become_dry)), rand(5 MINUTES,8 MINUTES), TIMER_STOPPABLE)
 
 
 /obj/effect/decal/cleanable/blood/proc/become_dry()
+	blood_timer = null
 	if(QDELETED(src))
 		return
 	name = "dry [initial(name)]"
 	color = "#967c69"
 	bloodiness = 0
+	is_dry = TRUE
 
 /obj/effect/decal/cleanable/blood/replace_decal(obj/effect/decal/cleanable/C)
 	. = ..()
 	if(C)
-		C.alpha = initial(alpha)
-		C.bloodiness = initial(bloodiness)
-		C.name = initial(name)
-		C.color = initial(color)
+		var/obj/effect/decal/cleanable/blood/existing_blood = C
+		existing_blood.alpha = initial(alpha)
+		existing_blood.bloodiness = initial(bloodiness)
+		existing_blood.name = initial(name)
+		existing_blood.color = initial(color)
+		existing_blood.is_dry = initial(is_dry)
+		deltimer(existing_blood.blood_timer)
+		existing_blood.blood_timer = null
+		if(!existing_blood.is_dry)
+			existing_blood.blood_timer = addtimer(CALLBACK(existing_blood, PROC_REF(become_dry)), rand(5 MINUTES,8 MINUTES), TIMER_STOPPABLE)
 
 /obj/effect/decal/cleanable/blood/Destroy()
 	GLOB.weather_act_upon_list -= src
@@ -75,10 +85,16 @@
 	desc = ""
 	bloodiness = 0
 	icon_state = "floor1-old"
+	is_dry = TRUE
 
 /obj/effect/decal/cleanable/blood/old/Initialize(mapload)
 	add_blood_DNA(list("Non-human DNA" = random_blood_type())) // Needs to happen before ..()
 	. = ..()
+	if(. == INITIALIZE_HINT_QDEL)
+		return .
+	deltimer(blood_timer)
+	blood_timer = null
+	is_dry = TRUE
 	icon_state = "[icon_state]-old" //change from the normal blood icon selected from random_icon_states in the parent's Initialize to the old dried up blood.
 
 /obj/effect/decal/cleanable/blood/splatter

@@ -5,6 +5,17 @@
 	var/list/hiddenprints		//assoc ckey = realname/gloves/ckey
 	var/list/blood_DNA			//assoc dna = bloodtype
 	var/list/fibers				//assoc print = print
+	/// The most recent mechanical clue left on this atom.
+	var/forensic_event_type
+	var/forensic_event_time
+	var/datum/weakref/forensic_event_culprit
+	var/forensic_event_tool
+	var/forensic_event_timer
+
+/datum/component/forensics/Destroy(force = FALSE, silent = FALSE)
+	deltimer(forensic_event_timer)
+	forensic_event_timer = null
+	return ..()
 
 /datum/component/forensics/InheritComponent(datum/component/forensics/F, original)		//Use of | and |= being different here is INTENTIONAL.
 	fingerprints = fingerprints | F.fingerprints
@@ -51,6 +62,47 @@
 	fibers = null
 	return TRUE
 
+/// Atomically replaces the mechanical clue while preserving collected trace evidence.
+/datum/component/forensics/proc/record_forensic_event(event_type, mob/living/culprit, atom/tool)
+	if(!event_type || !isliving(culprit))
+		return FALSE
+	forensic_event_type = event_type
+	forensic_event_time = world.time
+	forensic_event_culprit = WEAKREF(culprit)
+	forensic_event_tool = tool ? tool.name : null
+	add_fingerprint(culprit)
+	deltimer(forensic_event_timer)
+	forensic_event_timer = addtimer(CALLBACK(src, PROC_REF(expire_forensic_event)), 20 MINUTES, TIMER_STOPPABLE)
+	return TRUE
+
+/// Returns a snapshot of the current clue, clearing it first when it has expired.
+/datum/component/forensics/proc/read_forensic_event()
+	if(!forensic_event_type)
+		return
+	if(world.time >= forensic_event_time + 20 MINUTES)
+		clear_forensic_event()
+		return
+	return list(
+		"type" = forensic_event_type,
+		"time" = forensic_event_time,
+		"culprit" = forensic_event_culprit,
+		"tool" = forensic_event_tool,
+	)
+
+/// Clears only the physical/mechanical clue. Cleaning trace evidence is handled separately.
+/datum/component/forensics/proc/clear_forensic_event()
+	deltimer(forensic_event_timer)
+	forensic_event_timer = null
+	forensic_event_type = null
+	forensic_event_time = null
+	forensic_event_culprit = null
+	forensic_event_tool = null
+	return TRUE
+
+/datum/component/forensics/proc/expire_forensic_event()
+	forensic_event_timer = null
+	clear_forensic_event()
+
 /datum/component/forensics/proc/clean_act(datum/source, strength)
 	if(strength >= CLEAN_STRENGTH_FINGERPRINTS)
 		wipe_fingerprints()
@@ -74,7 +126,8 @@
 	add_hiddenprint(M)
 	if(ishuman(M))
 		var/mob/living/carbon/human/H = M
-		add_fibers(H)
+		var/atom/forensic_parent = parent
+		forensic_parent.add_fibers(H)
 		if(H.gloves) //Check if the gloves (if any) hide fingerprints
 			if(!istype(H.gloves, /obj/item/clothing/gloves))
 				return
@@ -98,7 +151,7 @@
 
 /datum/component/forensics/proc/add_fibers(mob/living/carbon/human/M)
 	var/fibertext
-	var/item_multiplier = isitem(src)?1.2:1
+	var/item_multiplier = isitem(parent) ? 1.2 : 1
 	if(M.wear_armor)
 		fibertext = "Material from \a [M.wear_armor]."
 		if(prob(10*item_multiplier) && !LAZYACCESS(fibers, fibertext))

@@ -1300,42 +1300,104 @@ Necra's Censer (by ARefrigerator)
 
 /proc/_ravox_scan_and_report(atom/target, mob/living/user)
 	var/list/species_counts = list()
-	var/found = FALSE
+	var/list/identified_names = list()
+	var/list/tracking_candidates = list()
+	var/list/event_culprits = list()
+	var/list/event_reports = list()
+	var/list/blood_reports = list()
+	var/list/found_fibers = list()
+	var/list/blood_lookup = list()
+	var/list/fingerprint_lookup = list()
+	for(var/mob/living/carbon/human/H as anything in GLOB.mob_living_list)
+		if(H.dna?.unique_enzymes)
+			var/list/blood_owners = blood_lookup[H.dna.unique_enzymes]
+			if(!blood_owners)
+				blood_owners = list()
+				blood_lookup[H.dna.unique_enzymes] = blood_owners
+			blood_owners |= H
+		if(H.dna?.uni_identity)
+			var/fingerprint = md5(H.dna.uni_identity)
+			var/list/print_owners = fingerprint_lookup[fingerprint]
+			if(!print_owners)
+				print_owners = list()
+				fingerprint_lookup[fingerprint] = print_owners
+			print_owners |= H
 
-	found |= _ravox_collect_from_atom(target, species_counts)
-
+	var/list/scan_targets = list(target)
 	if(isturf(target))
 		for(var/obj/O in target)
-			found |= _ravox_collect_from_atom(O, species_counts)
+			scan_targets += O
+	var/found = FALSE
+	for(var/atom/scanned as anything in scan_targets)
+		found |= _ravox_collect_from_atom(scanned, species_counts, identified_names, tracking_candidates, blood_lookup, fingerprint_lookup)
+		var/list/fibers = scanned.return_fibers()
+		for(var/fiber in fibers)
+			found_fibers[html_encode(fiber)] = TRUE
+		if(istype(scanned, /obj/effect/decal/cleanable/blood))
+			var/obj/effect/decal/cleanable/blood/blood = scanned
+			_ravox_describe_blood(blood, blood_lookup, blood_reports)
+		var/list/event = scanned.read_forensic_event()
+		if(length(event))
+			found = TRUE
+			var/age = world.time - event["time"]
+			var/tool_name = event["tool"] ? html_encode(event["tool"]) : "an unknown implement"
+			event_reports += "[forensic_event_display_name(event["type"])], [tool_name], [_ravox_exact_age(age)] ago"
+			var/datum/weakref/culprit_ref = event["culprit"]
+			var/mob/living/culprit = culprit_ref?.resolve()
+			if(culprit)
+				event_culprits |= culprit
+				tracking_candidates |= culprit
+				identified_names[_ravox_identity_name(culprit)] = TRUE
 
-	if(!found || !length(species_counts))
+	if(!found && !length(event_reports) && !length(found_fibers))
 		SAY_WARN("Ravox’s gaze finds no readable traces on [target].")
 		return
 
-	var/list/parts = list()
-	for(var/race_name in species_counts)
-		var/num = max(1, species_counts[race_name])
-		parts += (num > 1) ? "[race_name] ([num])" : "[race_name]"
-	SAY_INFO("Ravox’s gaze reveals: [english_list(parts)].")
+	for(var/event_report in event_reports)
+		SAY_INFO("Ravox reveals [event_report].")
+	for(var/blood_report in blood_reports)
+		SAY_INFO("Blood: [blood_report].")
+	if(length(identified_names))
+		SAY_INFO("Identified traces: [english_list(identified_names)].")
+	if(length(species_counts))
+		var/list/parts = list()
+		for(var/race_name in species_counts)
+			var/num = max(1, species_counts[race_name])
+			parts += (num > 1) ? "[race_name] ([num])" : "[race_name]"
+		SAY_INFO("Species present: [english_list(parts)].")
+	if(length(found_fibers))
+		SAY_INFO("Fibers present: [english_list(found_fibers)].")
 
-/proc/_ravox_collect_from_atom(atom/A, list/species_counts)
+	var/mob/living/chosen_target
+	if(length(event_culprits) == 1)
+		chosen_target = event_culprits[1]
+	else if(!length(event_culprits) && length(tracking_candidates) == 1)
+		chosen_target = tracking_candidates[1]
+	if(chosen_target && ishuman(user))
+		var/mob/living/carbon/human/investigator = user
+		investigator.set_tracking_mark(chosen_target)
+		investigator.reveal_tracking_traces(15, TRUE)
+		SAY_INFO("Ravox fixes [_ravox_identity_name(chosen_target)] as my quarry and exposes the nearby trail.")
+	else if(length(tracking_candidates) > 1)
+		SAY_WARN("Several distinct people left traces here; the lens will not choose one for me.")
+
+/proc/_ravox_collect_from_atom(atom/A, list/species_counts, list/identified_names, list/tracking_candidates, list/blood_lookup, list/fingerprint_lookup)
 	if(!A) return FALSE
 	var/found = FALSE
 
 	var/list/blood = A.return_blood_DNA()
 	if(length(blood))
-		found |= _ravox_add_from_dna_map(blood, species_counts)
+		found |= _ravox_add_from_dna_map(blood, species_counts, identified_names, tracking_candidates, blood_lookup)
 
 	if(ishuman(A))
 		var/mob/living/carbon/human/H = A
 		if(!H.gloves && H?.dna?.uni_identity)
 			var/hash = md5(H.dna.uni_identity)
-			var/r = _ravox_guess_species_by_hash(hash)
-			_ravox_bump_species(species_counts, r); found = TRUE
+			found |= _ravox_add_from_prints(list(hash), species_counts, identified_names, tracking_candidates, fingerprint_lookup)
 	else if(!ismob(A))
 		var/list/fps = A.return_fingerprints()
 		if(length(fps))
-			found |= _ravox_add_from_prints(fps, species_counts)
+			found |= _ravox_add_from_prints(fps, species_counts, identified_names, tracking_candidates, fingerprint_lookup)
 
 		if(A.reagents && A.reagents.reagent_list.len)
 			for(var/datum/reagent/R in A.reagents.reagent_list)
@@ -1343,41 +1405,69 @@ Necra's Censer (by ARefrigerator)
 					var/bdna = R.data["blood_DNA"]
 					if(bdna)
 						var/list/tmp = list(); tmp[bdna] = TRUE
-						found |= _ravox_add_from_dna_map(tmp, species_counts)
+						found |= _ravox_add_from_dna_map(tmp, species_counts, identified_names, tracking_candidates, blood_lookup)
 
 	return found
 
-/proc/_ravox_add_from_dna_map(list/dna_map, list/species_counts)
+/proc/_ravox_add_from_dna_map(list/dna_map, list/species_counts, list/identified_names, list/tracking_candidates, list/blood_lookup)
 	if(!islist(dna_map) || !dna_map.len) return FALSE
 	var/added = FALSE
-	for(var/hash in dna_map)
-		var/r = _ravox_guess_species_by_hash("[hash]")
-		_ravox_bump_species(species_counts, r); added = TRUE
+	for(var/blood_dna in dna_map)
+		var/list/owners = blood_lookup["[blood_dna]"]
+		if(length(owners))
+			var/mob/living/carbon/human/first_owner = owners[1]
+			_ravox_bump_species(species_counts, _ravox_species_name(first_owner))
+			_ravox_add_identified_owners(owners, identified_names, tracking_candidates)
+		else
+			_ravox_bump_species(species_counts, "Unknown")
+		added = TRUE
 	return added
 
-/proc/_ravox_add_from_prints(list/prints, list/species_counts)
+/proc/_ravox_add_from_prints(list/prints, list/species_counts, list/identified_names, list/tracking_candidates, list/fingerprint_lookup)
 	if(!islist(prints) || !prints.len) return FALSE
 	var/added = FALSE
 	for(var/thing in prints)
 		var/hash = "[thing]"
 		if(!length(hash)) continue
-		var/r = _ravox_guess_species_by_hash(hash)
-		_ravox_bump_species(species_counts, r); added = TRUE
+		var/list/owners = fingerprint_lookup[hash]
+		if(length(owners))
+			var/mob/living/carbon/human/first_owner = owners[1]
+			_ravox_bump_species(species_counts, _ravox_species_name(first_owner))
+			_ravox_add_identified_owners(owners, identified_names, tracking_candidates)
+		else
+			_ravox_bump_species(species_counts, "Unknown")
+		added = TRUE
 	return added
+
+/proc/_ravox_add_identified_owners(list/owners, list/identified_names, list/tracking_candidates)
+	for(var/mob/living/owner as anything in owners)
+		identified_names[_ravox_identity_name(owner)] = TRUE
+		tracking_candidates |= owner
+
+/proc/_ravox_describe_blood(obj/effect/decal/cleanable/blood/blood, list/blood_lookup, list/blood_reports)
+	var/list/blood_dna = blood.return_blood_DNA()
+	for(var/dna_key in blood_dna)
+		var/list/owners = blood_lookup["[dna_key]"]
+		var/identity = "unknown owner"
+		if(length(owners))
+			var/list/names = list()
+			for(var/mob/living/owner as anything in owners)
+				names += _ravox_identity_name(owner)
+			identity = english_list(names)
+		var/state = blood.is_dry ? "dried" : "fresh"
+		blood_reports["[identity], type [blood_dna[dna_key]], [state]"] = TRUE
+
+/proc/_ravox_identity_name(mob/living/person)
+	return html_encode(person.real_name ? person.real_name : person.name)
+
+/proc/_ravox_exact_age(age)
+	if(age < 1 MINUTES)
+		return "[round(age / (1 SECONDS), 0.1)] seconds"
+	return "[round(age / (1 MINUTES), 0.1)] minutes"
 
 /proc/_ravox_bump_species(list/species_counts, race_name)
 	if(!race_name || !length(race_name)) race_name = "Unknown"
 	species_counts[race_name] = (species_counts[race_name] || 0) + 1
-
-
-/proc/_ravox_guess_species_by_hash(hash as text)
-	if(!length(hash)) return "Unknown"
-	for(var/mob/living/carbon/human/H in world)
-		if(H?.dna?.uni_identity)
-			var/fp = md5(H.dna.uni_identity)
-			if(fp == hash)
-				return _ravox_species_name(H)
-	return "Unknown"
 
 
 /proc/_ravox_species_name(mob/living/carbon/human/H)

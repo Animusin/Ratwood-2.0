@@ -7,7 +7,6 @@ PROCESSING_SUBSYSTEM_DEF(tracks)
 
 	// Object pooling
 	var/list/track_pool
-	var/list/structure_track_pool
 	var/list/thievescant_pool
 	var/pool_max_size 
 	var/tracks_recycled
@@ -15,7 +14,6 @@ PROCESSING_SUBSYSTEM_DEF(tracks)
 
 /datum/controller/subsystem/processing/tracks/Initialize()
 	track_pool = list()
-	structure_track_pool = list()
 	thievescant_pool = list()
 
 	pool_max_size = 1000
@@ -24,7 +22,7 @@ PROCESSING_SUBSYSTEM_DEF(tracks)
 
 /datum/controller/subsystem/processing/tracks/stat_entry()
 	if(processing)
-		..("P:[length(processing)] | Pool:[length(track_pool)+length(structure_track_pool)+length(thievescant_pool)] | R:[tracks_recycled] | N:[tracks_created]")
+		..("P:[length(processing)] | Pool:[length(track_pool)+length(thievescant_pool)] | R:[tracks_recycled] | N:[tracks_created]")
 
 /datum/controller/subsystem/processing/tracks/fire(resumed = 0)
 	if (!resumed)
@@ -59,8 +57,6 @@ PROCESSING_SUBSYSTEM_DEF(tracks)
 /datum/controller/subsystem/processing/tracks/proc/get_track(track_type = /obj/effect/track, turf/location)
 	var/list/pool
 	switch(track_type)
-		if(/obj/effect/track/structure)
-			pool = structure_track_pool
 		if(/obj/effect/track/thievescant)
 			pool = thievescant_pool
 		else
@@ -86,8 +82,6 @@ PROCESSING_SUBSYSTEM_DEF(tracks)
 	var/list/pool
 
 	switch(T.type)
-		if(/obj/effect/track/structure)
-			pool = structure_track_pool
 		if(/obj/effect/track/thievescant)
 			pool = thievescant_pool
 		else

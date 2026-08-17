@@ -52,6 +52,10 @@
 	var/list/shared_occurences = list()
 	/// Whether a roundstart event can happen post roundstart. Very important for events which override job assignments.
 	var/can_run_post_roundstart = TRUE
+	/// Kept in the global control registry so it can be forced by a round modifier, but never seeded into storyteller pools.
+	var/round_modifier_only = FALSE
+	/// Player-facing label for an isolated wrapper whose internal name must not collide with upstream persistence.
+	var/round_modifier_label
 	/// If set then the type or list of types of storytellers we are restricted to being trigged by
 	var/list/allowed_storytellers
 
@@ -84,7 +88,7 @@
 			string += ","
 		string += "Lack of players"
 	if(checks_antag_cap)
-		if(!SSgamemode.can_inject_antags())
+		if(isnull(SSgamemode.get_planned_villain_count(src)) && !SSgamemode.can_inject_antags())
 			if(string)
 				string += ","
 			string += "Too Many Villians"
@@ -123,7 +127,7 @@
 	if(req_omen)
 		if(!GLOB.badomens.len)
 			return FALSE
-	if(checks_antag_cap && !SSgamemode.can_inject_antags())
+	if(checks_antag_cap && isnull(SSgamemode.get_planned_villain_count(src)) && !SSgamemode.can_inject_antags())
 		return FALSE
 	if(!name)
 		return FALSE

@@ -292,6 +292,17 @@
 /datum/config_entry/string/overflow_job
 	config_entry_value = "None"
 
+/// Round modifier implementation used by the server. Ratwood is isolated from the upstream pool;
+/// upstream remains available as an emergency/testing fallback.
+/datum/config_entry/string/round_modifier_policy
+	config_entry_value = "ratwood"
+
+/datum/config_entry/string/round_modifier_policy/ValidateAndSet(str_val)
+	str_val = LOWER_TEXT(trim(str_val))
+	if(!(str_val in list("ratwood", "upstream")))
+		return FALSE
+	return ..(str_val)
+
 /datum/config_entry/flag/starlight
 /datum/config_entry/flag/grey_assistants
 

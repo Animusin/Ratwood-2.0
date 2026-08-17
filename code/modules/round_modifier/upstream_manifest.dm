@@ -38,8 +38,7 @@
 		/datum/round_event_control/antagonist/solo/aspirants = "ignored",
 	)
 
-/// Wrappers with explicit contracts. CI checks the upstream-derived population formula and the
-/// Ratwood-specific minimum population, datum, roundstart status, and cap weight.
+/// Review checklist for upstream-derived population formulas and Ratwood-specific balance.
 /proc/get_ratwood_solo_event_contracts()
 	return list(
 		/datum/round_event_control/antagonist/solo/masquerade/ratwood = list("base" = 2, "maximum" = 4, "denominator" = 80, "minimum" = 0, "datum" = /datum/antagonist/vampire/ratwood, "roundstart" = TRUE, "weight" = 2),

@@ -92,7 +92,6 @@
 #include "focus_only_tests.dm"
 #include "reagent_id_typos.dm"
 #include "reagent_recipe_collisions.dm"
-#include "round_modifiers.dm"
 #include "spawn_humans.dm"
 #include "species_whitelists.dm"
 #include "subsystem_init.dm"

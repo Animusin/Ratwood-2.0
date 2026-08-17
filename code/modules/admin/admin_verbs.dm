@@ -18,6 +18,7 @@ GLOBAL_PROTECT(admin_verbs_default)
 	/client/proc/admin_ghost,
 	/datum/admins/proc/start_vote,
 	/datum/admins/proc/show_player_panel,
+	/datum/admins/proc/reset_respawn_cooldown,
 	/datum/admins/proc/admin_heal,
 	/datum/admins/proc/admin_show_inventory,
 	/datum/admins/proc/admin_revive,
@@ -957,4 +958,3 @@ GLOBAL_PROTECT(admin_verbs_hideable)
 
 	to_chat(src, "Browser tools are now enabled.")
 	winset(src, null, "browser-options=devtools,find,byondstorage")
-

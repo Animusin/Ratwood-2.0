@@ -787,6 +787,23 @@
 /client/proc/show_player_panel_next(mob/M)
 	holder?.show_player_panel_next(M)
 
+/datum/admins/proc/reset_respawn_cooldown(mob/M in GLOB.mob_list)
+	set name = "Reset Respawn Cooldown"
+	set desc = "Allow a player to return from observing without waiting for their respawn cooldown"
+	set category = "-GameMaster-"
+
+	if(!check_rights(R_ADMIN))
+		return
+	if(!M?.ckey)
+		to_chat(usr, span_warning("The selected mob has no player attached."))
+		return
+
+	GLOB.respawntimes -= M.ckey
+	to_chat(M, span_notice("An admin has reset my respawn cooldown."))
+	message_admins(span_adminnotice("[key_name_admin(usr)] reset [key_name_admin(M)]'s respawn cooldown."))
+	log_admin("[key_name(usr)] reset [key_name(M)]'s respawn cooldown.")
+	SSblackbox.record_feedback("tally", "admin_verb", 1, "Reset Respawn Cooldown")
+
 /datum/admins/proc/admin_revive(mob/living/M in GLOB.mob_list)
 	set name = "Mob - Revive"
 	set desc = "Resuscitate a mob"

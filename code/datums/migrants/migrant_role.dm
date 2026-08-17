@@ -52,7 +52,7 @@
 /datum/migrant_role/assassin
 	name = "Assassin"
 	antag_datum = /datum/antagonist/assassin
-	antag_cap_weight = 0 // Assassin datum is FLAG_FAKE_ANTAG.
+	antag_cap_weight = 0.5
 	advclass_cat_rolls = list(CTAG_ASSASSIN = 20)
 
 /datum/migrant_role/gnoll

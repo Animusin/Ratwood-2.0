@@ -19,6 +19,11 @@
 	rogue_enabled = TRUE
 	var/datum/team/prebels/rev_team
 
+/datum/antagonist/prebel/get_antag_cap_weight()
+	if(SSgamemode?.round_modifier_policy_name == "ratwood")
+		return 2
+	return ..()
+
 /datum/antagonist/prebel/examine_friendorfoe(datum/antagonist/examined_datum,mob/examiner,mob/examined)
 	if(istype(examined_datum, /datum/antagonist/prebel/head))
 		return span_boldnotice("A revolution leader.")

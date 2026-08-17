@@ -306,7 +306,7 @@
 /obj/item/contraption/smelter/misfire_result()
 	misfiring = TRUE
 	for(var/obj/object in oview(3, src))
-		if(object.smeltresult)  // Check if the object is within the flame range
+		if(object.smeltresult)
 			if(istype(object, /obj/item/ingot))
 				continue
 			if(istype(object, /obj/item/contraption))
@@ -315,6 +315,10 @@
 					continue
 				addtimer(CALLBACK(I, PROC_REF(misfire_result)), rand(5))
 				continue
+			if(istype(object, /obj/item))
+				var/obj/item/item_object = object
+				if(!item_object.can_be_smelted())
+					continue
 			object.popcorn_smelt()
 
 	explosion(src, flame_range = 3, smoke = TRUE, soundin = pick('sound/misc/explode/bottlebomb (1).ogg','sound/misc/explode/bottlebomb (2).ogg'))
@@ -345,6 +349,11 @@
 		S.set_up(1, 1, front)
 		S.start()
 		return
+	if(istype(O, /obj/item))
+		var/obj/item/smeltable_item = O
+		if(!smeltable_item.can_be_smelted())
+			to_chat(user, span_info("\The [O] needs a full batch of [smeltable_item.smelt_batch_num] to smelt, which [name] can't take."))
+			return
 	user.mind.add_sleep_experience(/datum/skill/craft/engineering, (user.STAINT / 3))
 	charge_deduction(O, user, 1)
 	flick(on_icon, src)

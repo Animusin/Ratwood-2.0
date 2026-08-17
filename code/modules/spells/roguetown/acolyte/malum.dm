@@ -157,6 +157,19 @@
 
 /proc/handle_item_smelting(obj/item/target, mob/user, datum/effect_system/spark_spread/sparks, list/nosmeltore)
 	if (!target.smeltresult) return
+	if (target.smelt_batch_num > 1)
+		var/list/batch = target.gather_full_smelt_batch()
+		if (!batch)
+			show_visible_message(user, "After [user]'s incantation, [target] glows faintly, but refuses to melt - a full batch is needed to smelt it.", "After my incantation, [target] glows faintly, but refuses to melt - a full batch is needed to smelt it.")
+			return
+		var/turf/target_turf = get_turf(target)
+		show_visible_message(user, "After [user]'s incantation, the batch of [target.name]s glows brightly and melts into an ingot.", "After my incantation, the batch of [target.name]s glows brightly and melts into an ingot.")
+		new target.smeltresult(target_turf)
+		sparks.set_up(1, 1, target_turf)
+		sparks.start()
+		for (var/obj/item/batch_item in batch)
+			qdel(batch_item)
+		return
 	var/obj/item/itemtospawn = target.smeltresult
 	show_visible_message(user, "After [user]'s incantation, [target] glows brightly and melts into an ingot.", null)
 	new itemtospawn(get_turf(target))

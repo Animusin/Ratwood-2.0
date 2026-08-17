@@ -235,6 +235,8 @@
 	// Create all the items
 	for(var/i = 1 to current_recipe.createditem_num)
 		var/obj/item/I = new current_recipe.created_item(create_turf)
+		if(current_recipe.createditem_num > 1)
+			I.smelt_batch_num = current_recipe.createditem_num
 		// Apply the quality to each item
 		I.name = initial(I.name) // Reset the name first
 		if(modifier != 1)

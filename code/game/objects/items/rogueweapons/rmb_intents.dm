@@ -27,7 +27,7 @@
 /datum/rmb_intent/aimed/special_attack(mob/living/user, atom/target)
 	if(!user)
 		return
-	if(user.incapacitated())
+	if(user.incapacitated() || HAS_TRAIT(user, TRAIT_PARALYSIS))
 		return
 	if(!ishuman(user))
 		return
@@ -157,7 +157,7 @@
 		return
 	if(!user)
 		return
-	if(user.incapacitated())
+	if(user.incapacitated() || HAS_TRAIT(user, TRAIT_PARALYSIS))
 		return
 	if(user.has_status_effect(/datum/status_effect/debuff/feintcd))
 		return

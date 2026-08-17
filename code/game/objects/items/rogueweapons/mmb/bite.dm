@@ -26,7 +26,7 @@
 		return
 	if(target == user)
 		return
-	if(user.incapacitated())
+	if(user.incapacitated() || HAS_TRAIT(user, TRAIT_PARALYSIS))
 		return
 	if(!get_location_accessible(user, BODY_ZONE_PRECISE_MOUTH, grabs="other"))
 		if(!HAS_TRAIT(user, TRAIT_BITERHELM))
@@ -204,7 +204,7 @@
 		return
 	if(iscarbon(usr))
 		var/mob/living/carbon/C = usr
-		if(C != grabbee || C.incapacitated() || C.stat == DEAD)
+		if(C != grabbee || C.incapacitated() || HAS_TRAIT(C, TRAIT_PARALYSIS) || C.stat == DEAD)
 			qdel(src)
 			return 1
 		if(modifiers["right"])

@@ -379,11 +379,17 @@
 					var/list/parts = del_reqs(R, user)
 					if(islist(R.result))
 						var/list/L = R.result
+						var/list/created_counts = list()
+						for(var/CT in L)
+							created_counts[CT] += 1
 						for(var/IT in L)
 							var/atom/movable/I = new IT(T)
-							// Apply pottery quality if this is a pottery item
 							if(R.skillcraft == /datum/skill/craft/ceramics && ismob(user))
 								apply_pottery_quality_to_item(I, user.get_skill_level(R.skillcraft))
+							if(created_counts[IT] > 1 && istype(I, /obj/item))
+								var/obj/item/item_result = I
+								if(item_result.smeltresult)
+									item_result.smelt_batch_num = created_counts[IT]
 							I.CheckParts(parts, R)
 							I.OnCrafted(user.dir, user)
 							I.add_fingerprint(user)

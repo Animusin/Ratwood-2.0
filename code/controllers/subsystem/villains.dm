@@ -91,6 +91,15 @@
 	if(!SSgamemode.modifiers_rolled)
 		dat += "Wait."
 	else
+		dat += "<b>Mode:</b> [SSgamemode.chaos_mode_name]<br>"
+		if(!SSgamemode.roundstart_antag_allocation_complete)
+			dat += "<b>Roundstart cap:</b> [SSgamemode.roundstart_cap_snapshot]; <b>major reserve:</b> [SSgamemode.roundstart_reserved_antag_weight]<br><br>"
+			var/list/lesser_plan = list()
+			for(var/datum/round_modifier/ratwood/lesser/lesser_modifier in SSgamemode.active_modifiers)
+				lesser_plan += lesser_modifier.name
+			dat += "<b>Lesser plan:</b> [length(lesser_plan) ? lesser_plan.Join(", ") : "None"]<br><br>"
+		else
+			dat += "<b>Dynamic cap:</b> [SSgamemode.get_antag_count()] / [SSgamemode.get_antag_cap()]<br><br>"
 		dat += "<b>Greater Villains:</b><br>"
 		if(!length(SSgamemode.rolled_villain_events))
 			dat += "None.<br>"
@@ -98,16 +107,21 @@
 			var/slots = 1
 			if(istype(event, /datum/round_event_control/antagonist/solo))
 				var/datum/round_event_control/antagonist/solo/solo_event = event
-				slots = solo_event.get_antag_amount()
-			dat += "<b>[event.name]</b> ([slots] slots)<br>"
+				var/planned_slots = SSgamemode.get_planned_villain_count(solo_event)
+				slots = isnull(planned_slots) ? solo_event.get_antag_amount() : planned_slots
+			var/reserved_weight = SSgamemode.get_planned_villain_weight(event)
+			var/event_label = event.round_modifier_label || event.name
+			dat += "<b>[event_label]</b> ([slots] slots[isnull(reserved_weight) ? "" : ", [reserved_weight] reserved"])<br>"
 		if(length(SSgamemode.rolled_villain_events))
 			dat += "<i>These roll at roundstart from your antag preferences.</i><br>"
 
 		dat += "<br><b>Lesser Villains:</b><br>"
 		var/found = FALSE
+		var/remaining_antag_capacity = SSgamemode.roundstart_antag_allocation_complete ? SSgamemode.get_remaining_antag_capacity() : null
 		for(var/job_title in GLOB.villain_positions)
 			var/datum/job/J = SSjob.GetJob(job_title)
-			if(!J || !J.total_positions)
+			var/effective_limit = J ? SSjob.get_latejoin_position_limit(J, remaining_antag_capacity) : 0
+			if(!J || !(SSticker.current_state <= GAME_STATE_PREGAME ? J.total_positions : effective_limit))
 				continue
 			found = TRUE
 			if(SSticker.current_state <= GAME_STATE_PREGAME)
@@ -129,7 +143,9 @@
 						next_level = 2
 				dat += "<a href='?src=[REF(J)];explainjob=1'><font>[J.title]</font></a>([J.total_positions] slots) - <a href='byond://?src=[REF(src)];villain_pref=[J.title];level=[next_level]'><font color=[pref_color]>[pref_label]</font></a><br>"
 			else
-				dat += "<a href='?src=[REF(J)];explainjob=1'><font>[J.title]</font></a><a href='byond://?src=[REF(src)];SelectedJob=[J.title]'>([J.current_positions]/[J.total_positions])</a><a href='?src=[REF(J)];jobsubclassinfo=1'><b><font color = '#6b6743'>(!)</font></b></a><br>"
+				var/slot_display = "([J.current_positions]/[effective_limit])"
+				var/slot_link = J.current_positions < effective_limit ? "<a href='byond://?src=[REF(src)];SelectedJob=[J.title]'>[slot_display]</a>" : "<font color='gray'>[slot_display] FULL</font>"
+				dat += "<a href='?src=[REF(J)];explainjob=1'><font>[J.title]</font></a>[slot_link]<a href='?src=[REF(J)];jobsubclassinfo=1'><b><font color = '#6b6743'>(!)</font></b></a><br>"
 
 		if(!found)
 			dat += "No villain roles this round."
@@ -224,4 +240,3 @@
 		user.antag_setup = null
 		user << browse(null, "window=antagsetup")
 		qdel(src)
-

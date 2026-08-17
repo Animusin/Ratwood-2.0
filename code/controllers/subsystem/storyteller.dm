@@ -811,6 +811,12 @@ SUBSYSTEM_DEF(gamemode)
 	dat += "<BR>Town Strength: [effective_pop] (Total: [active_players] + Garrison Bonus: [garrison * TOWN_COMBATANT_ADDITIONAL_WEIGHT] + Holy Warrior Bonus: [holy_warrior * TOWN_COMBATANT_ADDITIONAL_WEIGHT])"
 	dat += "<BR>Antagonist Cap Population: [antag_cap_population] (Town Strength: [effective_pop] - Adventurers/Inhumen: [antag_cap_excluded_players])"
 	dat += "<BR>Antagonist Count vs Maximum: [get_antag_count()] / [antag_cap]"
+	dat += "<BR>Round Modifier Policy: [round_modifier_policy_name]"
+	if(round_modifier_policy_name == "ratwood")
+		dat += "<BR>Chaos Mode / Divisor: [chaos_mode_name] / [chaos_divisor]"
+		dat += "<BR>Roundstart Snapshot: [roundstart_cap_snapshot]"
+		dat += "<BR>Roundstart Allocation Complete: [roundstart_antag_allocation_complete ? "Yes" : "No"]"
+		dat += "<BR>Outstanding Major Reserve: [roundstart_reserved_antag_weight]"
 	var/chaos_name = "Medium"
 	switch(level)
 		if(1)

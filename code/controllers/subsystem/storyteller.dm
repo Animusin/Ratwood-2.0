@@ -169,6 +169,16 @@ SUBSYSTEM_DEF(gamemode)
 	/// Full town strength used by class requirements such as the Necromancer gate.
 	var/effective_pop = 0
 
+	/// Ratwood chaos settings and the hand-off between the fixed roundstart budget and the live cap.
+	var/round_modifier_policy_name = "upstream"
+	var/chaos_mode_name = "Low Chaos"
+	var/chaos_divisor = ANTAG_CAP_DENOMINATOR
+	var/roundstart_cap_snapshot = 0
+	var/roundstart_antag_allocation_complete = TRUE
+	var/roundstart_reserved_antag_weight = 0
+	var/list/planned_villain_counts = list()
+	var/list/planned_villain_weights = list()
+
 	var/storyteller_name = "Unknown"
 
 	/// Is storyteller secret or not
@@ -222,6 +232,8 @@ SUBSYSTEM_DEF(gamemode)
 
 	///Seeding events into track event pools needs to happen after event config vars are loaded
 	for(var/datum/round_event_control/event as anything in control)
+		if(event.round_modifier_only)
+			continue
 		if(event.holidayID || event.wizardevent)
 			uncategorized += event
 			continue
@@ -281,9 +293,11 @@ SUBSYSTEM_DEF(gamemode)
 
 /// Gets the number of antagonists the antagonist injection events will stop rolling after.
 /datum/controller/subsystem/gamemode/proc/get_antag_cap()
+	if(round_modifier_policy_name == "ratwood" && !roundstart_antag_allocation_complete && roundstart_cap_snapshot)
+		return roundstart_cap_snapshot
 	var/cap_population = get_antag_cap_population()
-	var/cap = FLOOR((cap_population / ANTAG_CAP_DENOMINATOR), 1) + ANTAG_CAP_FLAT
-	return cap
+	var/divisor = round_modifier_policy_name == "ratwood" ? chaos_divisor : ANTAG_CAP_DENOMINATOR
+	return calculate_antag_cap_from_population(cap_population, divisor)
 
 /// Gets the population used by the antagonist cap, excluding people who are not part of the town.
 /datum/controller/subsystem/gamemode/proc/get_antag_cap_population()
@@ -329,10 +343,11 @@ SUBSYSTEM_DEF(gamemode)
 
 /// Remaining antagonist capacity. An explicit current weight is used while roundstart jobs are
 /// being assigned, before those players have antagonist datums that get_antag_count() can see.
-/datum/controller/subsystem/gamemode/proc/get_remaining_antag_capacity(current_weight = null)
+/datum/controller/subsystem/gamemode/proc/get_remaining_antag_capacity(current_weight = null, include_roundstart_reservations = TRUE)
 	if(isnull(current_weight))
 		current_weight = get_antag_count()
-	return max(get_antag_cap() - current_weight, 0)
+	var/reserved_weight = include_roundstart_reservations && !roundstart_antag_allocation_complete ? roundstart_reserved_antag_weight : 0
+	return max(get_antag_cap() - current_weight - reserved_weight, 0)
 
 /// Whether an antagonist of the supplied weight fits under the current cap.
 /datum/controller/subsystem/gamemode/proc/can_add_antag_weight(weight = 1, current_weight = null)
@@ -600,6 +615,8 @@ SUBSYSTEM_DEF(gamemode)
 
 ///Attempts to select players for special roles the mode might have.
 /datum/controller/subsystem/gamemode/proc/pre_setup()
+	// Finalize a still-open chaos vote before jobs are divided so its lesser slots and snapshot are real roundstart state.
+	roll_round_modifiers()
 	if(!length(storytellers))
 		for(var/type in subtypesof(/datum/storyteller))
 			storytellers[type] = new type()
@@ -796,6 +813,12 @@ SUBSYSTEM_DEF(gamemode)
 	dat += "<BR>Town Strength: [effective_pop] (Total: [active_players] + Garrison Bonus: [garrison * TOWN_COMBATANT_ADDITIONAL_WEIGHT] + Holy Warrior Bonus: [holy_warrior * TOWN_COMBATANT_ADDITIONAL_WEIGHT])"
 	dat += "<BR>Antagonist Cap Population: [antag_cap_population] (Town Strength: [effective_pop] - Adventurers/Inhumen: [antag_cap_excluded_players])"
 	dat += "<BR>Antagonist Count vs Maximum: [get_antag_count()] / [antag_cap]"
+	dat += "<BR>Round Modifier Policy: [round_modifier_policy_name]"
+	if(round_modifier_policy_name == "ratwood")
+		dat += "<BR>Chaos Mode / Divisor: [chaos_mode_name] / [chaos_divisor]"
+		dat += "<BR>Roundstart Snapshot: [roundstart_cap_snapshot]"
+		dat += "<BR>Roundstart Allocation Complete: [roundstart_antag_allocation_complete ? "Yes" : "No"]"
+		dat += "<BR>Outstanding Major Reserve: [roundstart_reserved_antag_weight]"
 	var/chaos_name = "Medium"
 	switch(level)
 		if(1)

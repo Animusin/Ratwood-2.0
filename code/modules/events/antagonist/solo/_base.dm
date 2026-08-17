@@ -12,6 +12,8 @@
 	var/antag_datum
 	/// Capacity consumed by each selected antagonist. Override the proc for mixed-weight events.
 	var/antag_cap_weight = 1
+	/// Fixed-size pairs such as Ratwood assassins are cancelled instead of being partially planned.
+	var/requires_full_planned_count = FALSE
 	/// Prompt players for consent to turn them into antags before doing so. Dont allow this for roundstart.
 	var/prompted_picking = FALSE
 	/// A list of extra events to force whenever this one is chosen by the storyteller.
@@ -37,12 +39,15 @@
 		return FALSE
 	var/list/candidates = get_candidates()
 	if(length(candidates) < antag_amt)
-		return FALSE
+		if(isnull(SSgamemode.get_planned_villain_count(src)) || requires_full_planned_count || !length(candidates))
+			return FALSE
+		SSgamemode.reduce_planned_villain_event(src, length(candidates))
 
 /datum/round_event_control/antagonist/solo/proc/get_antag_amount()
-	var/people = SSgamemode.get_correct_popcount()
-	var/amount = base_antags + FLOOR(people / denominator, 1)
-	amount = min(amount, maximum_antags)
+	var/planned_amount = SSgamemode?.get_planned_villain_count(src)
+	if(!isnull(planned_amount))
+		return planned_amount
+	var/amount = get_desired_antag_amount()
 	if(!checks_antag_cap)
 		return amount
 
@@ -55,6 +60,13 @@
 		remaining_capacity -= next_weight
 		allowed_amount++
 	return allowed_amount
+
+/// Upstream population formula without cap clipping. Ratwood uses this once and snapshots the result.
+/datum/round_event_control/antagonist/solo/proc/get_desired_antag_amount(population_override = null)
+	var/people = isnull(population_override) ? SSgamemode.get_correct_popcount() : population_override
+	var/amount = base_antags + FLOOR(people / denominator, 1)
+	amount = min(amount, maximum_antags)
+	return amount
 
 /datum/round_event_control/antagonist/solo/proc/get_antag_cap_weight(index)
 	return antag_cap_weight
@@ -175,8 +187,12 @@
 		addtimer(CALLBACK(triggered_event, TYPE_PROC_REF(/datum/round_event_control, runEvent), FALSE), 1 SECONDS)
 
 /datum/round_event/antagonist/solo/start()
+	var/participant_index = 0
 	for(var/datum/mind/antag_mind as anything in setup_minds)
+		participant_index++
+		SSgamemode?.consume_planned_villain_reservation(control, participant_index)
 		add_datum_to_mind(antag_mind, antag_mind.current)
+	SSgamemode?.complete_planned_villain_event(control)
 
 /datum/round_event/antagonist/solo/proc/add_datum_to_mind(datum/mind/antag_mind)
 	antag_mind.add_antag_datum(antag_datum)

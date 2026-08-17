@@ -21,6 +21,7 @@
 
 	typepath = /datum/round_event/antagonist/solo/vampire
 	antag_datum = /datum/antagonist/vampire
+	var/leader_antag_datum = /datum/antagonist/vampire/lord
 
 	restricted_roles = DEFAULT_ANTAG_BLACKLISTED_ROLES
 
@@ -31,11 +32,13 @@
 	var/leader = FALSE
 
 /datum/round_event/antagonist/solo/vampire/add_datum_to_mind(datum/mind/antag_mind)
+	var/datum/round_event_control/antagonist/solo/vampires/vampire_control = control
 	if(!leader)
 		var/datum/job/J = SSjob.GetJob(antag_mind.current?.job)
 		J?.current_positions = max(J?.current_positions-1, 0)
 		antag_mind.current.unequip_everything()
-		var/datum/antagonist/vampire/lord/lorde = new /datum/antagonist/vampire/lord()
+		var/leader_type = vampire_control.leader_antag_datum
+		var/datum/antagonist/vampire/lord/lorde = new leader_type()
 		antag_mind.add_antag_datum(lorde)
 		leader = TRUE
 		return
@@ -44,6 +47,7 @@
 			var/datum/job/J = SSjob.GetJob(antag_mind.current?.job)
 			J?.current_positions = max(J?.current_positions-1, 0)
 			antag_mind.current.unequip_everything()
-			var/datum/antagonist/vampire/servante = new /datum/antagonist/vampire(forced_clan = null, generation = GENERATION_ANCILLAE)
+			var/vampire_type = vampire_control.antag_datum
+			var/datum/antagonist/vampire/servante = new vampire_type(forced_clan = null, generation = GENERATION_ANCILLAE)
 			antag_mind.add_antag_datum(servante)
 			return

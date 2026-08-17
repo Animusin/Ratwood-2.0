@@ -70,7 +70,10 @@
 	antag_datum = /datum/antagonist/assassin
 
 /datum/round_event/antagonist/solo/assassins/start()
+	var/participant_index = 0
 	for(var/datum/mind/antag_mind as anything in setup_minds)
+		participant_index++
+		SSgamemode?.consume_planned_villain_reservation(control, participant_index)
 		var/datum/job/original_job = SSjob.GetJob(antag_mind.assigned_role)
 		antag_mind.current.unequip_everything()
 		SSjob.AssignRole(antag_mind.current, "Assassin")
@@ -80,8 +83,9 @@
 			else
 				original_job.current_positions += 1
 		SSmapping.retainer.assassins |= antag_mind.current
-		antag_mind.add_antag_datum(/datum/antagonist/assassin)
+		antag_mind.add_antag_datum(antag_datum)
 	SSrole_class_handler.assassins_in_round = TRUE
+	SSgamemode?.complete_planned_villain_event(control)
 
 /datum/round_event_control/antagonist/solo/assassins/canSpawnEvent(players_amt, gamemode, fake_check)
 	. = ..()

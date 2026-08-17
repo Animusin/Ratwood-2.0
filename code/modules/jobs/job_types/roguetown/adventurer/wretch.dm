@@ -57,6 +57,12 @@
 		/datum/advclass/wretch/ancientchampion,
 	)
 
+/datum/job/roguetown/wretch/New()
+	. = ..()
+	if(CONFIG_GET(string/round_modifier_policy) == "ratwood")
+		total_positions = 0
+		spawn_positions = 0
+
 /datum/job/roguetown/wretch/after_spawn(mob/living/L, mob/M, latejoin = TRUE)
 	..()
 	if(L)

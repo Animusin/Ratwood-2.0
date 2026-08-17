@@ -98,6 +98,11 @@ jobs:
           source $HOME/BYOND/byond/bin/byondsetup
           tools/build/build.sh
 
+      - name: Run BYOND unit tests
+        run: |
+          source $HOME/BYOND/byond/bin/byondsetup
+          tools/build/build.sh --define=RATWOOD_UNIT_TESTS dm-test
+
       - name: Check for errors
         id: check-errors
         run: |

@@ -25,5 +25,7 @@
 	restricted_roles = DEFAULT_ANTAG_BLACKLISTED_ROLES
 
 /datum/round_event/antagonist/solo/masquerade/add_datum_to_mind(datum/mind/antag_mind)
-	var/datum/antagonist/vampire/new_antag = new /datum/antagonist/vampire(forced_clan = FALSE, generation = GENERATION_ANCILLAE)
+	var/datum/round_event_control/antagonist/solo/vampire_control = control
+	var/vampire_type = vampire_control?.antag_datum || /datum/antagonist/vampire
+	var/datum/antagonist/vampire/new_antag = new vampire_type(forced_clan = FALSE, generation = GENERATION_ANCILLAE)
 	antag_mind.add_antag_datum(new_antag)

@@ -3,6 +3,7 @@
 	var/budget = 0
 	var/list/active_modifiers = list()
 	var/modifiers_rolled = FALSE
+	var/modifiers_rolling = FALSE
 	var/datum/round_modifier_policy/round_modifier_policy
 
 /datum/controller/subsystem/gamemode/proc/get_round_modifier_policy()
@@ -17,20 +18,24 @@
 	return round_modifier_policy
 
 /datum/controller/subsystem/gamemode/proc/chaos_vote_result(winner)
+	if(modifiers_rolled)
+		return
 	var/datum/round_modifier_policy/policy = get_round_modifier_policy()
 	policy.handle_vote(src, winner)
 	to_chat(world, span_notice("<b>[chaos_mode_name]!</b>"))
 	roll_round_modifiers()
 
 /datum/controller/subsystem/gamemode/proc/roll_round_modifiers()
-	if(modifiers_rolled)
+	if(modifiers_rolled || modifiers_rolling)
 		return
-	modifiers_rolled = TRUE
+	modifiers_rolling = TRUE
 	if(istype(SSvote.current_vote, /datum/vote/chaos))
 		SSvote.end_vote()
 	var/datum/round_modifier_policy/policy = get_round_modifier_policy()
 	policy.select_modifiers(src)
 	apply_round_modifiers()
+	modifiers_rolled = TRUE
+	modifiers_rolling = FALSE
 
 /// The old upstream picker is deliberately retained behind the policy hook.
 /datum/controller/subsystem/gamemode/proc/roll_upstream_round_modifiers()

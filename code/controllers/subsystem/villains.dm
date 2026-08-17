@@ -31,7 +31,17 @@
 	planned_villain_weights[event] = new_weight
 	roundstart_reserved_antag_weight = max(roundstart_reserved_antag_weight - released_weight, 0)
 
-/// Release a start-event reservation after its setup minds have received their datums.
+/// Convert one participant's reservation immediately before their job or antagonist datum is assigned.
+/// This keeps the reservation from blocking cap-aware assignment while preserving the combined total.
+/datum/controller/subsystem/gamemode/proc/consume_planned_villain_reservation(datum/round_event_control/antagonist/solo/event, participant_index)
+	if(!event || !(event in planned_villain_weights))
+		return
+	var/participant_weight = max(event.get_antag_cap_weight(participant_index), 0)
+	var/consumed_weight = min(participant_weight, planned_villain_weights[event])
+	planned_villain_weights[event] = max(planned_villain_weights[event] - consumed_weight, 0)
+	roundstart_reserved_antag_weight = max(roundstart_reserved_antag_weight - consumed_weight, 0)
+
+/// Release any unconsumed part of a start-event reservation after setup finishes.
 /datum/controller/subsystem/gamemode/proc/complete_planned_villain_event(datum/round_event_control/event)
 	if(!event || !(event in planned_villain_counts))
 		return

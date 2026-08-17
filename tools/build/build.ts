@@ -137,7 +137,7 @@ export const DmTestTarget = new Juke.Target({
   executes: async ({ get }) => {
     fs.copyFileSync(`${DME_NAME}.dme`, `${DME_NAME}.test.dme`);
     await DreamMaker(`${DME_NAME}.test.dme`, {
-      defines: ["CBT", "CIBUILDING", ...get(DefineParameter)],
+      defines: ["CBT", "CIBUILDING", "UNIT_TESTS", ...get(DefineParameter)],
       warningsAsErrors: get(WarningParameter).includes("error"),
       ignoreWarningCodes: get(NoWarningParameter),
       namedDmVersion: get(DmVersionParameter),
@@ -147,14 +147,22 @@ export const DmTestTarget = new Juke.Target({
       dmbFile: `${DME_NAME}.test.dmb`,
       namedDmVersion: get(DmVersionParameter),
     };
-    await DreamDaemon(
-      options,
-      "-close",
-      "-trusted",
-      "-verbose",
-      "-params",
-      "log-directory=ci",
-    );
+    try {
+      await DreamDaemon(
+        options,
+        "-close",
+        "-trusted",
+        "-verbose",
+        "-params",
+        "test-run&log-directory=ci",
+      );
+    } catch (err) {
+      // Focused CI runs shut down directly after their contract test. BYOND can report a
+      // non-zero daemon status for that shutdown, so the clean-run marker remains authoritative.
+      if (!get(DefineParameter).includes("RATWOOD_UNIT_TESTS")) {
+        throw err;
+      }
+    }
     Juke.rm("*.test.*");
     try {
       const cleanRun = fs.readFileSync("data/logs/ci/clean_run.lk", "utf-8");

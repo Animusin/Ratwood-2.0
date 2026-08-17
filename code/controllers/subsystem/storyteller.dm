@@ -615,6 +615,8 @@ SUBSYSTEM_DEF(gamemode)
 
 ///Attempts to select players for special roles the mode might have.
 /datum/controller/subsystem/gamemode/proc/pre_setup()
+	// Finalize a still-open chaos vote before jobs are divided so its lesser slots and snapshot are real roundstart state.
+	roll_round_modifiers()
 	if(!length(storytellers))
 		for(var/type in subtypesof(/datum/storyteller))
 			storytellers[type] = new type()

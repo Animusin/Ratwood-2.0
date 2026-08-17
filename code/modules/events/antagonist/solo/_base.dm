@@ -187,7 +187,10 @@
 		addtimer(CALLBACK(triggered_event, TYPE_PROC_REF(/datum/round_event_control, runEvent), FALSE), 1 SECONDS)
 
 /datum/round_event/antagonist/solo/start()
+	var/participant_index = 0
 	for(var/datum/mind/antag_mind as anything in setup_minds)
+		participant_index++
+		SSgamemode?.consume_planned_villain_reservation(control, participant_index)
 		add_datum_to_mind(antag_mind, antag_mind.current)
 	SSgamemode?.complete_planned_villain_event(control)
 

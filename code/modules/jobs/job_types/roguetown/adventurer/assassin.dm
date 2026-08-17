@@ -8,7 +8,7 @@
 	min_pq = 25		//This is a class that lets you effectively no-esc someone. So.. responsibility.
 	max_pq = null
 	antag_job = TRUE
-	antag_cap_weight = 0.5
+	antag_cap_weight = 0 // Upstream assassins are fake antags; Ratwood enables its own counted subtype in New().
 	allowed_races = RACES_ALL_KINDS
 	tutorial = "Long ago you did a crime worthy of your bounty being hung on the wall outside of the local inn. You now live with your fellow freemen in the bog, and generally get up to no good."
 
@@ -46,6 +46,11 @@
 		/datum/advclass/assassin_hitman,
 	)
 
+/datum/job/roguetown/assassin/New()
+	. = ..()
+	if(CONFIG_GET(string/round_modifier_policy) == "ratwood")
+		antag_cap_weight = 0.5
+
 /datum/job/roguetown/assassin/after_spawn(mob/living/L, mob/M, latejoin = TRUE)
 	..()
 	if(L)
@@ -57,7 +62,8 @@
 /datum/outfit/job/roguetown/assassin/post_equip(mob/living/carbon/human/H)
 	..()
 	if(H.mind)
-		var/datum/antagonist/new_antag = new /datum/antagonist/assassin()
+		var/antag_type = CONFIG_GET(string/round_modifier_policy) == "ratwood" ? /datum/antagonist/assassin/ratwood : /datum/antagonist/assassin
+		var/datum/antagonist/new_antag = new antag_type
 		H.mind.add_antag_datum(new_antag)
 		H.grant_language(/datum/language/thievescant)
 		addtimer(CALLBACK(H, TYPE_PROC_REF(/mob/living/carbon/human, choose_name_popup), "ASSASSIN"), 5 SECONDS)

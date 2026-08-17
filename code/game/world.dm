@@ -119,6 +119,10 @@ GLOBAL_VAR(restart_counter)
 /world/proc/HandleTestRun()
 	//trigger things to run the whole process
 	Master.sleep_offline_after_initializations = FALSE
+#ifdef RATWOOD_UNIT_TESTS
+	addtimer(CALLBACK(GLOBAL_PROC, GLOBAL_PROC_REF(RunUnitTests)), 1 SECONDS)
+	return
+#endif
 	SSticker.start_immediately = TRUE
 	CONFIG_SET(number/round_end_countdown, 0)
 	var/datum/callback/cb
@@ -187,6 +191,9 @@ GLOBAL_VAR(restart_counter)
 	GLOB.world_job_debug_log = "[GLOB.log_directory]/job_debug.log"
 	GLOB.world_paper_log = "[GLOB.log_directory]/paper.log"
 	GLOB.tgui_log = "[GLOB.log_directory]/tgui.log"
+#ifdef UNIT_TESTS
+	GLOB.test_log = "[GLOB.log_directory]/test.log"
+#endif
 
 	start_log(GLOB.world_game_log)
 	start_log(GLOB.world_attack_log)
@@ -200,6 +207,9 @@ GLOBAL_VAR(restart_counter)
 	start_log(GLOB.world_job_debug_log)
 	start_log(GLOB.tgui_log)
 	start_log(GLOB.character_list_log)
+#ifdef UNIT_TESTS
+	start_log(GLOB.test_log)
+#endif
 
 	var/latest_changelog = file("[global.config.directory]/../html/changelogs/archive/" + time2text(world.timeofday, "YYYY-MM", TIMEZONE_UTC) + ".yml")
 	GLOB.changelog_hash = fexists(latest_changelog) ? md5(latest_changelog) : 0 //for telling if the changelog has changed recently
@@ -256,8 +266,10 @@ GLOBAL_VAR(restart_counter)
 	set waitfor = FALSE
 	var/list/fail_reasons
 	if(GLOB)
+#ifndef RATWOOD_UNIT_TESTS
 		if(GLOB.total_runtimes != 0)
 			fail_reasons = list("Total runtimes: [GLOB.total_runtimes]")
+#endif
 #ifdef UNIT_TESTS
 		if(GLOB.failed_any_test)
 			LAZYADD(fail_reasons, "Unit Tests failed!")
@@ -271,7 +283,11 @@ GLOBAL_VAR(restart_counter)
 	else
 		log_world("Test run failed!\n[fail_reasons.Join("\n")]")
 	sleep(0)	//yes, 0, this'll let Reboot finish and prevent byond memes
+#ifdef RATWOOD_UNIT_TESTS
+	del(src)
+#else
 	qdel(src)	//shut it down
+#endif
 
 /world/Reboot(reason = 0, fast_track = FALSE)
 //	if (reason || fast_track) //special reboot, do none of the normal stuff

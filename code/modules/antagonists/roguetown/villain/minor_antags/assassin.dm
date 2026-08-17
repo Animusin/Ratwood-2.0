@@ -12,16 +12,13 @@
 		"DEATH IS MY DEVOTION!",
 		"THE DARK SUN GUIDES MY HAND!",
 	)
-	antag_flags = NONE
+	antag_flags = FLAG_FAKE_ANTAG
 
 	var/traits_assassin = list(
 		TRAIT_ASSASSIN,
 		TRAIT_NOSTINK,
 		TRAIT_STEELHEARTED,
 	)
-
-/datum/antagonist/assassin/get_antag_cap_weight()
-	return 0.5
 
 /datum/antagonist/assassin/on_gain()
 	owner.current.cmode_music = list('sound/music/cmode/antag/combat_assassin.ogg')

@@ -5,8 +5,8 @@
 	antag_job = TRUE
 	department_flag = WANDERERS
 	faction = "Station"
-	total_positions = 0
-	spawn_positions = 0
+	total_positions = 9
+	spawn_positions = 9
 	allowed_races = RACES_ALL_KINDS
 	tutorial = "Somewhere in your lyfe, you fell to the wrong side of civilization. Hounded by the consequences of your actions, you spend your daes prowling the roads for easy marks and loose purses, scraping to get by."
 	outfit = null
@@ -56,6 +56,12 @@
 		/datum/advclass/wretch/wretchedtoiler,
 		/datum/advclass/wretch/ancientchampion,
 	)
+
+/datum/job/roguetown/wretch/New()
+	. = ..()
+	if(CONFIG_GET(string/round_modifier_policy) == "ratwood")
+		total_positions = 0
+		spawn_positions = 0
 
 /datum/job/roguetown/wretch/after_spawn(mob/living/L, mob/M, latejoin = TRUE)
 	..()

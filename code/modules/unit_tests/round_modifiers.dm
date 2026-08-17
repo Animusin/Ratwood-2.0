@@ -6,14 +6,17 @@
 	TEST_ASSERT_EQUAL(calculate_antag_cap_from_population(45 - 5, 15), 4, "Low dynamic cap must apply bonuses/exclusions before its divisor.")
 	TEST_ASSERT_EQUAL(calculate_antag_cap_from_population(45 - 5, 10), 6, "High dynamic cap must apply bonuses/exclusions before its divisor.")
 
+	var/datum/vote/chaos/chaos_vote = new
+	chaos_vote.create_vote()
+	TEST_ASSERT_EQUAL(length(chaos_vote.get_vote_result(list())), 0, "A chaos vote with no votes must fall back to Low Chaos.")
+	chaos_vote.choices["Low Chaos"] = 1
+	chaos_vote.choices["High Chaos"] = 1
+	TEST_ASSERT_EQUAL(length(chaos_vote.get_vote_result(list())), 2, "A real chaos vote tie must retain both choices for random tiebreaking.")
+	qdel(chaos_vote)
+
 	var/list/upstream_modifiers = get_ratwood_upstream_round_modifier_manifest()
-	var/list/local_modifier_types = list(
-		/datum/round_modifier/ratwood/weather/clear,
-		/datum/round_modifier/ratwood/weather/fog,
-		/datum/round_modifier/ratwood/weather/stormy,
-	)
 	for(var/modifier_type in subtypesof(/datum/round_modifier))
-		if(ispath(modifier_type, /datum/round_modifier/ratwood) || modifier_type in local_modifier_types)
+		if(findtext("[modifier_type]", "/datum/round_modifier/ratwood") == 1)
 			continue
 		if(!(modifier_type in upstream_modifiers))
 			Fail("Unclassified upstream round modifier: [modifier_type]")
@@ -50,7 +53,14 @@
 	var/datum/round_event_control/antagonist/solo/vampires/ratwood/vampire_lord = new
 	TEST_ASSERT_EQUAL(vampire_lord.get_antag_cap_weight(1), 3, "Vampire Lord must reserve three.")
 	TEST_ASSERT_EQUAL(vampire_lord.get_antag_cap_weight(2), 2, "Vampire Lord's additional vampire must reserve two.")
+	TEST_ASSERT_EQUAL(vampire_lord.leader_antag_datum, /datum/antagonist/vampire/lord/ratwood, "Ratwood Vampire Lord event must create the weighted leader subtype.")
 	qdel(vampire_lord)
+	var/datum/antagonist/vampire/ratwood/ratwood_vampire = new
+	TEST_ASSERT_EQUAL(ratwood_vampire.get_antag_cap_weight(), 2, "A spawned Ratwood vampire must retain its reserved weight.")
+	qdel(ratwood_vampire)
+	var/datum/antagonist/vampire/lord/ratwood/ratwood_vampire_lord = new
+	TEST_ASSERT_EQUAL(ratwood_vampire_lord.get_antag_cap_weight(), 3, "A spawned Ratwood Vampire Lord must retain its reserved weight.")
+	qdel(ratwood_vampire_lord)
 
 	var/datum/round_modifier_policy/ratwood/ratwood_policy = new
 	var/list/low_pool = ratwood_policy.get_modifier_pool("Low Chaos")
@@ -68,13 +78,40 @@
 	qdel(ratwood_policy)
 
 	var/datum/job/roguetown/wretch/wretch_job = new
-	TEST_ASSERT_EQUAL(wretch_job.total_positions, 0, "Wretch must be unavailable without a Ratwood modifier.")
-	TEST_ASSERT_EQUAL(wretch_job.spawn_positions, 0, "Wretch must have no default roundstart slots.")
+	TEST_ASSERT_EQUAL(initial(wretch_job.total_positions), 9, "Upstream fallback must retain the upstream Wretch baseline.")
+	if(CONFIG_GET(string/round_modifier_policy) == "ratwood")
+		TEST_ASSERT_EQUAL(wretch_job.total_positions, 0, "Wretch must be unavailable without a Ratwood modifier.")
+		TEST_ASSERT_EQUAL(wretch_job.spawn_positions, 0, "Wretch must have no default roundstart slots.")
+	else
+		TEST_ASSERT_EQUAL(wretch_job.total_positions, 9, "Upstream fallback must keep default Wretch slots.")
 	qdel(wretch_job)
-	var/datum/antagonist/assassin/assassin = new
+	var/datum/antagonist/assassin/upstream_assassin = new
+	TEST_ASSERT(upstream_assassin.antag_flags & FLAG_FAKE_ANTAG, "Upstream fallback must retain fake-antag assassin behavior.")
+	qdel(upstream_assassin)
+	var/datum/antagonist/assassin/ratwood/assassin = new
 	TEST_ASSERT_EQUAL(assassin.get_antag_cap_weight(), 0.5, "Each assassin must consume half a cap point.")
-	TEST_ASSERT(!(assassin.antag_flags & FLAG_FAKE_ANTAG), "Assassins must no longer bypass antagonist cap accounting.")
+	TEST_ASSERT(!(assassin.antag_flags & FLAG_FAKE_ANTAG), "Ratwood assassins must not bypass antagonist cap accounting.")
 	qdel(assassin)
+
+	var/datum/round_event_control/antagonist/solo/assassins/ratwood/assassin_event = new
+	var/list/original_planned_counts = SSgamemode.planned_villain_counts
+	var/list/original_planned_weights = SSgamemode.planned_villain_weights
+	var/original_reserved_weight = SSgamemode.roundstart_reserved_antag_weight
+	SSgamemode.planned_villain_counts = list()
+	SSgamemode.planned_villain_counts[assassin_event] = 2
+	SSgamemode.planned_villain_weights = list()
+	SSgamemode.planned_villain_weights[assassin_event] = 1
+	SSgamemode.roundstart_reserved_antag_weight = 1
+	SSgamemode.consume_planned_villain_reservation(assassin_event, 1)
+	var/first_assassin_reserve = SSgamemode.roundstart_reserved_antag_weight
+	SSgamemode.consume_planned_villain_reservation(assassin_event, 2)
+	var/second_assassin_reserve = SSgamemode.roundstart_reserved_antag_weight
+	SSgamemode.planned_villain_counts = original_planned_counts
+	SSgamemode.planned_villain_weights = original_planned_weights
+	SSgamemode.roundstart_reserved_antag_weight = original_reserved_weight
+	qdel(assassin_event)
+	TEST_ASSERT_EQUAL(first_assassin_reserve, 0.5, "The first assassin must consume half of the pair reservation before assignment.")
+	TEST_ASSERT_EQUAL(second_assassin_reserve, 0, "The second assassin must consume the rest of the pair reservation before assignment.")
 
 	var/datum/round_modifier_policy/upstream/fallback = new
 	TEST_ASSERT_EQUAL(fallback.id, "upstream", "Upstream fallback policy must remain constructible.")

@@ -28,7 +28,10 @@
 	mode.chaos_mode_name = winner == RATWOOD_CHAOS_HIGH ? RATWOOD_CHAOS_HIGH : RATWOOD_CHAOS_LOW
 	mode.level = mode.chaos_mode_name == RATWOOD_CHAOS_HIGH ? 3 : 1
 	mode.chaos_divisor = mode.chaos_mode_name == RATWOOD_CHAOS_HIGH ? RATWOOD_HIGH_DIVISOR : RATWOOD_LOW_DIVISOR
-	mode.calculate_ready_players()
+	// A late fallback may run after pre_setup() has already snapshotted the lobby.
+	// Recounting after character transfer would lose the number of players who readied up.
+	if(!SSticker.HasRoundStarted())
+		mode.calculate_ready_players()
 	mode.roundstart_cap_snapshot = calculate_roundstart_cap(mode.ready_players, mode.chaos_divisor)
 	mode.roundstart_antag_allocation_complete = FALSE
 	mode.roundstart_reserved_antag_weight = 0
@@ -210,6 +213,7 @@
 	round_modifier_label = "Masquerade"
 	round_modifier_only = TRUE
 	max_occurrences = 1
+	antag_datum = /datum/antagonist/vampire/ratwood
 
 /datum/round_event_control/antagonist/solo/rebel/ratwood
 	name = "Ratwood: Rebellion"
@@ -237,11 +241,14 @@
 	max_occurrences = 1
 	antag_cap_weight = 0.5
 	requires_full_planned_count = TRUE
+	antag_datum = /datum/antagonist/assassin/ratwood
 
 /datum/round_event_control/antagonist/solo/vampires/ratwood
 	name = "Ratwood: Vampire Lord"
 	round_modifier_label = "Vampire Lord"
 	round_modifier_only = TRUE
+	antag_datum = /datum/antagonist/vampire/ratwood
+	leader_antag_datum = /datum/antagonist/vampire/lord/ratwood
 
 /datum/round_event_control/antagonist/solo/werewolf/ratwood
 	name = "Ratwood: Werewolf"
@@ -261,6 +268,22 @@
 	antag_datum = /datum/antagonist/lich/ratwood
 
 // Actual cap weights mirror the costs reserved above.
+/datum/antagonist/vampire/ratwood
+
+/datum/antagonist/vampire/ratwood/get_antag_cap_weight()
+	return 2
+
+/datum/antagonist/vampire/lord/ratwood
+
+/datum/antagonist/vampire/lord/ratwood/get_antag_cap_weight()
+	return 3
+
+/datum/antagonist/assassin/ratwood
+	antag_flags = NONE
+
+/datum/antagonist/assassin/ratwood/get_antag_cap_weight()
+	return 0.5
+
 /datum/antagonist/prebel/head/ratwood/get_antag_cap_weight()
 	return 2
 

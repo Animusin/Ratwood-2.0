@@ -70,7 +70,11 @@ GLOBAL_VAR(test_log)
 /proc/RunUnitTests()
 	CHECK_TICK
 
+#ifdef RATWOOD_UNIT_TESTS
+	var/list/tests_to_run = list(/datum/unit_test/ratwood_round_modifier_contracts)
+#else
 	var/list/tests_to_run = sortTim(subtypesof(/datum/unit_test), /proc/cmp_unit_test_priority)
+#endif
 	for(var/I in tests_to_run)
 		var/datum/unit_test/test = new I
 
@@ -94,7 +98,11 @@ GLOBAL_VAR(test_log)
 
 		CHECK_TICK
 
+#ifdef RATWOOD_UNIT_TESTS
+	world.FinishTestRun()
+#else
 	SSticker.force_ending = TRUE
+#endif
 
 /// Allocates an instance of the provided type, and places it somewhere in an available loc
 /// Instances allocated through this proc will be destroyed when the test is over

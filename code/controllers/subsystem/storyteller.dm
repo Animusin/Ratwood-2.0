@@ -343,10 +343,13 @@ SUBSYSTEM_DEF(gamemode)
 
 /// Remaining antagonist capacity. An explicit current weight is used while roundstart jobs are
 /// being assigned, before those players have antagonist datums that get_antag_count() can see.
+/// Temporary lesser-villain lottery slots remain reserved until claimed or expired.
 /datum/controller/subsystem/gamemode/proc/get_remaining_antag_capacity(current_weight = null, include_roundstart_reservations = TRUE)
 	if(isnull(current_weight))
 		current_weight = get_antag_count()
-	var/reserved_weight = include_roundstart_reservations && !roundstart_antag_allocation_complete ? roundstart_reserved_antag_weight : 0
+	var/reserved_weight = get_lesser_villain_lottery_reserved_weight()
+	if(include_roundstart_reservations && !roundstart_antag_allocation_complete)
+		reserved_weight += roundstart_reserved_antag_weight
 	return max(get_antag_cap() - current_weight - reserved_weight, 0)
 
 /// Whether an antagonist of the supplied weight fits under the current cap.
@@ -819,6 +822,8 @@ SUBSYSTEM_DEF(gamemode)
 		dat += "<BR>Roundstart Snapshot: [roundstart_cap_snapshot]"
 		dat += "<BR>Roundstart Allocation Complete: [roundstart_antag_allocation_complete ? "Yes" : "No"]"
 		dat += "<BR>Outstanding Major Reserve: [roundstart_reserved_antag_weight]"
+		dat += "<BR>Lesser Lottery Reserve: [get_lesser_villain_lottery_reserved_weight()]"
+		dat += "<BR>Next Lesser Lottery: [next_lesser_villain_lottery_at ? DisplayTimeText(max(next_lesser_villain_lottery_at - world.time, 0)) : "Not scheduled"]"
 	var/chaos_name = "Medium"
 	switch(level)
 		if(1)

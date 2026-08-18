@@ -149,6 +149,83 @@ SUBSYSTEM_DEF(donations)
 	var/list/result = query("INSERT IGNORE INTO players (ckey) VALUES (:ckey)", list("ckey" = ckey))
 	return !!result
 
+/datum/controller/subsystem/donations/proc/check_token(client/player, token)
+	if(!player?.ckey || !token)
+		return FALSE
+	if(!ensure_player(player.ckey))
+		return FALSE
+
+	var/list/token_result = query(
+		"SELECT discord FROM tokens WHERE token = :token LIMIT 1",
+		list("token" = token)
+	)
+	var/list/token_rows = token_result?["rows"]
+	if(!length(token_rows))
+		return FALSE
+
+	var/list/token_row = token_rows[1]
+	var/discord_id = token_row[1]
+	var/list/discord_player_result = query(
+		"SELECT id FROM players WHERE discord = :discord_id AND ckey IS NULL LIMIT 1",
+		list("discord_id" = discord_id)
+	)
+	if(!discord_player_result)
+		return FALSE
+
+	var/list/discord_player_rows = discord_player_result["rows"]
+	if(!length(discord_player_rows))
+		if(!query(
+			"UPDATE players SET discord = :discord_id WHERE ckey = :ckey",
+			list("discord_id" = discord_id, "ckey" = player.ckey)
+		))
+			return FALSE
+	else
+		var/list/discord_player_row = discord_player_rows[1]
+		var/discord_player_id = discord_player_row[1]
+		var/list/ckey_player_result = query(
+			"SELECT id FROM players WHERE ckey = :ckey LIMIT 1",
+			list("ckey" = player.ckey)
+		)
+		if(!ckey_player_result)
+			return FALSE
+
+		var/list/ckey_player_rows = ckey_player_result["rows"]
+		if(length(ckey_player_rows))
+			var/list/ckey_player_row = ckey_player_rows[1]
+			var/ckey_player_id = ckey_player_row[1]
+			if(!query(
+				"UPDATE points_transactions SET player = :discord_player_id WHERE player = :ckey_player_id",
+				list("discord_player_id" = discord_player_id, "ckey_player_id" = ckey_player_id)
+			))
+				return FALSE
+			if(!query(
+				"UPDATE money_transactions SET player = :discord_player_id WHERE player = :ckey_player_id",
+				list("discord_player_id" = discord_player_id, "ckey_player_id" = ckey_player_id)
+			))
+				return FALSE
+			if(!query(
+				"UPDATE store_players_items SET player = :discord_player_id WHERE player = :ckey_player_id",
+				list("discord_player_id" = discord_player_id, "ckey_player_id" = ckey_player_id)
+			))
+				return FALSE
+			if(!query(
+				"DELETE FROM players WHERE id = :ckey_player_id",
+				list("ckey_player_id" = ckey_player_id)
+			))
+				return FALSE
+
+		if(!query(
+			"UPDATE players SET ckey = :ckey WHERE discord = :discord_id",
+			list("ckey" = player.ckey, "discord_id" = discord_id)
+		))
+			return FALSE
+
+	if(!query("DELETE FROM tokens WHERE token = :token", list("token" = token)))
+		return FALSE
+
+	update_client(player)
+	return TRUE
+
 /datum/controller/subsystem/donations/proc/update_client(client/player)
 	if(!player?.ckey)
 		return FALSE
@@ -370,6 +447,33 @@ SUBSYSTEM_DEF(donations)
 	if(!SSdonations)
 		return FALSE
 	return SSdonations.spend_opyxes(src, amount, comment, type)
+
+/client/verb/chaotic_token(token as text)
+	set name = ".chaotic-token"
+	set desc = "Link your Discord account using a Chaotic token."
+	set category = "OOC"
+
+	token = trim(token)
+	if(!token)
+		to_chat(src, span_warning("Enter a valid Chaotic token."))
+		return
+
+	if(!CONFIG_GET(flag/sql_enabled))
+		to_chat(src, span_warning("This feature requires the SQL backend to be running."))
+		return
+
+	if(!CONFIG_GET(flag/donations_enabled))
+		to_chat(src, span_warning("The donations system is disabled."))
+		return
+
+	if(!SSdonations?.IsAvailable())
+		to_chat(src, span_warning("The donations database is currently unavailable. Please try again later."))
+		return
+
+	if(SSdonations.check_token(src, token))
+		to_chat(src, span_notice("Your Discord account was successfully linked to your BYOND ckey!"))
+	else
+		to_chat(src, span_warning("Failed to link your Discord account. Check the token and try again."))
 
 #undef DONATION_TIER_NONE
 #undef DONATION_TIER_CARGO

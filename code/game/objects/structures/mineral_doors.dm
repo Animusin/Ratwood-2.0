@@ -232,6 +232,7 @@
 	last_bump = world.time
 	if(ismob(AM))
 		var/mob/user = AM
+		add_fingerprint(user)
 		if(HAS_TRAIT(user, TRAIT_BASHDOORS))
 			// Throwing your weight through a door is not a subtle act, so it should break invisibility
 			user.break_invisibility()
@@ -263,6 +264,7 @@
 	. = ..()
 	if(.)
 		return
+	add_fingerprint(user)
 	if(brokenstate)
 		return
 	if(isSwitchingStates)
@@ -388,6 +390,8 @@
 
 /obj/structure/mineral_door/attackby(obj/item/I, mob/user, autobump = FALSE)
 	user.changeNext_move(CLICK_CD_FAST)
+	add_fingerprint(user)
+	add_blood_DNA(I.return_blood_DNA())
 	if(istype(I, /obj/item/roguekey) || istype(I, /obj/item/storage/keyring))
 		if(!locked)
 			to_chat(user, span_warning("It won't turn this way. Try turning to the right."))
@@ -437,12 +441,15 @@
 
 /obj/structure/mineral_door/attacked_by(obj/item/I, mob/living/user)
 	var/was_broken = obj_broken || brokenstate
+	add_fingerprint(user)
+	add_blood_DNA(I.return_blood_DNA())
 	..()
 	record_forced_break_transition(was_broken, user, I)
 
 /obj/structure/mineral_door/hitby(atom/movable/AM, skipcatch, hitpush, blocked, datum/thrownthing/throwingdatum, damage_flag = "blunt")
 	var/was_broken = obj_broken || brokenstate
 	var/mob/living/thrower = throwingdatum?.thrower
+	add_blood_DNA(AM.return_blood_DNA())
 	. = ..()
 	record_forced_break_transition(was_broken, thrower, AM)
 
@@ -512,6 +519,7 @@
 
 /obj/structure/mineral_door/attack_right(mob/user)
 	user.changeNext_move(CLICK_CD_FAST)
+	add_fingerprint(user)
 
 	// Special handling for deadbolt and shutter doors - preserve their custom behavior
 	if(istype(src, /obj/structure/mineral_door/wood/deadbolt) || istype(src, /obj/structure/mineral_door/wood/deadbolt/shutter))
@@ -976,6 +984,7 @@
 
 /obj/structure/mineral_door/wood/deadbolt/attack_right(mob/user)
 	user.changeNext_move(CLICK_CD_FAST)
+	add_fingerprint(user)
 
 	// If keylock is disabled, implement manual locking behavior
 	if(!keylock)
@@ -1074,6 +1083,7 @@
 	smeltresult = null
 
 /obj/structure/mineral_door/wood/donjon/stone/attack_right(mob/user)
+	add_fingerprint(user)
 	// Check for keys first (inherited from parent)
 	var/obj/item/key_item = find_key_for_door(user)
 	if(key_item)

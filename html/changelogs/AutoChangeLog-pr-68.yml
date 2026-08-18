@@ -1,0 +1,5 @@
+author: "Animusin"
+delete-after: True
+changes:
+  - bugfix: "Multiple nearby players can hold the same target without stale grab items releasing another player's hold."
+  - balance: "Dragging a target out of another combat-mode grabber's reach or lifting them onto the shoulders now requires a contested grab roll, costs both contestants stamina, and delays the taker's movement on success or failure."

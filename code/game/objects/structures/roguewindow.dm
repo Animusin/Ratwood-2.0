@@ -38,6 +38,8 @@
 
 /obj/structure/roguewindow/attacked_by(obj/item/I, mob/living/user)
 	var/was_broken = obj_broken || brokenstate
+	add_fingerprint(user)
+	add_blood_DNA(I.return_blood_DNA())
 	..()
 	if(!was_broken && (obj_broken || brokenstate || obj_destroyed))
 		message_admins("Window [obj_destroyed ? "destroyed" : "broken"] by [user?.real_name] using [I] [ADMIN_JMP(src)]")
@@ -47,6 +49,7 @@
 /obj/structure/roguewindow/hitby(atom/movable/AM, skipcatch, hitpush, blocked, datum/thrownthing/throwingdatum, damage_flag = "blunt")
 	var/was_broken = obj_broken || brokenstate
 	var/mob/living/thrower = throwingdatum?.thrower
+	add_blood_DNA(AM.return_blood_DNA())
 	. = ..()
 	record_forced_break_transition(was_broken, thrower, AM)
 
@@ -261,6 +264,7 @@
 			icon_state = "w-[base_state]"
 
 /obj/structure/roguewindow/openclose/attack_right(mob/user)
+	add_fingerprint(user)
 	var/mob/living/carbon/human/opener = user
 	var/obj/item/held_knife = user.get_active_held_item()
 //	var/lockpicking_check
@@ -430,6 +434,8 @@
 	return ..()
 
 /obj/structure/roguewindow/attackby(obj/item/W, mob/user, params)
+	add_fingerprint(user)
+	add_blood_DNA(W.return_blood_DNA())
 	if(user.get_skill_level(repair_skill) > 0 && (istype(W, repair_costs[1]) || istype(W, repair_costs[2]))) // At least 1 skill level needed
 		repairwindow(W, user)
 	else
@@ -441,6 +447,7 @@
 		return
 	if(brokenstate)
 		return
+	add_fingerprint(user)
 	user.changeNext_move(CLICK_CD_INTENTCAP)
 	if(HAS_TRAIT(user, TRAIT_BASHDOORS))
 		var/was_broken = obj_broken || brokenstate
@@ -448,7 +455,6 @@
 		record_forced_break_transition(was_broken, user)
 		return
 	src.visible_message(span_info("[user] knocks on [src]."))
-	add_fingerprint(user)
 	playsound(src, 'sound/misc/glassknock.ogg', 100)
 
 /obj/structure/roguewindow/obj_break(damage_flag)

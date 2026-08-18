@@ -389,6 +389,29 @@
 		. = safe
 
 //to add a splatter of blood or other mob liquid.
+/mob/living/proc/create_sourced_blood_decal(turf/T, blood_decal_type)
+	if(!T || !ispath(blood_decal_type, /obj/effect/decal/cleanable/blood))
+		return
+	var/obj/effect/decal/cleanable/blood/existing
+	for(var/obj/effect/decal/cleanable/blood/candidate in T)
+		if(candidate.type == blood_decal_type && !QDELETED(candidate))
+			existing = candidate
+			break
+	var/obj/effect/decal/cleanable/blood/created = new blood_decal_type(T)
+	var/obj/effect/decal/cleanable/blood/recipient
+	if(existing && !QDELETED(existing))
+		recipient = existing
+	else if(created && !QDELETED(created))
+		recipient = created
+	else
+		// Some blood decals replace themselves with a larger subtype while initializing.
+		for(var/obj/effect/decal/cleanable/blood/candidate in T)
+			if(!QDELETED(candidate))
+				recipient = candidate
+				break
+	recipient?.add_mob_blood(src)
+	return recipient
+
 /mob/living/proc/add_splatter_floor(turf/T)
 	if(!iscarbon(src))
 		if(!HAS_TRAIT(src, TRAIT_SIMPLE_WOUNDS))
@@ -406,7 +429,7 @@
 		W.water_volume = 10
 		W.update_icon()
 		return
-	new /obj/effect/decal/cleanable/blood/splatter(T)
+	create_sourced_blood_decal(T, /obj/effect/decal/cleanable/blood/splatter)
 	T?.pollute_turf(/datum/pollutant/metallic_scent, 30)
 
 
@@ -425,7 +448,7 @@
 		T = get_turf(src)
 	for(var/turf/closed/w in orange(abs(force_distance), T))
 		var/loc = get_step(T, M)
-		new /obj/effect/decal/cleanable/blood/splatter/walls(loc)
+		create_sourced_blood_decal(loc, /obj/effect/decal/cleanable/blood/splatter/walls)
 		if(spill_amount > 0)
 			spill_amount--
 			continue
@@ -453,15 +476,17 @@
 	var/obj/effect/decal/cleanable/blood/puddle/P = locate() in T
 	if(P)
 		P.blood_vol += amt
+		P.add_mob_blood(src)
 		P.update_icon()
 	else
 		var/obj/effect/decal/cleanable/blood/drip/D = locate() in T
 		if(D)
 			D.blood_vol += amt
 			D.drips++
+			D.add_mob_blood(src)
 			D.update_icon()
 		else
-			new /obj/effect/decal/cleanable/blood/drip(T)
+			create_sourced_blood_decal(T, /obj/effect/decal/cleanable/blood/drip)
 
 //OV edit
 /mob/living/carbon/human/add_drip_floor(turf/T, amt)

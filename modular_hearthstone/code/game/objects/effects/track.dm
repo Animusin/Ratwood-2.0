@@ -68,6 +68,9 @@
 
 //Probabilities end (albeit mud is handled seperately).
 
+#define TRACKING_CLUE_COLOR "#ff0000"
+#define TRACKING_MARK_COLOR "#fff2a8"
+
 //For active investigation targets
 /mob/living
 	/// Weak references to investigators currently tracking this mob.
@@ -579,7 +582,7 @@
 	if(!length(samples))
 		return FALSE
 	if(tracking_skill < SKILL_LEVEL_JOURNEYMAN)
-		tracking_outline_blood_list(readable_blood, src, "#ff0000")
+		tracking_outline_blood_list(readable_blood, src, TRACKING_CLUE_COLOR)
 		to_chat(src, span_notice("I can tell these bloodstains form a trail, but I cannot read the details."))
 		return TRUE
 	to_chat(src, span_notice("I examine the blood traces on this ground."))
@@ -605,11 +608,11 @@
 			if(FORENSIC_BLEED_SEVERE)
 				to_chat(src, span_danger("The victim was bleeding heavily."))
 	if(overwhelmingly_mixed)
-		tracking_outline_blood_list(readable_blood, src, "#ff0000")
+		tracking_outline_blood_list(readable_blood, src, TRACKING_CLUE_COLOR)
 		to_chat(src, span_warning("The blood is too thoroughly mixed to separate."))
 		return TRUE
 	if(tracking_skill < SKILL_LEVEL_EXPERT)
-		tracking_outline_blood_list(readable_blood, src, "#ff0000")
+		tracking_outline_blood_list(readable_blood, src, TRACKING_CLUE_COLOR)
 		if(length(samples) == 1)
 			to_chat(src, span_warning("This is one blood trail, but I need expert Tracking to fix its owner as my quarry."))
 		else
@@ -625,10 +628,10 @@
 			reveal_tracking_traces(10, TRUE)
 			to_chat(src, span_warning("This single blood trail gives me one quarry, but no name."))
 		else
-			tracking_outline_blood_list(readable_blood, src, "#ff0000")
+			tracking_outline_blood_list(readable_blood, src, TRACKING_CLUE_COLOR)
 			to_chat(src, span_warning("The blood is readable, but its owner is no longer present to follow."))
 	else
-		tracking_outline_blood_list(readable_blood, src, "#ff0000")
+		tracking_outline_blood_list(readable_blood, src, TRACKING_CLUE_COLOR)
 		to_chat(src, span_warning("The blood is mixed; I cannot choose a single quarry."))
 	return TRUE
 
@@ -636,7 +639,7 @@
 	for(var/obj/effect/decal/cleanable/blood/blood as anything in blood_decals)
 		tracking_blood_outline(blood, viewer, outline_color)
 
-/proc/tracking_blood_outline(obj/effect/decal/cleanable/blood/blood, mob/living/viewer, outline_color = "#ffffff")
+/proc/tracking_blood_outline(obj/effect/decal/cleanable/blood/blood, mob/living/viewer, outline_color = TRACKING_MARK_COLOR)
 	if(!blood || !viewer?.client)
 		return
 	var/image/highlight = image(icon = blood.icon, loc = blood, icon_state = blood.icon_state, layer = ABOVE_OPEN_TURF_LAYER, dir = blood.dir)
@@ -754,7 +757,7 @@
 		return
 	marked_image = image(icon, src, "tracks_marked", ABOVE_OPEN_TURF_LAYER, image_dir)
 	marked_image.mouse_opacity = MOUSE_OPACITY_ICON
-	marked_image.filters += filter(type = "outline", color = "#fff2a8", size = 1)
+	marked_image.filters += filter(type = "outline", color = TRACKING_MARK_COLOR, size = 1)
 
 /obj/effect/track/attack_hand(mob/living/user)
 	. = ..()
@@ -1132,3 +1135,5 @@
 #undef ANALYSIS_DECENT
 #undef ANALYSIS_GOOD
 #undef ANALYSIS_PERFECT
+#undef TRACKING_CLUE_COLOR
+#undef TRACKING_MARK_COLOR

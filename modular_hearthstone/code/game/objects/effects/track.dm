@@ -79,9 +79,26 @@
 	var/list/tracking_only_known_tracks
 	var/list/tracking_clue_markers
 
+/// Lower-skilled trackers use the same perception-driven discovery model as ordinary tracks.
+/mob/living/carbon/human/proc/can_discover_tracking_clue(atom/evidence)
+	var/tracking_skill = get_skill_level(/datum/skill/misc/tracking)
+	if(tracking_skill >= SKILL_LEVEL_EXPERT || HAS_TRAIT(src, TRAIT_PERFECT_TRACKER))
+		return TRUE
+	var/diff = 11
+	var/list/event = evidence.read_forensic_event()
+	if(length(event))
+		diff += round((world.time - event["time"]) / (60 SECONDS), 1)
+	diff += rand(0, 5)
+	var/competence = STAPER + (2 * tracking_skill)
+	if(competence >= diff)
+		return TRUE
+	if(diff - competence < 5)
+		return prob(100 - ((diff - competence) * 20))
+	return FALSE
+
 /// A successful area investigation reveals the existing clue icon without overloading the evidence's right-click action.
 /mob/living/carbon/human/proc/discover_tracking_clue(atom/evidence, search_range = 7)
-	if(!client || get_skill_level(/datum/skill/misc/tracking) < SKILL_LEVEL_EXPERT)
+	if(!client || cmode)
 		return FALSE
 	if(!evidence || get_dist(src, evidence) > search_range || !can_see(src, evidence, search_range))
 		return FALSE
@@ -105,8 +122,17 @@
 		if(marker.matches(evidence, is_blood_clue))
 			marker.refresh_lifetime()
 			return 1
+	if(!can_discover_tracking_clue(evidence))
+		return FALSE
 	new /obj/effect/tracking_clue_marker(get_turf(evidence), src, evidence, is_blood_clue)
 	return 2
+
+/// Combat mode removes both the private image and its click-catching marker.
+/mob/living/carbon/human/proc/clear_tracking_clue_markers()
+	for(var/obj/effect/tracking_clue_marker/marker as anything in tracking_clue_markers?.Copy())
+		if(marker && !QDELETED(marker))
+			qdel(marker)
+	tracking_clue_markers = null
 
 /obj/effect/tracking_clue_marker
 	name = "clue"
@@ -177,6 +203,25 @@
 	var/atom/evidence = evidence_ref?.resolve()
 	if(user != investigator || !evidence)
 		return
+	if(investigator.cmode)
+		qdel(src)
+		return
+	if(investigator.m_intent != MOVE_INTENT_SNEAK)
+		if(is_blood_clue)
+			investigator.visible_message(
+				span_info("[investigator] tastes the blood, searching for a trail."),
+				span_info("I taste the blood, searching for a trail."),
+			)
+		else if(istype(evidence, /obj/structure/mineral_door))
+			investigator.visible_message(
+				span_info("[investigator] rummages around [evidence], searching for signs of tampering."),
+				span_info("I rummage around [evidence], searching for signs of tampering."),
+			)
+		else
+			investigator.visible_message(
+				span_info("[investigator] searches [evidence] for traces."),
+				span_info("I search [evidence] for traces."),
+			)
 	var/success = FALSE
 	if(is_blood_clue && isturf(evidence))
 		success = investigator.analyze_blood_on_turf(evidence)
@@ -296,13 +341,20 @@
 
 /// Reads the physical clue selected through a private investigation marker.
 /atom/proc/analyze_forensic_event(mob/living/user)
-	if(!ishuman(user) || user.get_skill_level(/datum/skill/misc/tracking) < SKILL_LEVEL_EXPERT)
+	if(!ishuman(user))
 		return FALSE
+	var/tracking_skill = user.get_skill_level(/datum/skill/misc/tracking)
 	var/list/event = read_forensic_event()
 	var/list/found_fibers = return_fibers()
 	var/list/found_blood = return_blood_DNA()
 	if(!length(event) && !length(found_fibers) && !length(found_blood))
 		return FALSE
+	if(tracking_skill < SKILL_LEVEL_JOURNEYMAN)
+		if(length(event))
+			to_chat(user, span_notice("Tracking suggests that [src] was disturbed, but I cannot read the details."))
+		else
+			to_chat(user, span_notice("I notice residual traces on [src], but I cannot interpret them."))
+		return TRUE
 	if(length(event))
 		var/event_name = forensic_event_display_name(event["type"])
 		var/age = world.time - event["time"]
@@ -311,15 +363,25 @@
 			age_text = "fresh"
 		else if(age <= 7 MINUTES)
 			age_text = "recent"
-		var/tool_text = event["tool"] ? html_encode(event["tool"]) : "an unknown implement"
-		to_chat(user, span_notice("Tracking reveals [event_name], made with [tool_text]. The clue is [age_text]."))
+		if(tracking_skill >= SKILL_LEVEL_EXPERT)
+			var/tool_text = event["tool"] ? html_encode(event["tool"]) : "an unknown implement"
+			if(tracking_skill >= SKILL_LEVEL_MASTER)
+				var/exact_age = age < 1 MINUTES ? "[round(age / (1 SECONDS), 0.1)] seconds" : "[round(age / (1 MINUTES), 0.1)] minutes"
+				to_chat(user, span_notice("Tracking reveals [event_name], made with [tool_text], [exact_age] ago."))
+			else
+				to_chat(user, span_notice("Tracking reveals [event_name], made with [tool_text]. The clue is [age_text]."))
+		else
+			to_chat(user, span_notice("Tracking reveals [event_name]. The clue is [age_text]."))
 	else
 		to_chat(user, span_notice("I find no readable mechanical event, only residual traces."))
 	if(length(found_fibers))
-		to_chat(user, span_notice("Fibers found on the object:"))
-		for(var/fiber in found_fibers)
-			to_chat(user, span_info("- [html_encode(fiber)]"))
-	else
+		if(tracking_skill >= SKILL_LEVEL_EXPERT)
+			to_chat(user, span_notice("Fibers found on the object:"))
+			for(var/fiber in found_fibers)
+				to_chat(user, span_info("- [html_encode(fiber)]"))
+		else
+			to_chat(user, span_notice("I can make out fibers here, but not their exact source."))
+	else if(tracking_skill >= SKILL_LEVEL_EXPERT)
 		to_chat(user, span_info("No fibers can be distinguished."))
 	var/mob/living/blood_target
 	if(length(found_blood))
@@ -338,7 +400,10 @@
 			var/list/owners = blood_owners[dna_key]
 			var/mob/living/carbon/first_owner = length(owners) ? owners[1] : null
 			var/race = first_owner?.dna?.species?.name ? first_owner.dna.species.name : "unknown race"
-			to_chat(user, span_info("- Blood type [found_blood[dna_key]]; [race]; freshness unknown."))
+			if(tracking_skill >= SKILL_LEVEL_EXPERT)
+				to_chat(user, span_info("- Blood type [found_blood[dna_key]]; [race]; freshness unknown."))
+			else
+				to_chat(user, span_info("- [race]; freshness unknown."))
 		if(length(found_blood) == 1)
 			var/only_dna = found_blood[1]
 			var/list/only_owners = blood_owners[only_dna]
@@ -348,6 +413,10 @@
 	if(length(event))
 		var/datum/weakref/culprit_ref = event["culprit"]
 		culprit = culprit_ref?.resolve()
+	if(tracking_skill < SKILL_LEVEL_EXPERT)
+		if(length(event) || length(found_blood))
+			to_chat(user, span_warning("I can read where the trail begins, but I need expert Tracking to fix its owner as my quarry."))
+		return TRUE
 	if(culprit)
 		var/mob/living/carbon/human/investigator = user
 		investigator.set_tracking_mark(culprit)
@@ -365,10 +434,9 @@
 			to_chat(user, span_warning("The blood is readable, but it does not resolve to one present owner."))
 	return TRUE
 
-/// Expert Tracking blood analysis is initiated from the turf because blood decals ignore the mouse.
+/// Tracking blood analysis is initiated from the turf because blood decals ignore the mouse.
 /mob/living/carbon/human/proc/analyze_blood_on_turf(turf/target_turf)
-	if(get_skill_level(/datum/skill/misc/tracking) < SKILL_LEVEL_EXPERT)
-		return FALSE
+	var/tracking_skill = get_skill_level(/datum/skill/misc/tracking)
 	var/list/samples = list()
 	for(var/obj/effect/decal/cleanable/blood/blood in target_turf)
 		var/list/blood_dna = blood.return_blood_DNA()
@@ -391,6 +459,9 @@
 				sample["fresh"] = TRUE
 	if(!length(samples))
 		return FALSE
+	if(tracking_skill < SKILL_LEVEL_JOURNEYMAN)
+		to_chat(src, span_notice("I can tell these bloodstains form a trail, but I cannot read the details."))
+		return TRUE
 	for(var/mob/living/carbon/candidate as anything in GLOB.mob_living_list)
 		var/candidate_dna = candidate.dna?.unique_enzymes
 		if(candidate_dna && samples[candidate_dna])
@@ -402,7 +473,16 @@
 		var/mob/living/carbon/owner = sample["owner"]
 		var/race = owner?.dna?.species?.name ? owner.dna.species.name : "unknown race"
 		var/state = sample["fresh"] ? (sample["dry"] ? "fresh and dried" : "fresh") : "dried"
-		to_chat(src, span_info("Blood type [sample["blood_type"]]; [race]; [state]."))
+		if(tracking_skill >= SKILL_LEVEL_EXPERT)
+			to_chat(src, span_info("Blood type [sample["blood_type"]]; [race]; [state]."))
+		else
+			to_chat(src, span_info("Blood from [race]; [state]."))
+	if(tracking_skill < SKILL_LEVEL_EXPERT)
+		if(length(samples) == 1)
+			to_chat(src, span_warning("This is one blood trail, but I need expert Tracking to fix its owner as my quarry."))
+		else
+			to_chat(src, span_warning("The blood is mixed; I cannot choose a single quarry."))
+		return TRUE
 	if(length(samples) == 1)
 		var/only_dna = samples[1]
 		var/list/only_sample = samples[only_dna]
@@ -821,7 +901,13 @@
 			if(!markable)
 				to_chat(H, span_warning("This is not enough to Mark them. I need proper tracks."))
 				return
-			to_chat(H, span_info("You start taking note of the person's gait, weight and other distinct features."))
+			if(H.m_intent == MOVE_INTENT_SNEAK)
+				to_chat(H, span_info("You start taking note of the person's gait, weight and other distinct features."))
+			else
+				H.visible_message(
+					span_info("[H] kneels down and searches the ground for tracks."),
+					span_info("I start taking note of the person's gait, weight and other distinct features."),
+				)
 			if(do_after(user, (50 - H.STAPER*2)))
 				if(!creator || QDELETED(creator))
 					to_chat(H, span_warning("The trail goes cold before I can fix it in my mind."))

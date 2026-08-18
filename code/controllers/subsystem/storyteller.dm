@@ -822,8 +822,8 @@ SUBSYSTEM_DEF(gamemode)
 		dat += "<BR>Roundstart Snapshot: [roundstart_cap_snapshot]"
 		dat += "<BR>Roundstart Allocation Complete: [roundstart_antag_allocation_complete ? "Yes" : "No"]"
 		dat += "<BR>Outstanding Major Reserve: [roundstart_reserved_antag_weight]"
-		dat += "<BR>Lesser Lottery Reserve: [get_lesser_villain_lottery_reserved_weight()]"
-		dat += "<BR>Next Lesser Lottery: [next_lesser_villain_lottery_at ? DisplayTimeText(max(next_lesser_villain_lottery_at - world.time, 0)) : "Not scheduled"]"
+		dat += "<BR>Lesser Injection Reserve: [get_lesser_villain_lottery_reserved_weight()]"
+		dat += "<BR>Next Lesser Injection: [next_lesser_villain_lottery_at ? DisplayTimeText(max(next_lesser_villain_lottery_at - world.time, 0)) : "Not scheduled"]"
 	var/chaos_name = "Medium"
 	switch(level)
 		if(1)

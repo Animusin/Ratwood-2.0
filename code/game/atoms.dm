@@ -389,6 +389,10 @@
 /atom/proc/get_inspect_button()
 	return ""
 
+/// Whether this atom should appear in an adjacent turf's Alt-right-click contents list.
+/atom/proc/is_turf_list_visible_to(mob/viewer)
+	return invisibility <= viewer.see_invisible
+
 /**
  * Called when a mob examines (shift click or verb) this atom
  *

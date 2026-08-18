@@ -872,7 +872,7 @@ GLOBAL_VAR_INIT(mobids, 1)
 			for(var/atom/A in listed_turf)
 				if(!A.mouse_opacity)
 					continue
-				if(A.invisibility > see_invisible)
+				if(!A.is_turf_list_visible_to(src))
 					continue
 				if(overrides.len && (A in overrides))
 					continue

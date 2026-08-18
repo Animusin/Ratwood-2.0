@@ -34,8 +34,18 @@
 	appearance_flags = NO_CLIENT_COLOR
 	var/blood_timer
 	var/is_dry = FALSE
+	/// Highest observed bleed rate category among sources added to this decal.
+	var/forensic_bleed_severity = FORENSIC_BLEED_UNKNOWN
+	/// Further identities were discarded after reaching the per-decal forensic sample cap.
+	var/blood_samples_overflow = FALSE
+	var/counted_as_forensic_blood_decal = FALSE
 
 /obj/effect/decal/cleanable/blood/Initialize(mapload)
+	counted_as_forensic_blood_decal = TRUE
+	GLOB.active_forensic_blood_decals++
+	if(GLOB.active_forensic_blood_decals >= FORENSIC_BLOOD_DECAL_WARNING_THRESHOLD && world.time >= GLOB.next_forensic_blood_decal_warning)
+		GLOB.next_forensic_blood_decal_warning = world.time + 10 MINUTES
+		message_admins("FORENSICS: [GLOB.active_forensic_blood_decals] active blood decals are present; investigate blood decal accumulation if this keeps rising.")
 	. = ..()
 	GLOB.weather_act_upon_list += src
 	if(. == INITIALIZE_HINT_QDEL)
@@ -44,6 +54,37 @@
 	pixel_y = rand(5,5)
 	if(!is_dry)
 		blood_timer = addtimer(CALLBACK(src, PROC_REF(become_dry)), rand(5 MINUTES,8 MINUTES), TIMER_STOPPABLE)
+
+/obj/effect/decal/cleanable/blood/add_blood_DNA(list/dna)
+	if(!length(dna))
+		return FALSE
+	var/list/current_blood = return_blood_DNA()
+	var/current_sample_count = length(current_blood)
+	var/list/accepted_blood = list()
+	for(var/dna_key in dna)
+		if(current_blood && (dna_key in current_blood))
+			accepted_blood[dna_key] = dna[dna_key]
+			continue
+		if(current_sample_count >= FORENSIC_MAX_BLOOD_SAMPLES)
+			blood_samples_overflow = TRUE
+			continue
+		accepted_blood[dna_key] = dna[dna_key]
+		current_sample_count++
+	if(!length(accepted_blood))
+		return FALSE
+	return ..(accepted_blood)
+
+/obj/effect/decal/cleanable/blood/add_mob_blood(mob/living/source)
+	. = ..()
+	if(!.)
+		return
+	var/bleed_rate = source.get_bleed_rate()
+	var/severity = FORENSIC_BLEED_MINOR
+	if(bleed_rate >= ARTERY_LIMB_BLEEDRATE)
+		severity = FORENSIC_BLEED_SEVERE
+	else if(bleed_rate >= 5)
+		severity = FORENSIC_BLEED_SIGNIFICANT
+	forensic_bleed_severity = max(forensic_bleed_severity, severity)
 
 
 /obj/effect/decal/cleanable/blood/proc/become_dry()
@@ -70,6 +111,9 @@
 			existing_blood.blood_timer = addtimer(CALLBACK(existing_blood, PROC_REF(become_dry)), rand(5 MINUTES,8 MINUTES), TIMER_STOPPABLE)
 
 /obj/effect/decal/cleanable/blood/Destroy()
+	if(counted_as_forensic_blood_decal)
+		GLOB.active_forensic_blood_decals = max(0, GLOB.active_forensic_blood_decals - 1)
+		counted_as_forensic_blood_decal = FALSE
 	GLOB.weather_act_upon_list -= src
 	deltimer(blood_timer)
 	blood_timer = null

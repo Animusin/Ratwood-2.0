@@ -595,6 +595,7 @@
 	var/list/blood_dna = M.get_blood_dna_list()
 	if(!blood_dna)
 		return FALSE
+	register_forensic_blood_identity(M)
 	return add_blood_DNA(blood_dna)
 
 ///Called when gravity returns after floating I think

@@ -2107,7 +2107,7 @@
 						found_ping(get_turf(M), client, "hidden")
 
 		var/mob/living/carbon/human/tracking_investigator
-		if(ishuman(src) && get_skill_level(/datum/skill/misc/tracking) >= SKILL_LEVEL_EXPERT)
+		if(ishuman(src))
 			tracking_investigator = src
 		var/list/blood_clue_turfs
 		var/new_tracking_clue_found = FALSE

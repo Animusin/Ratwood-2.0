@@ -49,3 +49,17 @@
 	TEST_ASSERT_NULL(pinning_grabber.pulling, "Interrupting the pin should clear the pinning player's pull.")
 	TEST_ASSERT_EQUAL(primary_grabber.pulling, contested_target, "Interrupting the pin should preserve the other player's pull.")
 	TEST_ASSERT_EQUAL(contested_target.pulledby, primary_grabber, "Interrupting the pin should preserve the contested target's active puller.")
+
+	primary_grabber.cmode = TRUE
+	pinning_grabber.start_pulling(contested_target)
+	var/challenger_stamina_before = pinning_grabber.stamina
+	var/defender_stamina_before = primary_grabber.stamina
+	pinning_grabber.contest_target_grabbers(contested_target, get_turf(pinning_grabber), force_contest = TRUE)
+	TEST_ASSERT(pinning_grabber.stamina > challenger_stamina_before, "Contesting a combat-mode grip should cost the challenger stamina.")
+	TEST_ASSERT(primary_grabber.stamina > defender_stamina_before, "Contesting a combat-mode grip should cost the defender stamina.")
+	TEST_ASSERT(pinning_grabber.next_move >= world.time + CLICK_CD_RESIST, "Contesting a combat-mode grip should apply click cooldown to the challenger.")
+	TEST_ASSERT(primary_grabber.next_move >= world.time + CLICK_CD_RESIST, "Contesting a combat-mode grip should apply click cooldown to the defender.")
+	var/mutable_appearance/challenger_indicator = pinning_grabber.overlays_standing[OBJ_LAYER]
+	var/mutable_appearance/defender_indicator = primary_grabber.overlays_standing[OBJ_LAYER]
+	TEST_ASSERT_EQUAL(challenger_indicator?.icon_state, "clashtwo", "Contesting a combat-mode grip should show a struggle indicator over the challenger.")
+	TEST_ASSERT_EQUAL(defender_indicator?.icon_state, "clashtwo", "Contesting a combat-mode grip should show a struggle indicator over the defender.")

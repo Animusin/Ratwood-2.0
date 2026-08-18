@@ -595,15 +595,19 @@
 	takeover_chance = clamp(takeover_chance, 5, 95)
 	stamina_add(rand(5, 15))
 	current_puller.stamina_add(rand(5, 15))
+	changeNext_move(CLICK_CD_RESIST)
+	current_puller.changeNext_move(CLICK_CD_RESIST)
 	if(client)
 		client.move_delay = max(client.move_delay, world.time + CLICK_CD_RESIST)
+	playsound(target, 'sound/combat/grabstruggle.ogg', 50, TRUE, -1)
+	play_overhead_indicator('icons/mob/overhead_effects.dmi', "clashtwo", 1 SECONDS, OBJ_LAYER, y_offset = 24)
+	current_puller.play_overhead_indicator('icons/mob/overhead_effects.dmi', "clashtwo", 1 SECONDS, OBJ_LAYER, y_offset = 24)
 
 	if(!prob(takeover_chance))
 		var/roll_message = client?.prefs.showrolls ? " ([takeover_chance]%)" : ""
 		visible_message(span_warning("[src] fails to wrench [target] from [current_puller]'s grip!"), \
 			span_warning("I fail to wrench [target] from [current_puller]'s grip![roll_message]"), ignored_mobs = list(current_puller))
 		to_chat(current_puller, span_warning("[src] fails to wrench [target] from my grip!"))
-		playsound(loc, 'sound/combat/grabstruggle.ogg', 50, TRUE, -1)
 		log_combat(src, current_puller, "failed to pull [target] from grip")
 		return FALSE
 

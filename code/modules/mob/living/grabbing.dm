@@ -51,14 +51,37 @@
 	valid_check()
 
 /obj/item/grabbing/proc/valid_check()
-	if(!grabbee || !grabbed)
+	if(!grabbee || !ismovable(grabbed))
 		qdel(src)
 		return FALSE
-	if(grabbee.Adjacent(grabbed))
+	var/atom/movable/grabbed_movable = grabbed
+	if(grabbee.Adjacent(grabbed_movable))
 		return TRUE
-	grabbee.stop_pulling(FALSE)
+	release_pull()
 	qdel(src)
 	return FALSE
+
+/obj/item/grabbing/proc/release_pull()
+	if(!grabbee || !ismovable(grabbed))
+		return
+	var/atom/movable/grabbed_movable = grabbed
+	var/was_active_puller = grabbed_movable.pulledby == grabbee
+	var/mob/living/carbon/replacement_puller
+	if(was_active_puller)
+		for(var/obj/item/grabbing/other_grab in grabbed_movable.grabbedby)
+			if(other_grab == src || QDELETED(other_grab) || other_grab.grabbed != grabbed_movable)
+				continue
+			var/mob/living/carbon/candidate = other_grab.grabbee
+			if(!candidate || candidate == grabbee || candidate.pulling != grabbed_movable || !candidate.Adjacent(grabbed_movable))
+				continue
+			if(other_grab != candidate.r_grab && other_grab != candidate.l_grab)
+				continue
+			replacement_puller = candidate
+			break
+	if(grabbee.pulling == grabbed_movable)
+		grabbee.stop_pulling(FALSE)
+	if(was_active_puller && replacement_puller && !grabbed_movable.pulledby)
+		grabbed_movable.pulledby = replacement_puller
 
 /obj/item/grabbing/Click(location, control, params)
 	var/list/modifiers = params2list(params)
@@ -146,10 +169,9 @@
 		if(user.r_grab && user.r_grab.grabbed == user.l_grab.grabbed)
 			qdel(src)
 			return
-	if(grabbed == user.pulling)
-		user.stop_pulling(FALSE)
-	if(!user.pulling)
-		user.stop_pulling(FALSE)
+	var/atom/movable/grabbed_movable = grabbed
+	if(grabbed_movable && grabbed_movable == user.pulling)
+		release_pull()
 	for(var/mob/M in user.buckled_mobs)
 		if(M == grabbed)
 			user.unbuckle_mob(M, force = TRUE)

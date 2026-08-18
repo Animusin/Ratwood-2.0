@@ -174,6 +174,8 @@
 /datum/intent/steal/on_mmb(mob/living/carbon/human/victim, mob/living/carbon/human/thief, params)
 	if(!ishuman(victim) || !ishuman(thief))
 		return
+	if(thief == victim)
+		return
 	var/list/stealmods = list("chance_add" = 0, "range_add" = 0)
 	SEND_SIGNAL(thief, COMSIG_HUMAN_PRE_STEAL, stealmods)
 	var/range_add = stealmods["range_add"]

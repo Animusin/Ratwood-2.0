@@ -146,7 +146,8 @@
 	var/datum/weakref/investigator_ref
 	var/datum/weakref/evidence_ref
 	var/is_blood_clue = FALSE
-	var/image/private_image
+	var/list/private_images
+	var/list/linked_blood_decals
 	var/lifetime_timer
 
 /obj/effect/tracking_clue_marker/Initialize(mapload, mob/living/carbon/human/investigator, atom/evidence, blood_clue = FALSE)
@@ -156,15 +157,12 @@
 	investigator_ref = WEAKREF(investigator)
 	evidence_ref = WEAKREF(evidence)
 	is_blood_clue = blood_clue
-	private_image = image(icon = icon, loc = src, icon_state = icon_state, layer = ABOVE_MOB_LAYER)
-	private_image.invisibility = 0
-	private_image.mouse_opacity = MOUSE_OPACITY_OPAQUE
-	private_image.pixel_y = 16
-	investigator.client.images += private_image
+	if(!refresh_private_images())
+		return INITIALIZE_HINT_QDEL
 	LAZYADD(investigator.tracking_clue_markers, src)
 	RegisterSignal(investigator, COMSIG_PARENT_QDELETING, PROC_REF(linked_atom_deleted))
 	RegisterSignal(evidence, COMSIG_PARENT_QDELETING, PROC_REF(linked_atom_deleted))
-	refresh_lifetime()
+	refresh_lifetime(FALSE)
 
 /obj/effect/tracking_clue_marker/Destroy(force)
 	deltimer(lifetime_timer)
@@ -173,15 +171,68 @@
 	var/atom/evidence = evidence_ref?.resolve()
 	if(investigator)
 		UnregisterSignal(investigator, COMSIG_PARENT_QDELETING)
-		investigator.client?.images -= private_image
+		investigator.client?.images -= private_images
 		investigator.tracking_clue_markers -= src
 		UNSETEMPTY(investigator.tracking_clue_markers)
 	if(evidence)
 		UnregisterSignal(evidence, COMSIG_PARENT_QDELETING)
-	private_image = null
+	clear_linked_blood_decals()
+	private_images = null
 	investigator_ref = null
 	evidence_ref = null
 	return ..()
+
+/// Replaces the large blood question mark with clickable, investigator-only outlines of the stains themselves.
+/obj/effect/tracking_clue_marker/proc/refresh_private_images()
+	var/mob/living/carbon/human/investigator = investigator_ref?.resolve()
+	var/atom/evidence = evidence_ref?.resolve()
+	if(!investigator?.client || !evidence)
+		return FALSE
+	investigator.client.images -= private_images
+	private_images = list()
+	clear_linked_blood_decals()
+	if(is_blood_clue && isturf(evidence))
+		var/turf/evidence_turf = evidence
+		for(var/obj/effect/decal/cleanable/blood/blood in evidence_turf)
+			if(QDELETED(blood) || !length(blood.return_blood_DNA()))
+				continue
+			var/image/blood_image = image(loc = src)
+			blood_image.appearance = blood.appearance
+			blood_image.loc = src
+			blood_image.layer = ABOVE_OPEN_TURF_LAYER
+			blood_image.invisibility = 0
+			blood_image.mouse_opacity = MOUSE_OPACITY_ICON
+			blood_image.filters += filter(type = "outline", color = "#ff0000", size = 1)
+			private_images += blood_image
+			LAZYADD(linked_blood_decals, blood)
+			RegisterSignal(blood, COMSIG_PARENT_QDELETING, PROC_REF(linked_blood_deleted))
+	else
+		var/image/structure_image = image(icon = icon, loc = src, icon_state = icon_state, layer = ABOVE_MOB_LAYER)
+		structure_image.invisibility = 0
+		structure_image.mouse_opacity = MOUSE_OPACITY_OPAQUE
+		structure_image.pixel_y = 16
+		private_images += structure_image
+	if(!length(private_images))
+		return FALSE
+	investigator.client.images += private_images
+	return TRUE
+
+/obj/effect/tracking_clue_marker/proc/clear_linked_blood_decals()
+	for(var/obj/effect/decal/cleanable/blood/blood as anything in linked_blood_decals)
+		if(blood && !QDELETED(blood))
+			UnregisterSignal(blood, COMSIG_PARENT_QDELETING)
+	linked_blood_decals = null
+
+/obj/effect/tracking_clue_marker/proc/linked_blood_deleted(datum/source)
+	SIGNAL_HANDLER
+	linked_blood_decals -= source
+	addtimer(CALLBACK(src, PROC_REF(refresh_after_blood_deleted)), 0, TIMER_UNIQUE)
+
+/obj/effect/tracking_clue_marker/proc/refresh_after_blood_deleted()
+	if(QDELETED(src))
+		return
+	if(!refresh_private_images())
+		qdel(src)
 
 /obj/effect/tracking_clue_marker/proc/linked_atom_deleted()
 	SIGNAL_HANDLER
@@ -190,7 +241,10 @@
 /obj/effect/tracking_clue_marker/proc/matches(atom/evidence, blood_clue)
 	return evidence_ref?.resolve() == evidence && is_blood_clue == blood_clue
 
-/obj/effect/tracking_clue_marker/proc/refresh_lifetime()
+/obj/effect/tracking_clue_marker/proc/refresh_lifetime(refresh_visuals = TRUE)
+	if(refresh_visuals && is_blood_clue && !refresh_private_images())
+		qdel(src)
+		return
 	deltimer(lifetime_timer)
 	lifetime_timer = addtimer(CALLBACK(src, PROC_REF(expire)), 1 MINUTES, TIMER_STOPPABLE)
 

@@ -95,7 +95,7 @@ SUBSYSTEM_DEF(job)
 	var/job_position_limit = job.get_position_limit(TRUE)
 	if(!job.antag_job || job.antag_cap_weight <= 0 || isnull(remaining_antag_capacity))
 		return job_position_limit
-	var/lottery_credit = SSgamemode ? SSgamemode.get_lesser_villain_lottery_claim_credit(job) : 0
+	var/lottery_credit = SSgamemode ? SSgamemode.get_lesser_villain_lottery_job_reserved_weight(job) : 0
 	remaining_antag_capacity += lottery_credit
 	var/remaining_positions = FLOOR(max(remaining_antag_capacity, 0) / job.antag_cap_weight, 1)
 	var/cap_position_limit = job.current_positions + remaining_positions

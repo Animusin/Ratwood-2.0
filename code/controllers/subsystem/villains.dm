@@ -1,10 +1,10 @@
-#define RATWOOD_LESSER_LOTTERY_MIN_DELAY (8 MINUTES)
-#define RATWOOD_LESSER_LOTTERY_MAX_DELAY (12 MINUTES)
+#define RATWOOD_LESSER_INJECTION_DELAY (10 MINUTES)
+#define RATWOOD_MAX_GNOLL_SLOTS 2
 
 /datum/controller/subsystem/gamemode
 	var/list/rolled_villain_events = list()
 	var/list/queued_villains = list()
-	/// Ratwood periodically offers one temporary lesser-villain slot after roundstart.
+	/// Ratwood periodically fills free antagonist capacity with temporary lesser-villain slots.
 	var/lesser_villain_lottery_started = FALSE
 	var/next_lesser_villain_lottery_at = 0
 	/// Unclaimed lottery slots reserve antagonist capacity until the next draw.
@@ -27,6 +27,11 @@
 		if(!job || job.antag_cap_weight <= 0)
 			continue
 		. += get_lesser_villain_lottery_reserved_slots(job_title) * job.antag_cap_weight
+
+/datum/controller/subsystem/gamemode/proc/get_lesser_villain_lottery_job_reserved_weight(datum/job/job)
+	if(!job || job.antag_cap_weight <= 0)
+		return 0
+	return get_lesser_villain_lottery_reserved_slots(job.title) * job.antag_cap_weight
 
 /// A claimant may spend one reservation belonging to the selected job.
 /datum/controller/subsystem/gamemode/proc/get_lesser_villain_lottery_claim_credit(datum/job/job)
@@ -53,7 +58,7 @@
 	schedule_lesser_villain_lottery()
 
 /datum/controller/subsystem/gamemode/proc/schedule_lesser_villain_lottery()
-	var/delay = rand(RATWOOD_LESSER_LOTTERY_MIN_DELAY, RATWOOD_LESSER_LOTTERY_MAX_DELAY)
+	var/delay = RATWOOD_LESSER_INJECTION_DELAY
 	next_lesser_villain_lottery_at = world.time + delay
 	addtimer(CALLBACK(src, PROC_REF(run_lesser_villain_lottery)), delay)
 
@@ -77,26 +82,45 @@
 		return
 
 	expire_lesser_villain_lottery_slots()
-	var/remaining_capacity = get_remaining_antag_capacity()
 	var/static/list/lesser_job_titles = list("Bandit", "Wretch", "Gnoll")
-	var/list/affordable_jobs = list()
-	for(var/job_title in lesser_job_titles)
-		var/datum/job/job = SSjob.GetJob(job_title)
-		if(!job || !job.antag_job || job.antag_cap_weight <= 0)
-			continue
-		if(job.antag_cap_weight <= remaining_capacity)
-			affordable_jobs += job
+	var/list/opened_job_counts = list()
+	while(TRUE)
+		var/remaining_capacity = get_remaining_antag_capacity()
+		var/minimum_positions = null
+		var/list/least_represented_jobs = list()
+		for(var/job_title in lesser_job_titles)
+			var/datum/job/job = SSjob.GetJob(job_title)
+			if(!job || !job.antag_job || job.antag_cap_weight <= 0 || job.antag_cap_weight > remaining_capacity)
+				continue
+			if(job.title == "Gnoll" && job.total_positions >= RATWOOD_MAX_GNOLL_SLOTS)
+				continue
+			if(isnull(minimum_positions) || job.total_positions < minimum_positions)
+				minimum_positions = job.total_positions
+				least_represented_jobs = list(job)
+			else if(job.total_positions == minimum_positions)
+				least_represented_jobs += job
 
-	if(length(affordable_jobs))
-		var/datum/job/selected_job = pick(affordable_jobs)
+		if(!length(least_represented_jobs))
+			break
+		var/datum/job/selected_job = pick(least_represented_jobs)
 		selected_job.total_positions++
 		lesser_villain_lottery_reservations[selected_job.title] = get_lesser_villain_lottery_reserved_slots(selected_job.title) + 1
-		var/announcement = "A temporary [selected_job.title] slot has opened in Villain Choices."
+		opened_job_counts[selected_job.title] = (opened_job_counts[selected_job.title] || 0) + 1
+
+	if(length(opened_job_counts))
+		var/list/opened_job_labels = list()
+		for(var/job_title in lesser_job_titles)
+			var/opened_count = opened_job_counts[job_title]
+			if(opened_count)
+				opened_job_labels += "[job_title] x[opened_count]"
+		var/opened_summary = opened_job_labels.Join(", ")
+		var/announcement = "Lesser villain injection opened [opened_summary] in Villain Choices."
 		for(var/mob/dead/new_player/player as anything in GLOB.new_player_list)
 			if(player.client)
 				to_chat(player, span_boldwarning(announcement))
-		message_admins("Ratwood lesser villain lottery opened one [selected_job.title] slot, reserving [selected_job.antag_cap_weight] antagonist capacity.")
-		log_game("Ratwood lesser villain lottery opened: [selected_job.title] (weight [selected_job.antag_cap_weight], remaining before draw [remaining_capacity]).")
+		var/reserved_weight = get_lesser_villain_lottery_reserved_weight()
+		message_admins("Ratwood lesser villain injection opened [opened_summary], reserving [reserved_weight] antagonist capacity.")
+		log_game("Ratwood lesser villain injection opened: [opened_summary] (reserved weight [reserved_weight]).")
 
 	schedule_lesser_villain_lottery()
 
@@ -206,7 +230,7 @@
 			var/next_lottery = max(SSgamemode.next_lesser_villain_lottery_at - world.time, 0)
 			dat += "<b>Dynamic cap:</b> [SSgamemode.get_antag_count()] / [SSgamemode.get_antag_cap()]"
 			dat += "; <b>lesser reserve:</b> [lottery_reserve]<br>"
-			dat += "<b>Next lesser lottery:</b> [DisplayTimeText(next_lottery)]<br><br>"
+			dat += "<b>Next lesser injection:</b> [DisplayTimeText(next_lottery)]<br><br>"
 		dat += "<b>Greater Villains:</b><br>"
 		if(!length(SSgamemode.rolled_villain_events))
 			dat += "None.<br>"
@@ -262,8 +286,8 @@
 	popup.set_content(jointext(dat, ""))
 	popup.open(FALSE)
 
-#undef RATWOOD_LESSER_LOTTERY_MIN_DELAY
-#undef RATWOOD_LESSER_LOTTERY_MAX_DELAY
+#undef RATWOOD_LESSER_INJECTION_DELAY
+#undef RATWOOD_MAX_GNOLL_SLOTS
 
 // this menu allows players 2 boost their stats to wretch tier (+12 weight) & choose between DE / Heavy Armor
 /mob/living/carbon/human/var/datum/antag_setup/antag_setup

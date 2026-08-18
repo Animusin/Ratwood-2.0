@@ -77,6 +77,7 @@
 	var/mob/living/current_mark
 	var/datum/tracking_link/tracking_target_link
 	var/list/tracking_only_known_tracks
+	var/list/known_ordinary_tracks
 	var/list/tracking_clue_markers
 
 /// Lower-skilled trackers use the same perception-driven discovery model as ordinary tracks.
@@ -375,6 +376,7 @@
 		current_mark = new_mark
 		new_mark.add_tracking_hunter(src)
 		tracking_target_link = new(src, new_mark)
+	refresh_known_track_images()
 	return TRUE
 
 /// Deliberately washing through a right-click wash action clears the one remembered quarry.
@@ -393,6 +395,42 @@
 		if(track.only_visible_while_tracking && (src in track.known_by))
 			track.remove_knower(src)
 	UNSETEMPTY(tracking_only_known_tracks)
+
+/// Re-evaluates the two possible visible ordinary tracks on every turf this investigator knows.
+/mob/living/carbon/human/proc/refresh_known_track_images()
+	var/list/affected_turfs = list()
+	for(var/obj/effect/track/track as anything in known_ordinary_tracks?.Copy())
+		if(!track || QDELETED(track) || track.type != /obj/effect/track || !(src in track.known_by))
+			known_ordinary_tracks -= track
+			continue
+		var/turf/track_turf = get_turf(track)
+		if(track_turf)
+			affected_turfs |= track_turf
+	UNSETEMPTY(known_ordinary_tracks)
+	for(var/turf/track_turf as anything in affected_turfs)
+		refresh_visible_ordinary_tracks(track_turf)
+
+/// Shows only the newest known ordinary track, plus the newest quarry track beneath it when different.
+/mob/living/proc/refresh_visible_ordinary_tracks(turf/track_turf)
+	if(!client || !track_turf)
+		return
+	var/obj/effect/track/newest_track
+	var/obj/effect/track/newest_mark_track
+	for(var/obj/effect/track/track in track_turf)
+		if(track.type != /obj/effect/track)
+			continue
+		client.images -= track.real_image
+		client.images -= track.marked_image
+		if(!(src in track.known_by))
+			continue
+		if(!newest_track || track.creation_time >= newest_track.creation_time)
+			newest_track = track
+		if(is_tracking_mark(track.creator) && (!newest_mark_track || track.creation_time >= newest_mark_track.creation_time))
+			newest_mark_track = track
+	if(newest_mark_track?.marked_image)
+		client.images += newest_mark_track.marked_image
+	if(newest_track && newest_track != newest_mark_track && newest_track.real_image)
+		client.images += newest_track.real_image
 
 /// Reveals and briefly marks nearby ordinary tracks belonging to the active target.
 /mob/living/carbon/human/proc/reveal_tracking_traces(search_range = 10, include_blood = FALSE)
@@ -616,7 +654,9 @@
 	///The visible state for those that know this.
 	var/real_icon_state = "tracks"
 	///The image knowers see.
-	var/real_image
+	var/image/real_image
+	///A brighter image shown beneath the newest track when this track belongs to the viewer's quarry.
+	var/image/marked_image
 	///List of mobs aware of this track.
 	var/list/mob/living/known_by = list()
 	///When this was created. Adjusts difficulty of locating / analyzing.
@@ -650,12 +690,13 @@
 
 /obj/effect/track/Initialize(mapload)
 	. = ..()
-	real_image = image(icon, src, real_icon_state, ABOVE_OPEN_TURF_LAYER) //Default image in case manually created.
+	rebuild_track_images()
 
 /obj/effect/track/Destroy(force)
-	real_image = null
 	for(var/knowing_one as anything in known_by.Copy())
 		remove_knower(knowing_one)
+	real_image = null
+	marked_image = null
 	if(creator)
 		clear_creator_reference(creator)
 	known_by = null
@@ -690,7 +731,20 @@
 
 	// Reset image
 	real_image = null
+	marked_image = null
 	real_icon_state = initial(real_icon_state)
+
+/// Builds client-only track images. Quarry tracks use the brighter marked sprite below the newest trace.
+/obj/effect/track/proc/rebuild_track_images(image_dir = SOUTH)
+	var/display_layer = type == /obj/effect/track ? ABOVE_OPEN_TURF_LAYER + 0.01 : ABOVE_OPEN_TURF_LAYER
+	real_image = image(icon, src, real_icon_state, display_layer, image_dir)
+	real_image.mouse_opacity = MOUSE_OPACITY_ICON
+	marked_image = null
+	if(type != /obj/effect/track)
+		return
+	marked_image = image(icon, src, "tracks_marked", ABOVE_OPEN_TURF_LAYER, image_dir)
+	marked_image.mouse_opacity = MOUSE_OPACITY_ICON
+	marked_image.filters += filter(type = "outline", color = "#fff2a8", size = 1)
 
 /obj/effect/track/attack_hand(mob/living/user)
 	. = ..()
@@ -786,7 +840,7 @@
 			facing = "southwest"
 		if(SOUTHEAST)
 			facing = "southeast"
-	real_image = image(icon, src, real_icon_state, ABOVE_OPEN_TURF_LAYER, track_source.dir) //Recreate image with correct dir.
+	rebuild_track_images(track_source.dir)
 	original_dir = track_source.dir
 	expiry_time = world.time + 20 MINUTES
 	SStracks.add_track(src)
@@ -797,21 +851,34 @@
 	if(only_visible_while_tracking && ishuman(tracker))
 		var/mob/living/carbon/human/human_tracker = tracker
 		LAZYOR(human_tracker.tracking_only_known_tracks, src)
-	if(tracker.client)
+	if(type == /obj/effect/track)
+		if(ishuman(tracker))
+			var/mob/living/carbon/human/human_tracker = tracker
+			LAZYOR(human_tracker.known_ordinary_tracks, src)
+		tracker.refresh_visible_ordinary_tracks(get_turf(src))
+	else if(tracker.client)
 		tracker.client.images += real_image
 	RegisterSignal(tracker, COMSIG_PARENT_QDELETING, PROC_REF(remove_knower), override = TRUE)
 
 ///Removes a knower from the known ones. Usually only done when qdeleted.
 /obj/effect/track/proc/remove_knower(mob/living/tracker)
 	SIGNAL_HANDLER
+	var/turf/track_turf = get_turf(src)
+	var/ordinary_track = type == /obj/effect/track
 	UnregisterSignal(tracker, COMSIG_PARENT_QDELETING)
 	if(tracker.client)
 		tracker.client.images -= real_image
+		tracker.client.images -= marked_image
+	known_by -= tracker
 	if(ishuman(tracker))
 		var/mob/living/carbon/human/human_tracker = tracker
 		human_tracker.tracking_only_known_tracks -= src
 		UNSETEMPTY(human_tracker.tracking_only_known_tracks)
-	known_by -= tracker
+		if(ordinary_track)
+			human_tracker.known_ordinary_tracks -= src
+			UNSETEMPTY(human_tracker.known_ordinary_tracks)
+	if(ordinary_track)
+		tracker.refresh_visible_ordinary_tracks(track_turf)
 	if(creator == tracker)
 		creator = null
 
@@ -824,6 +891,9 @@
 ///Called when the track's time expires, at which point it becomes indistinguishable (aka, deleted)
 /obj/effect/track/proc/track_expire()
 	qdel(src)
+
+/obj/effect/track/is_turf_list_visible_to(mob/viewer)
+	return (known_by && (viewer in known_by)) || ..()
 
 /obj/effect/track/examine(mob/user)
 	. = ..()

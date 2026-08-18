@@ -1034,7 +1034,7 @@ Inquisitorial armory down here
 		if(victim == target)
 			return
 		if(user.pulling)
-			user.stop_pulling(FALSE)
+			user.stop_pulling()
 		if(HAS_TRAIT(target, TRAIT_GRABIMMUNE))
 			playsound(loc, pick('sound/items/garrote.ogg', 'sound/items/garrote2.ogg'), 65, TRUE)
 			user.visible_message(span_danger("[target] slips past [user]'s attempt to [src] them!"))

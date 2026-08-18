@@ -39,6 +39,8 @@
 	var/datum/movement_packet/move_packet
 	var/movement_type = GROUND		//Incase you have multiple types, you automatically use the most useful one. IE: Skating on ice, flippers on water, flying over chasm/space, etc.
 	var/atom/movable/pulling
+	/// A one-move destination used to keep a shared grab target between its grabbers.
+	var/turf/pending_contested_pull_destination
 	var/nodirchange = FALSE
 	var/grab_state = 0
 	var/throwforce = 0
@@ -269,6 +271,36 @@
 /atom/movable/proc/can_move_with_contested_grab(atom/newloc)
 	return TRUE
 
+/atom/movable/proc/move_contested_pull_target(atom/movable/pullee, turf/destination, contested_glide_size)
+	if(!pullee || !destination || pullee.loc == destination)
+		return pullee?.loc == destination
+	if(get_dist(pullee, destination) > 1)
+		return FALSE
+	var/move_dir = get_dir(pullee, destination)
+	if(!((move_dir - 1) & move_dir))
+		return pullee.Move(destination, move_dir, contested_glide_size)
+
+	var/turf/original_turf = get_turf(pullee)
+	var/list/step_directions = list()
+	if(move_dir & NORTH)
+		step_directions += NORTH
+	else if(move_dir & SOUTH)
+		step_directions += SOUTH
+	if(move_dir & EAST)
+		step_directions += EAST
+	else if(move_dir & WEST)
+		step_directions += WEST
+
+	for(var/first_direction in step_directions)
+		var/turf/intermediate_turf = get_step(original_turf, first_direction)
+		if(!pullee.Move(intermediate_turf, first_direction, contested_glide_size))
+			continue
+		if(pullee.Move(destination, get_dir(pullee, destination), contested_glide_size))
+			return TRUE
+		if(!pullee.Move(original_turf, get_dir(pullee, original_turf), contested_glide_size))
+			return FALSE
+	return FALSE
+
 /atom/movable/Move(atom/newloc, direct=0, glide_size_override = 0)
 	. = FALSE
 	if(!newloc || newloc == loc)
@@ -411,12 +443,18 @@
 		if(pulling.anchored)
 			stop_pulling()
 		else
-			var/pull_dir = get_dir(src, pulling)
-			//puller and pullee more than one tile away or in diagonal position
-			if(get_dist(src, pulling) > 1 || (moving_diagonally != SECOND_DIAG_STEP && ((pull_dir - 1) & pull_dir)))
+			if(pending_contested_pull_destination)
 				pulling.moving_from_pull = src
-				pulling.Move(T, get_dir(pulling, T), glide_size) //the pullee tries to reach our previous position
+				move_contested_pull_target(pulling, pending_contested_pull_destination, glide_size)
 				pulling.moving_from_pull = null
+				pending_contested_pull_destination = null
+			else
+				var/pull_dir = get_dir(src, pulling)
+				//puller and pullee more than one tile away or in diagonal position
+				if(get_dist(src, pulling) > 1 || (moving_diagonally != SECOND_DIAG_STEP && ((pull_dir - 1) & pull_dir)))
+					pulling.moving_from_pull = src
+					pulling.Move(T, get_dir(pulling, T), glide_size) //the pullee tries to reach our previous position
+					pulling.moving_from_pull = null
 			check_pulling()
 
 	//glide_size strangely enough can change mid movement animation and update correctly while the animation is playing

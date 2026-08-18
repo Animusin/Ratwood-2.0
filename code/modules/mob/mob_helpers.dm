@@ -472,18 +472,22 @@
 				return
 			else
 				if(active_hand_index == 1)
-					l_ua_index = numb
+					if(!get_active_held_item())
+						l_ua_index = numb
 					l_index = numb
 				else
-					r_ua_index = numb
+					if(!get_active_held_item())
+						r_ua_index = numb
 					r_index = numb
 				a_intent = possible_a_intents[numb]
 		else
 			if(active_hand_index == 1)
-				l_ua_index = numb
+				if(!get_active_held_item())
+					l_ua_index = numb
 				l_index = numb
 			else
-				r_ua_index = numb
+				if(!get_active_held_item())
+					r_ua_index = numb
 				r_index = numb
 			a_intent = null
 		if(a_intent)
@@ -506,9 +510,9 @@
 			intents = Masteritem.alt_intents
 	else
 		if(active_hand_index == 1)
-			r_index = r_ua_index
-		else
 			l_index = l_ua_index
+		else
+			r_index = r_ua_index
 		intents = base_intents.Copy()
 	for(var/defintent in intents)
 		if(Masteritem)
@@ -524,9 +528,9 @@
 			intents = Masteritem.alt_intents
 	else
 		if(active_hand_index == 1)
-			l_index = l_ua_index
-		else
 			r_index = r_ua_index
+		else
+			l_index = l_ua_index
 		intents = base_intents.Copy()
 	for(var/defintent in intents)
 		if(Masteritem)

@@ -65,6 +65,10 @@
 	if(!grabbee || !ismovable(grabbed))
 		return
 	var/atom/movable/grabbed_movable = grabbed
+	var/list/other_held_grabs = list(grabbee.r_grab, grabbee.l_grab, grabbee.mouth)
+	for(var/obj/item/grabbing/other_grab in other_held_grabs)
+		if(other_grab != src && !QDELETED(other_grab) && other_grab.grabbed == grabbed_movable)
+			return
 	var/was_active_puller = grabbed_movable.pulledby == grabbee
 	var/mob/living/carbon/replacement_puller
 	if(was_active_puller)
@@ -124,6 +128,7 @@
 
 /obj/item/grabbing/Destroy()
 	STOP_PROCESSING(SSfastprocess, src)
+	release_pull()
 	if(isobj(grabbed))
 		var/obj/I = grabbed
 		LAZYREMOVE(I.grabbedby, src)

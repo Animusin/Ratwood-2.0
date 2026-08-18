@@ -197,15 +197,15 @@
 	testing("stoppull1")
 	if(pulling)
 		testing("stoppull2")
-		if(pulling != src)
-			pulling.pulledby = null
-			var/mob/living/ex_pulled = pulling
-			pulling = null
+		var/atom/movable/ex_pulled = pulling
+		pulling = null
+		if(ex_pulled != src && ex_pulled.pulledby == src)
+			ex_pulled.pulledby = null
 			if(isliving(ex_pulled))
 				var/mob/living/L = ex_pulled
 				L.update_mobility()// mob gets up if it was lyng down in a chokehold
-				if(ex_pulled.hud_used)
-					var/atom/movable/screen/inventory/hand/H = ex_pulled.hud_used.hand_slots["[ex_pulled.active_hand_index]"]
+				if(L.hud_used)
+					var/atom/movable/screen/inventory/hand/H = L.hud_used.hand_slots["[L.active_hand_index]"]
 					if(H)
 						H.update_icon()
 	setGrabState(0)
@@ -266,6 +266,9 @@
 // Here's where we rewrite how byond handles movement except slightly different
 // To be removed on step_ conversion
 // All this work to prevent a second bump
+/atom/movable/proc/can_move_with_contested_grab(atom/newloc)
+	return TRUE
+
 /atom/movable/Move(atom/newloc, direct=0, glide_size_override = 0)
 	. = FALSE
 	if(!newloc || newloc == loc)
@@ -283,6 +286,8 @@
 		return
 
 	if (SEND_SIGNAL(src, COMSIG_MOVABLE_PRE_MOVE, newloc) & COMPONENT_MOVABLE_BLOCK_PRE_MOVE)
+		return
+	if(!can_move_with_contested_grab(newloc))
 		return
 
 	// Past this is the point of no return

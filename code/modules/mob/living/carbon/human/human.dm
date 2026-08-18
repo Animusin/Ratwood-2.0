@@ -879,6 +879,9 @@
 		if(do_after(src, carrydelay, TRUE, target))
 			//Second check to make sure they're still valid to be carried
 			if(can_be_firemanned(target) && !incapacitated(FALSE, TRUE))
+				if(!contest_target_grabbers(target, force_contest = TRUE, break_other_grabs = TRUE))
+					to_chat(src, span_warning("I fail to wrest [target] away from the other grip."))
+					return
 				buckle_mob(target, TRUE, TRUE, 90, 0, 0)
 				return
 	to_chat(src, span_warning("I fail to carry [target]."))

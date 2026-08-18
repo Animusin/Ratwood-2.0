@@ -381,27 +381,19 @@
 		return FALSE
 
 	AM.add_fingerprint(src)
+	changeNext_move(CLICK_CD_GRABBING)
+
+	var/mob/current_puller = AM.pulledby
+	if(current_puller && current_puller != src && current_puller.pulling != AM)
+		AM.pulledby = null
 
 	// If we're pulling something then drop what we're currently pulling and pull this instead.
 	if(pulling && AM != pulling)
 		stop_pulling()
-
-	changeNext_move(CLICK_CD_GRABBING)
-
-//	if(AM.pulledby && AM.pulledby != src)
-//		if(AM == src)
-//			to_chat(src, span_warning("I'm being grabbed by something!"))
-//			return FALSE
-//		else
-//			if(!supress_message)
-//				AM.visible_message(span_danger("[src] has pulled [AM] from [AM.pulledby]'s grip."), span_danger("[src] has pulled me from [AM.pulledby]'s grip."), null, null, src)
-//
-//				to_chat(src, span_notice("I pull [AM] from [AM.pulledby]'s grip!"))
-//			log_combat(AM, AM.pulledby, "pulled from", src)
-//			AM.pulledby.stop_pulling() //an object can't be pulled by two mobs at once.
 	if(AM != src)
 		pulling = AM
-		AM.pulledby = src
+		if(!AM.pulledby)
+			AM.pulledby = src
 	update_pull_hud_icon()
 
 	if(isliving(AM))
@@ -524,10 +516,85 @@
 // - Grabbing character skill at journeymen or lower(3).
 	if(isliving(AM))
 		var/mob/living/M = AM
-		if(M.mind)
+		if(M.pulledby == src && M.mind)
 			if(M.cmode && M.stat == CONSCIOUS && !M.restrained(ignore_grab = TRUE))
 				if(M.get_skill_level(/datum/skill/combat/wrestling) >= 5 || src.get_skill_level(/datum/skill/combat/wrestling) <= 3)
 					M.resist_grab(freeresist = TRUE) //Automatically attempt to break a passive grab if defender's combat mode is on. Anti-grabspam measure.
+
+/mob/living/can_move_with_contested_grab(atom/newloc)
+	if(moving_from_pull || !isliving(pulling))
+		return TRUE
+	var/mob/living/target = pulling
+	if(target.buckled == src)
+		if(!contest_target_grabbers(target, newloc))
+			return FALSE
+		target.pulledby = src
+		return TRUE
+	var/pull_dir = get_dir(newloc, target)
+	if(get_dist(newloc, target) <= 1 && !((pull_dir - 1) & pull_dir))
+		return TRUE
+	if(!contest_target_grabbers(target, get_turf(src)))
+		return FALSE
+	target.pulledby = src
+	return TRUE
+
+/mob/living/proc/contest_target_grabbers(mob/living/target, atom/future_location, force_contest = FALSE, break_other_grabs = FALSE)
+	var/list/checked_grabbers = list()
+	for(var/obj/item/grabbing/active_grab in target.grabbedby)
+		if(QDELETED(active_grab) || active_grab.grabbed != target)
+			continue
+		var/mob/living/carbon/other_grabber = active_grab.grabbee
+		if(!other_grabber || other_grabber == src || (other_grabber in checked_grabbers))
+			continue
+		if(active_grab != other_grabber.r_grab && active_grab != other_grabber.l_grab)
+			continue
+		if(!other_grabber.cmode || !other_grabber.Adjacent(target))
+			continue
+		if(!force_contest && other_grabber.Adjacent(future_location))
+			continue
+		checked_grabbers += other_grabber
+		if(!try_pull_from_grip(other_grabber, target))
+			return FALSE
+	for(var/mob/living/current_puller in checked_grabbers)
+		visible_message(span_warning("[src] wrenches [target] away from [current_puller]'s grip!"), \
+			span_notice("I wrench [target] away from [current_puller]'s grip!"), ignored_mobs = list(current_puller))
+		to_chat(current_puller, span_danger("[src] wrenches [target] out of my grip!"))
+		log_combat(src, current_puller, "pulled [target] from grip")
+	if(break_other_grabs)
+		var/list/released_grabbers = list()
+		for(var/obj/item/grabbing/active_grab in target.grabbedby.Copy())
+			var/mob/living/carbon/other_grabber = active_grab.grabbee
+			if(!other_grabber || other_grabber == src)
+				continue
+			if(active_grab != other_grabber.r_grab && active_grab != other_grabber.l_grab)
+				continue
+			if(!(other_grabber in released_grabbers))
+				other_grabber.stop_pulling(FALSE)
+				released_grabbers += other_grabber
+			qdel(active_grab)
+		target.pulledby = src
+	return TRUE
+
+/mob/living/proc/try_pull_from_grip(mob/living/current_puller, atom/movable/target)
+	var/skill_difference = get_skill_level(/datum/skill/combat/wrestling) - current_puller.get_skill_level(/datum/skill/combat/wrestling)
+	var/takeover_chance = 50 + ((STASTR - current_puller.STASTR) * 5) + (skill_difference * 10)
+	takeover_chance -= current_puller.grab_state * 15
+	takeover_chance = clamp(takeover_chance, 5, 95)
+	stamina_add(rand(5, 15))
+	current_puller.stamina_add(rand(5, 15))
+	if(client)
+		client.move_delay = max(client.move_delay, world.time + CLICK_CD_RESIST)
+
+	if(!prob(takeover_chance))
+		var/roll_message = client?.prefs.showrolls ? " ([takeover_chance]%)" : ""
+		visible_message(span_warning("[src] fails to wrench [target] from [current_puller]'s grip!"), \
+			span_warning("I fail to wrench [target] from [current_puller]'s grip![roll_message]"), ignored_mobs = list(current_puller))
+		to_chat(current_puller, span_warning("[src] fails to wrench [target] from my grip!"))
+		playsound(loc, 'sound/combat/grabstruggle.ogg', 50, TRUE, -1)
+		log_combat(src, current_puller, "failed to pull [target] from grip")
+		return FALSE
+
+	return TRUE
 
 /mob/living/proc/is_limb_covered(obj/item/bodypart/limb)
 	if(!limb)

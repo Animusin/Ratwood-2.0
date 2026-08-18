@@ -206,6 +206,18 @@
 	if(investigator.cmode)
 		qdel(src)
 		return
+	if(!investigator.Adjacent(evidence))
+		to_chat(investigator, span_warning("I need to get closer to examine this clue."))
+		return
+	if(is_blood_clue)
+		var/covered
+		if(investigator.is_mouth_covered(head_only = 1))
+			covered = "headgear"
+		else if(investigator.is_mouth_covered(mask_only = 1))
+			covered = "mask"
+		if(covered)
+			to_chat(investigator, span_warning("I have to remove my [covered] first!"))
+			return
 	if(investigator.m_intent != MOVE_INTENT_SNEAK)
 		if(is_blood_clue)
 			investigator.visible_message(
@@ -222,6 +234,12 @@
 				span_info("[investigator] searches [evidence] for traces."),
 				span_info("I search [evidence] for traces."),
 			)
+	if(!do_after(investigator, 1.5 SECONDS, target = evidence))
+		return
+	if(QDELETED(src) || investigator.cmode)
+		return
+	if(evidence_ref?.resolve() != evidence || !investigator.Adjacent(evidence))
+		return
 	var/success = FALSE
 	if(is_blood_clue && isturf(evidence))
 		success = investigator.analyze_blood_on_turf(evidence)
@@ -305,6 +323,14 @@
 		tracking_target_link = new(src, new_mark)
 	return TRUE
 
+/// Deliberately washing through a right-click wash action clears the one remembered quarry.
+/mob/living/carbon/human/proc/forget_tracking_quarry_after_wash()
+	if(!current_mark)
+		return FALSE
+	set_tracking_mark(null)
+	to_chat(src, span_notice("As I wash, the trail fades from my thoughts."))
+	return TRUE
+
 /mob/living/carbon/human/proc/conceal_tracking_only_traces()
 	for(var/obj/effect/track/track as anything in tracking_only_known_tracks?.Copy())
 		if(!track || QDELETED(track))
@@ -386,20 +412,14 @@
 	var/mob/living/blood_target
 	if(length(found_blood))
 		var/list/blood_owners = list()
-		for(var/mob/living/carbon/candidate as anything in GLOB.mob_living_list)
-			var/candidate_dna = candidate.dna?.unique_enzymes
-			if(!candidate_dna || !(candidate_dna in found_blood))
-				continue
-			var/list/owners = blood_owners[candidate_dna]
-			if(!owners)
-				owners = list()
-				blood_owners[candidate_dna] = owners
-			owners |= candidate
 		to_chat(user, span_notice("Blood traces found on the object:"))
 		for(var/dna_key in found_blood)
-			var/list/owners = blood_owners[dna_key]
+			var/list/owners = get_forensic_blood_owners(dna_key)
+			blood_owners[dna_key] = owners
 			var/mob/living/carbon/first_owner = length(owners) ? owners[1] : null
-			var/race = first_owner?.dna?.species?.name ? first_owner.dna.species.name : "unknown race"
+			var/race = get_forensic_blood_species(dna_key)
+			if(!race)
+				race = first_owner?.dna?.species?.name ? first_owner.dna.species.name : "unknown race"
 			if(tracking_skill >= SKILL_LEVEL_EXPERT)
 				to_chat(user, span_info("- Blood type [found_blood[dna_key]]; [race]; freshness unknown."))
 			else
@@ -422,6 +442,8 @@
 		investigator.set_tracking_mark(culprit)
 		investigator.reveal_tracking_traces(10)
 		to_chat(user, span_warning("The clue gives me a trail to follow, but no name."))
+	else if(length(event))
+		to_chat(user, span_warning("The disturbance left a trail, but its maker is no longer present to follow."))
 	else if(!length(event) && blood_target)
 		var/mob/living/carbon/human/investigator = user
 		investigator.set_tracking_mark(blood_target)
@@ -438,17 +460,21 @@
 /mob/living/carbon/human/proc/analyze_blood_on_turf(turf/target_turf)
 	var/tracking_skill = get_skill_level(/datum/skill/misc/tracking)
 	var/list/samples = list()
+	var/trace_severity = FORENSIC_BLEED_UNKNOWN
+	var/overwhelmingly_mixed = FALSE
 	for(var/obj/effect/decal/cleanable/blood/blood in target_turf)
 		var/list/blood_dna = blood.return_blood_DNA()
 		if(!length(blood_dna))
 			continue
 		tracking_blood_outline(blood, src)
+		trace_severity = max(trace_severity, blood.forensic_bleed_severity)
+		overwhelmingly_mixed ||= blood.blood_samples_overflow
 		for(var/dna_key in blood_dna)
 			var/list/sample = samples[dna_key]
 			if(!sample)
 				sample = list(
 					"blood_type" = blood_dna[dna_key],
-					"owner" = null,
+					"owners" = null,
 					"fresh" = FALSE,
 					"dry" = FALSE,
 				)
@@ -462,21 +488,31 @@
 	if(tracking_skill < SKILL_LEVEL_JOURNEYMAN)
 		to_chat(src, span_notice("I can tell these bloodstains form a trail, but I cannot read the details."))
 		return TRUE
-	for(var/mob/living/carbon/candidate as anything in GLOB.mob_living_list)
-		var/candidate_dna = candidate.dna?.unique_enzymes
-		if(candidate_dna && samples[candidate_dna])
-			var/list/matching_sample = samples[candidate_dna]
-			matching_sample["owner"] = candidate
 	to_chat(src, span_notice("I examine the blood traces on this ground."))
 	for(var/dna_key in samples)
 		var/list/sample = samples[dna_key]
-		var/mob/living/carbon/owner = sample["owner"]
-		var/race = owner?.dna?.species?.name ? owner.dna.species.name : "unknown race"
+		var/list/owners = get_forensic_blood_owners(dna_key)
+		sample["owners"] = owners
+		var/mob/living/carbon/first_owner = length(owners) ? owners[1] : null
+		var/race = get_forensic_blood_species(dna_key)
+		if(!race)
+			race = first_owner?.dna?.species?.name ? first_owner.dna.species.name : "unknown race"
 		var/state = sample["fresh"] ? (sample["dry"] ? "fresh and dried" : "fresh") : "dried"
 		if(tracking_skill >= SKILL_LEVEL_EXPERT)
 			to_chat(src, span_info("Blood type [sample["blood_type"]]; [race]; [state]."))
 		else
 			to_chat(src, span_info("Blood from [race]; [state]."))
+	if(tracking_skill >= SKILL_LEVEL_EXPERT && length(samples) == 1 && !overwhelmingly_mixed)
+		switch(trace_severity)
+			if(FORENSIC_BLEED_MINOR)
+				to_chat(src, span_info("The blood loss appears minor."))
+			if(FORENSIC_BLEED_SIGNIFICANT)
+				to_chat(src, span_warning("The victim was bleeding significantly."))
+			if(FORENSIC_BLEED_SEVERE)
+				to_chat(src, span_danger("The victim was bleeding heavily."))
+	if(overwhelmingly_mixed)
+		to_chat(src, span_warning("The blood is too thoroughly mixed to separate."))
+		return TRUE
 	if(tracking_skill < SKILL_LEVEL_EXPERT)
 		if(length(samples) == 1)
 			to_chat(src, span_warning("This is one blood trail, but I need expert Tracking to fix its owner as my quarry."))
@@ -486,8 +522,9 @@
 	if(length(samples) == 1)
 		var/only_dna = samples[1]
 		var/list/only_sample = samples[only_dna]
-		var/mob/living/only_owner = only_sample["owner"]
-		if(only_owner)
+		var/list/only_owners = only_sample["owners"]
+		if(length(only_owners) == 1)
+			var/mob/living/only_owner = only_owners[1]
 			set_tracking_mark(only_owner)
 			reveal_tracking_traces(10, TRUE)
 			to_chat(src, span_warning("This single blood trail gives me one quarry, but no name."))

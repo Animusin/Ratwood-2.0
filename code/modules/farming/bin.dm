@@ -130,6 +130,9 @@
 				user.visible_message(span_info("[user] starts to wash in [src]."))
 				if(do_after(L, 30, target = src))
 					wash_atom(user, CLEAN_STRONG)
+					if(ishuman(user))
+						var/mob/living/carbon/human/tracker = user
+						tracker.forget_tracking_quarry_after_wash()
 					playsound(user, pick(wash), 100, FALSE)
 					user.remove_stress(/datum/stressevent/sewertouched)
 					L.adjust_fire_stacks(-100)

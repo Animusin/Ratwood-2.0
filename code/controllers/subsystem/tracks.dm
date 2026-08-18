@@ -22,7 +22,7 @@ PROCESSING_SUBSYSTEM_DEF(tracks)
 
 /datum/controller/subsystem/processing/tracks/stat_entry()
 	if(processing)
-		..("P:[length(processing)] | Pool:[length(track_pool)+length(thievescant_pool)] | R:[tracks_recycled] | N:[tracks_created]")
+		..("P:[length(processing)] | Pool:[length(track_pool)+length(thievescant_pool)] | R:[tracks_recycled] | N:[tracks_created] | B:[GLOB.active_forensic_blood_decals]")
 
 /datum/controller/subsystem/processing/tracks/fire(resumed = 0)
 	if (!resumed)

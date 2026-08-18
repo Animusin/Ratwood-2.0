@@ -1306,15 +1306,8 @@ Necra's Censer (by ARefrigerator)
 	var/list/event_reports = list()
 	var/list/blood_reports = list()
 	var/list/found_fibers = list()
-	var/list/blood_lookup = list()
 	var/list/fingerprint_lookup = list()
 	for(var/mob/living/carbon/human/H as anything in GLOB.mob_living_list)
-		if(H.dna?.unique_enzymes)
-			var/list/blood_owners = blood_lookup[H.dna.unique_enzymes]
-			if(!blood_owners)
-				blood_owners = list()
-				blood_lookup[H.dna.unique_enzymes] = blood_owners
-			blood_owners |= H
 		if(H.dna?.uni_identity)
 			var/fingerprint = md5(H.dna.uni_identity)
 			var/list/print_owners = fingerprint_lookup[fingerprint]
@@ -1329,13 +1322,13 @@ Necra's Censer (by ARefrigerator)
 			scan_targets += O
 	var/found = FALSE
 	for(var/atom/scanned as anything in scan_targets)
-		found |= _ravox_collect_from_atom(scanned, species_counts, identified_names, tracking_candidates, blood_lookup, fingerprint_lookup)
+		found |= _ravox_collect_from_atom(scanned, species_counts, identified_names, tracking_candidates, fingerprint_lookup)
 		var/list/fibers = scanned.return_fibers()
 		for(var/fiber in fibers)
 			found_fibers[html_encode(fiber)] = TRUE
 		if(istype(scanned, /obj/effect/decal/cleanable/blood))
 			var/obj/effect/decal/cleanable/blood/blood = scanned
-			_ravox_describe_blood(blood, blood_lookup, blood_reports)
+			_ravox_describe_blood(blood, blood_reports)
 		var/list/event = scanned.read_forensic_event()
 		if(length(event))
 			found = TRUE
@@ -1381,13 +1374,13 @@ Necra's Censer (by ARefrigerator)
 	else if(length(tracking_candidates) > 1)
 		SAY_WARN("Several distinct people left traces here; the lens will not choose one for me.")
 
-/proc/_ravox_collect_from_atom(atom/A, list/species_counts, list/identified_names, list/tracking_candidates, list/blood_lookup, list/fingerprint_lookup)
+/proc/_ravox_collect_from_atom(atom/A, list/species_counts, list/identified_names, list/tracking_candidates, list/fingerprint_lookup)
 	if(!A) return FALSE
 	var/found = FALSE
 
 	var/list/blood = A.return_blood_DNA()
 	if(length(blood))
-		found |= _ravox_add_from_dna_map(blood, species_counts, identified_names, tracking_candidates, blood_lookup)
+		found |= _ravox_add_from_dna_map(blood, species_counts, identified_names, tracking_candidates)
 
 	if(ishuman(A))
 		var/mob/living/carbon/human/H = A
@@ -1405,21 +1398,24 @@ Necra's Censer (by ARefrigerator)
 					var/bdna = R.data["blood_DNA"]
 					if(bdna)
 						var/list/tmp = list(); tmp[bdna] = TRUE
-						found |= _ravox_add_from_dna_map(tmp, species_counts, identified_names, tracking_candidates, blood_lookup)
+						found |= _ravox_add_from_dna_map(tmp, species_counts, identified_names, tracking_candidates)
 
 	return found
 
-/proc/_ravox_add_from_dna_map(list/dna_map, list/species_counts, list/identified_names, list/tracking_candidates, list/blood_lookup)
+/proc/_ravox_add_from_dna_map(list/dna_map, list/species_counts, list/identified_names, list/tracking_candidates)
 	if(!islist(dna_map) || !dna_map.len) return FALSE
 	var/added = FALSE
 	for(var/blood_dna in dna_map)
-		var/list/owners = blood_lookup["[blood_dna]"]
+		var/list/owners = get_forensic_blood_owners(blood_dna)
+		var/species_name = get_forensic_blood_species(blood_dna)
+		if(!species_name && length(owners))
+			var/mob/living/carbon/first_owner = owners[1]
+			species_name = _ravox_species_name(first_owner)
 		if(length(owners))
-			var/mob/living/carbon/human/first_owner = owners[1]
-			_ravox_bump_species(species_counts, _ravox_species_name(first_owner))
+			_ravox_bump_species(species_counts, species_name)
 			_ravox_add_identified_owners(owners, identified_names, tracking_candidates)
 		else
-			_ravox_bump_species(species_counts, "Unknown")
+			_ravox_bump_species(species_counts, species_name ? species_name : "Unknown")
 		added = TRUE
 	return added
 
@@ -1444,10 +1440,10 @@ Necra's Censer (by ARefrigerator)
 		identified_names[_ravox_identity_name(owner)] = TRUE
 		tracking_candidates |= owner
 
-/proc/_ravox_describe_blood(obj/effect/decal/cleanable/blood/blood, list/blood_lookup, list/blood_reports)
+/proc/_ravox_describe_blood(obj/effect/decal/cleanable/blood/blood, list/blood_reports)
 	var/list/blood_dna = blood.return_blood_DNA()
 	for(var/dna_key in blood_dna)
-		var/list/owners = blood_lookup["[dna_key]"]
+		var/list/owners = get_forensic_blood_owners(dna_key)
 		var/identity = "unknown owner"
 		if(length(owners))
 			var/list/names = list()

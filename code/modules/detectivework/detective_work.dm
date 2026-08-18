@@ -1,5 +1,46 @@
 //CONTAINS: Suit fibers and Detective's Scanning Computer
 
+GLOBAL_LIST_EMPTY(forensic_blood_species)
+GLOBAL_LIST_EMPTY(forensic_blood_owner_refs)
+GLOBAL_VAR_INIT(active_forensic_blood_decals, 0)
+GLOBAL_VAR_INIT(next_forensic_blood_decal_warning, 0)
+
+/// Stores one lightweight identity record per blood source instead of repeating species data on every stain.
+/proc/register_forensic_blood_identity(mob/living/source)
+	if(!iscarbon(source))
+		return
+	var/mob/living/carbon/carbon_source = source
+	var/dna_key = carbon_source.dna?.unique_enzymes
+	if(!dna_key)
+		return
+	var/species_name = carbon_source.dna?.species?.name
+	if(species_name)
+		GLOB.forensic_blood_species[dna_key] = "[species_name]"
+	var/list/owner_refs = GLOB.forensic_blood_owner_refs[dna_key]
+	if(!owner_refs)
+		owner_refs = list()
+		GLOB.forensic_blood_owner_refs[dna_key] = owner_refs
+	owner_refs |= WEAKREF(carbon_source)
+
+/// Resolves every currently present owner sharing a forensic blood identity.
+/proc/get_forensic_blood_owners(dna_key)
+	var/list/owners = list()
+	var/list/owner_refs = GLOB.forensic_blood_owner_refs[dna_key]
+	if(!length(owner_refs))
+		return owners
+	for(var/datum/weakref/owner_ref as anything in owner_refs.Copy())
+		var/mob/living/carbon/owner = owner_ref.resolve()
+		if(owner)
+			owners |= owner
+		else
+			owner_refs -= owner_ref
+	if(!length(owner_refs))
+		GLOB.forensic_blood_owner_refs -= dna_key
+	return owners
+
+/proc/get_forensic_blood_species(dna_key)
+	return GLOB.forensic_blood_species[dna_key]
+
 /atom/proc/return_fingerprints()
 	var/datum/component/forensics/D = GetComponent(/datum/component/forensics)
 	if(D)

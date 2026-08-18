@@ -90,6 +90,7 @@
 #include "component_tests.dm"
 #include "create_and_destroy.dm"
 #include "focus_only_tests.dm"
+#include "grab_edge_cases.dm"
 #include "grab_lifecycle.dm"
 #include "reagent_id_typos.dm"
 #include "reagent_recipe_collisions.dm"

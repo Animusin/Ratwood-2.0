@@ -425,6 +425,15 @@
 					visible_message(span_warning("[target] slips away from [src]'s oily grasp!"), \
 							span_warning("[target.name] slips away from my grip - they're too oily!"))
 					log_combat(src, target, "failed to grab due to oil", addition="oiled skin")
+					var/has_held_grab = r_grab && !QDELETED(r_grab) && r_grab.grabbed == target
+					has_held_grab ||= l_grab && !QDELETED(l_grab) && l_grab.grabbed == target
+					if(iscarbon(src))
+						var/mob/living/carbon/carbon_grabber = src
+						if(istype(carbon_grabber.mouth, /obj/item/grabbing))
+							var/obj/item/grabbing/mouth_grab = carbon_grabber.mouth
+							has_held_grab ||= !QDELETED(mouth_grab) && mouth_grab.grabbed == target
+					if(!has_held_grab && pulling == target)
+						stop_pulling(FALSE)
 					return FALSE // Grab attempt fails
 
 		if(HAS_TRAIT(target, TRAIT_GRABIMMUNE) && target.stat == CONSCIOUS) // Grab immunity check
@@ -463,7 +472,8 @@
 			if(BP)
 				C.update_hud_hand_slot(BP.held_index)
 				C.mark_zone_selector_hud_dirty()
-			put_in_hands(O)
+			if(!put_in_hands(O))
+				return FALSE
 			O.update_hands(src)
 			if(HAS_TRAIT(src, TRAIT_STRONG_GRABBER) || item_override)
 				supress_message = TRUE
@@ -472,6 +482,7 @@
 				send_pull_message(target)
 			var/signal_result = SEND_SIGNAL(target, COMSIG_LIVING_GRAB_SELF_ATTEMPT, target, used_limb)
 			if(signal_result & COMPONENT_CANCEL_GRAB_ATTACK)
+				qdel(O)
 				return FALSE
 		else
 			var/obj/item/grabbing/O = new()
@@ -482,7 +493,8 @@
 				O.sublimb_grabbed = item_override
 			else
 				O.sublimb_grabbed = target.simple_limb_hit(zone_selected)
-			put_in_hands(O)
+			if(!put_in_hands(O))
+				return FALSE
 			O.update_hands(src)
 			if(HAS_TRAIT(src, TRAIT_STRONG_GRABBER) || item_override)
 				supress_message = TRUE
@@ -491,6 +503,7 @@
 				send_pull_message(target)
 			var/signal_result = SEND_SIGNAL(target, COMSIG_LIVING_GRAB_SELF_ATTEMPT, target, zone_selected)
 			if(signal_result & COMPONENT_CANCEL_GRAB_ATTACK)
+				qdel(O)
 				return FALSE
 
 		update_pull_movespeed()
@@ -708,12 +721,11 @@
 	update_pull_hud_icon()
 
 /mob/living/carbon/stop_pulling(forced = TRUE)
+	if(forced && istype(mouth, /obj/item/grabbing))
+		var/obj/item/grabbing/mouth_grab = mouth
+		if(mouth_grab.grabbed == pulling)
+			dropItemToGround(mouth_grab, silent = FALSE)
 	. = ..()
-	if(forced)
-		if(istype(mouth, /obj/item/grabbing))
-			var/obj/item/grabbing/I = mouth
-			if(I.grabbed == pulling)
-				dropItemToGround(I, silent = FALSE)
 
 
 /mob/living/verb/stop_pulling1()

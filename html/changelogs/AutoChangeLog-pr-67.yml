@@ -1,0 +1,4 @@
+author: "sigmaboy124124"
+delete-after: True
+changes:
+  - bugfix: "Matthios steal objective and pickpocket stats no longer count stealing from yourself"

@@ -31,3 +31,21 @@
 	qdel(second_grab)
 	TEST_ASSERT_NULL(grabber.pulling, "Destroying the last grab should stop the pull.")
 	TEST_ASSERT_NULL(target.pulledby, "Destroying the last grab should clear the target's puller.")
+
+	var/turf/contested_target_turf = get_step(first_turf, NORTH)
+	var/turf/primary_grabber_turf = get_step(contested_target_turf, EAST)
+	var/turf/pinning_grabber_turf = get_step(contested_target_turf, NORTH)
+	var/mob/living/carbon/human/primary_grabber = allocate(/mob/living/carbon/human/consistent, primary_grabber_turf)
+	var/mob/living/carbon/human/pinning_grabber = allocate(/mob/living/carbon/human/consistent, pinning_grabber_turf)
+	var/mob/living/carbon/human/contested_target = allocate(/mob/living/carbon/human/consistent, contested_target_turf)
+
+	primary_grabber.start_pulling(contested_target)
+	pinning_grabber.start_pulling(contested_target)
+	var/obj/item/grabbing/pinning_grab = pinning_grabber.r_grab
+	TEST_ASSERT_NOTNULL(pinning_grab, "The pinning player should have a grab on the contested target.")
+	TEST_ASSERT_EQUAL(contested_target.pulledby, primary_grabber, "A second grabber should not replace the active puller.")
+
+	qdel(pinning_grab)
+	TEST_ASSERT_NULL(pinning_grabber.pulling, "Interrupting the pin should clear the pinning player's pull.")
+	TEST_ASSERT_EQUAL(primary_grabber.pulling, contested_target, "Interrupting the pin should preserve the other player's pull.")
+	TEST_ASSERT_EQUAL(contested_target.pulledby, primary_grabber, "Interrupting the pin should preserve the contested target's active puller.")

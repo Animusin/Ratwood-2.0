@@ -382,7 +382,7 @@
 
 /obj/effect/proc_holder/spell/invoked/mimicry
 	name = "Mimicry"
-	desc = "Play a sound of your choice at the targeted location, or assume the form of an item as a parlor trick, you brilliant jester."
+	desc = "Play a sound of your choice at the targeted location, or assume the form of an item as a parlor trick, you brilliant jester. Cast it on yourself while the trick is in hand to release it."
 	overlay_icon = 'icons/mob/actions/xylixmiracles.dmi'
 	action_icon = 'icons/mob/actions/xylixmiracles.dmi'
 	overlay_state = "mimicry"
@@ -485,7 +485,7 @@
 	return icon_exists(target.icon, target.icon_state)
 
 /obj/item/melee/touch_attack/parlor_trick/proc/toggle(mob/user)
-	if(!can_use || !saved_appearance)
+	if(!can_use)
 		return
 	var/obj/effect/dummy/parlor_trick/active_dummy = active_dummy_ref?.resolve()
 	if(active_dummy)
@@ -495,6 +495,10 @@
 		active_dummy_ref = null
 		to_chat(user, span_notice("You deactivate \the [src]."))
 		new /obj/effect/temp_visual/gravpush(get_turf(src))
+	else if(!saved_appearance)
+		playsound(get_turf(src), 'sound/magic/decoylaugh.ogg', 20, TRUE, -6)
+		to_chat(user, span_notice("You release the parlor trick from your hand."))
+		qdel(src)
 	else
 		playsound(get_turf(src), 'sound/magic/decoylaugh.ogg', 20, TRUE, -6)
 		var/obj/effect/dummy/parlor_trick/C = new/obj/effect/dummy/parlor_trick(user.drop_location())
@@ -620,11 +624,17 @@
 	var/turf/T = get_turf(target)
 
 	if(target == user)
+		var/obj/item/melee/touch_attack/parlor_trick/active_hand = user.get_active_held_item()
+		if(istype(active_hand))
+			to_chat(user, span_notice("You release the parlor trick from your hand."))
+			qdel(active_hand)
+			revert_cast(user)
+			return FALSE
 		var/obj/item/melee/touch_attack/parlor_trick/P = get_or_create_parlor_trick(user)
 		if(!P)
 			revert_cast()
 			return FALSE
-		to_chat(user, span_notice("You channel a parlor trick into your hand. Use it on an object to copy, then right-click yourself to transform."))
+		to_chat(user, span_notice("You channel a parlor trick into your hand. Use it on an object to copy, then right-click yourself to transform. Cast on yourself again to release it."))
 		return TRUE
 
 	if(isobj(target))

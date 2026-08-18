@@ -535,6 +535,7 @@
 					M.resist_grab(freeresist = TRUE) //Automatically attempt to break a passive grab if defender's combat mode is on. Anti-grabspam measure.
 
 /mob/living/can_move_with_contested_grab(atom/newloc)
+	pending_contested_pull_destination = null
 	if(moving_from_pull || !isliving(pulling))
 		return TRUE
 	var/mob/living/target = pulling
@@ -543,6 +544,24 @@
 			return FALSE
 		target.pulledby = src
 		return TRUE
+	var/list/other_grabbers = list()
+	for(var/obj/item/grabbing/active_grab in target.grabbedby)
+		if(QDELETED(active_grab) || active_grab.grabbed != target)
+			continue
+		var/mob/living/carbon/other_grabber = active_grab.grabbee
+		if(!other_grabber || other_grabber == src || (other_grabber in other_grabbers))
+			continue
+		if(active_grab != other_grabber.r_grab && active_grab != other_grabber.l_grab)
+			continue
+		if(other_grabber.pulling != target || !other_grabber.Adjacent(target))
+			continue
+		other_grabbers += other_grabber
+	if(length(other_grabbers))
+		var/turf/shared_destination = find_shared_grab_destination(target, newloc, other_grabbers)
+		if(shared_destination)
+			pending_contested_pull_destination = shared_destination
+			target.pulledby = src
+			return TRUE
 	var/pull_dir = get_dir(newloc, target)
 	if(get_dist(newloc, target) <= 1 && !((pull_dir - 1) & pull_dir))
 		return TRUE
@@ -550,6 +569,33 @@
 		return FALSE
 	target.pulledby = src
 	return TRUE
+
+/mob/living/proc/find_shared_grab_destination(mob/living/target, atom/mover_location, list/other_grabbers)
+	var/turf/target_turf = get_turf(target)
+	var/turf/mover_turf = get_turf(mover_location)
+	if(!target_turf || !mover_turf)
+		return
+	var/turf/best_destination
+	var/best_score = INFINITY
+	for(var/turf/candidate in RANGE_TURFS(1, target_turf))
+		if(candidate == mover_turf || !mover_turf.Adjacent(candidate, target, src))
+			continue
+		if(candidate != target_turf && candidate.is_blocked_turf(FALSE, target, list(src)) && !CHECK_BITFIELD(target.movement_type, UNSTOPPABLE))
+			continue
+		var/valid_candidate = TRUE
+		var/score = ((candidate.x - mover_turf.x) ** 2) + ((candidate.y - mover_turf.y) ** 2)
+		for(var/mob/living/other_grabber in other_grabbers)
+			var/turf/other_turf = get_turf(other_grabber)
+			if(!other_turf || candidate == other_turf || !other_turf.Adjacent(candidate, target, other_grabber))
+				valid_candidate = FALSE
+				break
+			score += ((candidate.x - other_turf.x) ** 2) + ((candidate.y - other_turf.y) ** 2)
+		if(!valid_candidate)
+			continue
+		if(score < best_score || (score == best_score && candidate == target_turf))
+			best_destination = candidate
+			best_score = score
+	return best_destination
 
 /mob/living/proc/contest_target_grabbers(mob/living/target, atom/future_location, force_contest = FALSE, break_other_grabs = FALSE)
 	var/list/checked_grabbers = list()

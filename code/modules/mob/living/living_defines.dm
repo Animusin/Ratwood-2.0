@@ -61,6 +61,8 @@
 	var/now_pushing = null //used by living/Bump() and living/PushAM() to prevent potential infinite loop.
 
 	var/cameraFollow = null
+	/// The upper turf selected by a pending or active upward look.
+	var/turf/upward_look_target
 
 	var/tod = null // Time of death
 

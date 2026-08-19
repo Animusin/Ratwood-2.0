@@ -1172,7 +1172,8 @@
 	var/olddir = dir
 	..()
 	if(olddir != dir)
-		stop_looking()
+		if(!upward_look_target)
+			stop_looking()
 		if(client)
 			update_vision_cone()
 
@@ -2299,6 +2300,8 @@
 	if(client.pixel_x || client.pixel_y)
 		stop_looking()
 		return
+	if(upward_look_target)
+		return
 	if(!can_look_up())
 		return
 	changeNext_move(CLICK_CD_MELEE)
@@ -2330,7 +2333,12 @@
 		if(ttime < 0)
 			ttime = 0
 
+	upward_look_target = ceiling
 	if(!do_after(src, ttime, target = src))
+		if(upward_look_target == ceiling)
+			upward_look_target = null
+		return
+	if(upward_look_target != ceiling)
 		return
 	reset_perspective(ceiling)
 	update_cone_show()
@@ -2442,6 +2450,7 @@
 //	RegisterSignal(src, COMSIG_MOVABLE_PRE_MOVE, PROC_REF(stop_looking))
 
 /mob/living/proc/stop_looking()
+	upward_look_target = null
 	if(!client)
 		return
 	animate(client, pixel_x = 0, pixel_y = 0, 2, easing = SINE_EASING)

@@ -1,10 +1,12 @@
-/// Applies a pin's hold, returning how far it actually pushed the stun and immobilise timers out.
-/mob/living/proc/apply_pin_hold(stun_amount, immobilize_amount)
+/// Applies a pin's hold, returning how far it actually pushed the crowd-control timers out.
+/mob/living/proc/apply_pin_hold(stun_amount, immobilize_amount, knockdown_amount)
 	var/stun_before = AmountStun()
 	var/immobilize_before = AmountImmobilized()
+	var/knockdown_before = AmountKnockdown()
 	Stun(stun_amount)
 	Immobilize(immobilize_amount)
-	return list(AmountStun() - stun_before, AmountImmobilized() - immobilize_before)
+	Knockdown(knockdown_amount)
+	return list(AmountStun() - stun_before, AmountImmobilized() - immobilize_before, AmountKnockdown() - knockdown_before)
 
 /mob/living/proc/release_pin_hold(list/held)
 	if(!held)
@@ -13,6 +15,8 @@
 		SetStun(max(0, AmountStun() - held[1]))
 	if(held[2] > 0)
 		SetImmobilized(max(0, AmountImmobilized() - held[2]))
+	if(held[3] > 0)
+		SetKnockdown(max(0, AmountKnockdown() - held[3]))
 
 ///////////OFFHAND///////////////
 /obj/item/grabbing
@@ -128,6 +132,7 @@
 
 /obj/item/grabbing/Destroy()
 	STOP_PROCESSING(SSfastprocess, src)
+	var/mob/living/carbon/former_grabbee = grabbee
 	release_pull()
 	if(isobj(grabbed))
 		var/obj/I = grabbed
@@ -159,6 +164,18 @@
 		if(grabbee.mouth == src)
 			grabbee.mouth = null
 		grabbee = null
+	if(former_grabbee?.pulling)
+		var/highest_remaining_grab = GRAB_PASSIVE
+		var/list/remaining_grabs = list(former_grabbee.r_grab, former_grabbee.l_grab, former_grabbee.mouth)
+		for(var/obj/item/grabbing/remaining_grab in remaining_grabs)
+			if(!QDELETED(remaining_grab) && remaining_grab.grabbed == former_grabbee.pulling)
+				highest_remaining_grab = max(highest_remaining_grab, remaining_grab.grab_state)
+		former_grabbee.setGrabState(highest_remaining_grab)
+		former_grabbee.update_grab_intents()
+		if(isliving(former_grabbee.pulling))
+			var/mob/living/remaining_target = former_grabbee.pulling
+			if(!remaining_target.is_shifted)
+				former_grabbee.set_pull_offsets(remaining_target, highest_remaining_grab)
 	for(var/datum/D in dependents)
 		D.grabdropped(src)
 	return ..()
@@ -397,12 +414,12 @@
 						if(!do_after(user, stun_dur + 1, needhand = 0, target = M) || !(src in M.grabbedby))
 							qdel(src)
 							break
-						pin_hold = M.apply_pin_hold(stun_dur - pincount * 2, stun_dur)	//Made immobile for the whole do_after duration, though
+						pin_hold = M.apply_pin_hold(stun_dur - pincount * 2, stun_dur, stun_dur)
 						user.stamina_add(rand(1,3) + abs(skill_diff) + stun_dur / 1.5)
 						M.visible_message(span_danger("[user] keeps [M] pinned to the ground!"))
 						pincount += 2
 					else if(src in M.grabbedby)
-						pin_hold = M.apply_pin_hold(stun_dur - 10, stun_dur)
+						pin_hold = M.apply_pin_hold(stun_dur - 10, stun_dur, stun_dur)
 						user.stamina_add(rand(1,3) + abs(skill_diff) + stun_dur / 1.5)
 						pincount += 2
 						M.visible_message(span_danger("[user] pins [M] to the ground!"), \

@@ -194,7 +194,6 @@
 			return TRUE
 	else if(grabbee.Adjacent(grabbed))
 		return TRUE
-	grabbee.stop_pulling(FALSE)
 	qdel(src)
 	return FALSE
 

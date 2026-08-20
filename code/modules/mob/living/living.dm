@@ -464,7 +464,8 @@
 			O.grabbed = C
 			O.grabbee = src
 			O.limb_grabbed = BP
-			LAZYADD(BP.grabbedby, O)
+			if(BP)
+				LAZYADD(BP.grabbedby, O)
 			if(item_override)
 				O.sublimb_grabbed = item_override
 			else
@@ -489,6 +490,7 @@
 			O.name = "[target.name]"
 			O.grabbed = target
 			O.grabbee = src
+			LAZYADD(target.grabbedby, O)
 			if(item_override)
 				O.sublimb_grabbed = item_override
 			else
@@ -517,6 +519,7 @@
 		O.name = "[AM.name]"
 		O.grabbed = AM
 		O.grabbee = src
+		LAZYADD(AM.grabbedby, O)
 		src.put_in_hands(O)
 		O.update_hands(src)
 		update_grab_intents()

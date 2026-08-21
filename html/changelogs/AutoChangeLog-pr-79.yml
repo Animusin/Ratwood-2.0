@@ -1,0 +1,4 @@
+author: "sigmaboy124124"
+delete-after: True
+changes:
+  - bugfix: "EA Hasir-ian Gold Merchant can now spawn and receive its proper loadout and stats instead of colliding with the yeomen Merchant advclass"

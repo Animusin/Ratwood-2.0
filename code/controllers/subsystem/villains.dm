@@ -133,14 +133,15 @@
 
 		dat += "<br><b>Lesser Villains:</b><br>"
 		var/found = FALSE
-		var/remaining_antag_capacity = SSgamemode.roundstart_antag_allocation_complete ? SSgamemode.get_remaining_antag_capacity() : null
+		var/round_is_pregame = SSticker.current_state <= GAME_STATE_PREGAME
+		var/remaining_antag_capacity = round_is_pregame ? null : SSgamemode.get_remaining_antag_capacity()
 		for(var/job_title in GLOB.villain_positions)
 			var/datum/job/J = SSjob.GetJob(job_title)
 			var/effective_limit = J ? SSjob.get_latejoin_position_limit(J, remaining_antag_capacity) : 0
-			if(!J || !(SSticker.current_state <= GAME_STATE_PREGAME ? J.total_positions : effective_limit))
+			if(!J || !J.total_positions)
 				continue
 			found = TRUE
-			if(SSticker.current_state <= GAME_STATE_PREGAME)
+			if(round_is_pregame)
 				var/pref_label = "NEVER"
 				var/pref_color = "red"
 				var/next_level = 3

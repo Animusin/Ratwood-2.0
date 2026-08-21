@@ -73,7 +73,6 @@
 		pool += list(
 			new /datum/round_modifier/ratwood/major/vampire_lord,
 			new /datum/round_modifier/ratwood/major/werewolf,
-			new /datum/round_modifier/ratwood/major/lich,
 		)
 	return pool
 

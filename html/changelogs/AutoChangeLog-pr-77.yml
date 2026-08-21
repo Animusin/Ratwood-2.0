@@ -1,0 +1,6 @@
+author: "Animusin"
+delete-after: True
+changes:
+  - balance: "Ratwood antagonist capacity now scales from online players and allocates a primary villain mode before lesser villains."
+  - balance: "Bandits and Wretches use dynamic Villain-panel capacity, Gnolls remain limited to two, and Liches cost three antagonist points."
+  - bugfix: "Ratwood no longer broadcasts the rolled greater-villain mode in roundstart chat."

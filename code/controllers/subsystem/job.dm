@@ -82,10 +82,9 @@ SUBSYSTEM_DEF(job)
 /datum/controller/subsystem/job/proc/can_assign_antag_job(datum/job/job)
 	if(!job?.antag_job || !SSgamemode)
 		return TRUE
-	var/lottery_credit = SSgamemode.get_lesser_villain_lottery_claim_credit(job)
 	if(!SSticker.HasRoundStarted())
-		return job.antag_cap_weight <= SSgamemode.get_remaining_antag_capacity(get_roundstart_antag_weight()) + lottery_credit
-	return job.antag_cap_weight <= SSgamemode.get_remaining_antag_capacity() + lottery_credit
+		return job.antag_cap_weight <= SSgamemode.get_remaining_antag_capacity(get_roundstart_antag_weight())
+	return job.antag_cap_weight <= SSgamemode.get_remaining_antag_capacity()
 
 /// The slot limit shown in latejoin. Real antagonist jobs share the storyteller capacity,
 /// so their visible limit is their occupied slots plus however many still fit in that capacity.
@@ -95,8 +94,6 @@ SUBSYSTEM_DEF(job)
 	var/job_position_limit = job.get_position_limit(TRUE)
 	if(!job.antag_job || job.antag_cap_weight <= 0 || isnull(remaining_antag_capacity))
 		return job_position_limit
-	var/lottery_credit = SSgamemode ? SSgamemode.get_lesser_villain_lottery_job_reserved_weight(job) : 0
-	remaining_antag_capacity += lottery_credit
 	var/remaining_positions = FLOOR(max(remaining_antag_capacity, 0) / job.antag_cap_weight, 1)
 	var/cap_position_limit = job.current_positions + remaining_positions
 	if(job_position_limit < 0)
@@ -469,11 +466,17 @@ SUBSYSTEM_DEF(job)
 				continue
 			for(var/job_title in GLOB.villain_positions)
 				var/datum/job/villain_job = GetJob(job_title)
-				if(!villain_job || villain_job.current_positions + SSgamemode.count_queued_villains(job_title) >= villain_job.spawn_positions)
+				if(!villain_job || !villain_job.spawn_positions)
+					continue
+				var/queued_for_job = SSgamemode.count_queued_villains(job_title)
+				if(villain_job.spawn_positions > 0 && villain_job.current_positions + queued_for_job >= villain_job.spawn_positions)
 					continue
 				if(player.client.prefs.job_preferences[job_title] != level)
 					continue
 				if(is_banned_from(player.ckey, job_title))
+					continue
+				var/current_villain_weight = get_roundstart_antag_weight() + SSgamemode.get_queued_villain_weight()
+				if(!SSgamemode.can_add_antag_weight(villain_job.antag_cap_weight, current_villain_weight))
 					continue
 				SSgamemode.queued_villains[player.ckey] = job_title
 				unassigned -= player

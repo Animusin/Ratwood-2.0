@@ -44,6 +44,12 @@
 		/datum/advclass/pioneer
 	)
 
+/datum/job/roguetown/bandit/New()
+	. = ..()
+	if(CONFIG_GET(string/round_modifier_policy) == "ratwood")
+		total_positions = -1
+		spawn_positions = -1
+
 /datum/job/roguetown/bandit/after_spawn(mob/living/L, mob/M, latejoin = TRUE)
 	..()
 	if(L)

@@ -34,6 +34,12 @@
 		/datum/advclass/gnoll/shaman,
 	)
 
+/datum/job/roguetown/gnoll/New()
+	. = ..()
+	if(CONFIG_GET(string/round_modifier_policy) == "ratwood")
+		total_positions = 2
+		spawn_positions = 2
+
 /datum/job/roguetown/gnoll/after_spawn(mob/living/L, mob/M, latejoin = TRUE)
 	..()
 	if(L)

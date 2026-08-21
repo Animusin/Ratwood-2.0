@@ -28,50 +28,42 @@
 	mode.chaos_mode_name = winner == RATWOOD_CHAOS_HIGH ? RATWOOD_CHAOS_HIGH : RATWOOD_CHAOS_LOW
 	mode.level = mode.chaos_mode_name == RATWOOD_CHAOS_HIGH ? 3 : 1
 	mode.chaos_divisor = mode.chaos_mode_name == RATWOOD_CHAOS_HIGH ? RATWOOD_HIGH_DIVISOR : RATWOOD_LOW_DIVISOR
-	// A late fallback may run after pre_setup() has already snapshotted the lobby.
-	// Recounting after character transfer would lose the number of players who readied up.
-	if(!SSticker.HasRoundStarted())
-		mode.calculate_ready_players()
-	mode.roundstart_cap_snapshot = calculate_roundstart_cap(mode.ready_players, mode.chaos_divisor)
+	// Snapshot all connected players. The live cap switches back to the same online-player
+	// formula after roundstart allocation finishes.
+	mode.roundstart_population_snapshot = length(GLOB.clients)
+	mode.roundstart_cap_snapshot = calculate_roundstart_cap(mode.roundstart_population_snapshot, mode.chaos_divisor)
 	mode.roundstart_antag_allocation_complete = FALSE
 	mode.roundstart_reserved_antag_weight = 0
 	mode.planned_villain_counts = list()
 	mode.planned_villain_weights = list()
 
 /datum/round_modifier_policy/ratwood/select_modifiers(datum/controller/subsystem/gamemode/mode)
-	if(!mode.roundstart_cap_snapshot)
+	if(mode.roundstart_antag_allocation_complete)
 		handle_vote(mode, RATWOOD_CHAOS_LOW)
 	mode.budget = mode.roundstart_cap_snapshot
-	var/list/pool = get_modifier_pool(mode.chaos_mode_name)
+	var/list/pool = get_major_modifier_pool(mode.chaos_mode_name)
+	var/list/available_modes = list()
+	for(var/datum/round_modifier/ratwood/major/modifier as anything in pool)
+		if(modifier.minimum_cost <= mode.budget && modifier.minimum_players <= mode.roundstart_population_snapshot)
+			available_modes += modifier
 
-	while(mode.budget > 0 && length(pool))
-		var/list/affordable = list()
-		for(var/datum/round_modifier/ratwood/modifier as anything in pool)
-			var/exclusive_group_taken = FALSE
-			for(var/datum/round_modifier/ratwood/active_modifier in mode.active_modifiers)
-				if(modifier.exclusive_group && modifier.exclusive_group == active_modifier.exclusive_group)
-					exclusive_group_taken = TRUE
-					break
-			if(!exclusive_group_taken && modifier.minimum_cost <= mode.budget && modifier.minimum_players <= mode.ready_players)
-				affordable += modifier
-		if(!length(affordable))
-			break
-		var/datum/round_modifier/ratwood/selected_modifier = pick(affordable)
-		pool -= selected_modifier
-		if(!selected_modifier.prepare(mode, mode.budget))
-			qdel(selected_modifier)
-			continue
-		mode.budget -= selected_modifier.cost
-		mode.active_modifiers += selected_modifier
-		selected_modifier.reserve(mode)
+	if(length(available_modes))
+		var/datum/round_modifier/ratwood/major/selected_mode = pick(available_modes)
+		if(selected_mode.prepare(mode, mode.budget))
+			mode.budget -= selected_mode.cost
+			mode.active_modifiers += selected_mode
+			selected_mode.reserve(mode)
+		else
+			qdel(selected_mode)
+
+	for(var/datum/round_modifier/ratwood/unused_modifier as anything in pool)
+		if(!(unused_modifier in mode.active_modifiers) && !QDELETED(unused_modifier))
+			qdel(unused_modifier)
 
 	roll_weather(mode)
 
-/datum/round_modifier_policy/ratwood/proc/get_modifier_pool(chaos_mode)
+/datum/round_modifier_policy/ratwood/proc/get_major_modifier_pool(chaos_mode)
 	var/list/pool = list(
-		new /datum/round_modifier/ratwood/lesser/bandit,
-		new /datum/round_modifier/ratwood/lesser/wretch,
-		new /datum/round_modifier/ratwood/lesser/gnoll,
 		new /datum/round_modifier/ratwood/major/masquerade,
 		new /datum/round_modifier/ratwood/major/rebellion,
 		new /datum/round_modifier/ratwood/major/dreamwalker,
@@ -94,8 +86,14 @@
 		mode.active_modifiers += new weather_type
 
 /// Kept pure for unit tests and for admin tooling.
-/proc/calculate_roundstart_cap(ready_players, divisor)
-	return calculate_antag_cap_from_population(ready_players, divisor)
+/proc/calculate_roundstart_cap(online_players, divisor)
+	return calculate_ratwood_antag_cap(online_players, divisor)
+
+/// Ratwood uses the online population ratio plus the shared flat antagonist allowance.
+/proc/calculate_ratwood_antag_cap(online_players, divisor)
+	if(divisor <= 0)
+		return 0
+	return FLOOR(max(online_players, 0) / divisor, 1) + ANTAG_CAP_FLAT
 
 /proc/calculate_antag_cap_from_population(cap_population, divisor)
 	return FLOOR(max(cap_population, 0) / divisor, 1) + ANTAG_CAP_FLAT
@@ -104,7 +102,6 @@
 	min_chaos = 99 // Never enter the upstream subtype picker.
 	var/minimum_cost = 1
 	var/minimum_players = 0
-	var/exclusive_group
 	var/planned_antag_count = 0
 	var/planned_antag_weight = 0
 	var/villain_event_type
@@ -122,31 +119,6 @@
 	mode.planned_villain_weights[event] = planned_antag_weight
 	mode.roundstart_reserved_antag_weight += planned_antag_weight
 
-/datum/round_modifier/ratwood/lesser
-	var/job_title
-
-/datum/round_modifier/ratwood/lesser/prepare(datum/controller/subsystem/gamemode/mode, remaining_budget)
-	planned_antag_count = rand(1, remaining_budget)
-	planned_antag_weight = planned_antag_count
-	cost = planned_antag_count
-	name = "[job_title] [planned_antag_count]"
-	desc = "[planned_antag_count] [job_title] slot[planned_antag_count == 1 ? "" : "s"]."
-	job_slots = list()
-	job_slots[job_title] = planned_antag_count
-	return TRUE
-
-/datum/round_modifier/ratwood/lesser/bandit
-	job_title = "Bandit"
-	exclusive_group = "bandit"
-
-/datum/round_modifier/ratwood/lesser/wretch
-	job_title = "Wretch"
-	exclusive_group = "wretch"
-
-/datum/round_modifier/ratwood/lesser/gnoll
-	job_title = "Gnoll"
-	exclusive_group = "gnoll"
-
 /datum/round_modifier/ratwood/major
 	var/datum/round_event_control/antagonist/solo/prepared_event
 
@@ -154,9 +126,18 @@
 	prepared_event = locate(villain_event_type) in mode.control
 	if(!prepared_event)
 		return FALSE
-	var/desired_count = get_desired_count(mode)
-	for(var/index in 1 to desired_count)
-		var/next_weight = prepared_event.get_antag_cap_weight(index)
+	return plan_for_budget(remaining_budget, mode.roundstart_population_snapshot)
+
+/// Plan no more than the event's population-derived amount while respecting the cap.
+/// Modes returning a null planning limit may keep adding participants while they fit.
+/datum/round_modifier/ratwood/major/proc/plan_for_budget(remaining_budget, online_players)
+	planned_antag_count = 0
+	planned_antag_weight = 0
+	var/planning_limit = get_planning_limit(online_players)
+	while(isnull(planning_limit) || planned_antag_count < planning_limit)
+		var/next_weight = max(prepared_event.get_antag_cap_weight(planned_antag_count + 1), 0)
+		if(!next_weight)
+			break
 		if(planned_antag_weight + next_weight > remaining_budget)
 			break
 		planned_antag_weight += next_weight
@@ -168,19 +149,25 @@
 	desc = "[planned_antag_count] planned participant[planned_antag_count == 1 ? "" : "s"], reserving [planned_antag_weight] antagonist capacity."
 	return TRUE
 
-/datum/round_modifier/ratwood/major/proc/get_desired_count(datum/controller/subsystem/gamemode/mode)
-	return prepared_event.get_desired_antag_amount(mode.ready_players)
+/datum/round_modifier/ratwood/major/proc/get_planning_limit(online_players)
+	return prepared_event.get_desired_antag_amount(online_players)
 
 /datum/round_modifier/ratwood/major/masquerade
 	name = "Masquerade"
+	minimum_cost = 2
 	villain_event_type = /datum/round_event_control/antagonist/solo/masquerade/ratwood
+
+/datum/round_modifier/ratwood/major/masquerade/get_planning_limit(online_players)
+	return null
 
 /datum/round_modifier/ratwood/major/rebellion
 	name = "Rebellion"
+	minimum_cost = 2
 	villain_event_type = /datum/round_event_control/antagonist/solo/rebel/ratwood
 
 /datum/round_modifier/ratwood/major/dreamwalker
 	name = "Dreamwalker"
+	minimum_cost = 2
 	minimum_players = 40
 	villain_event_type = /datum/round_event_control/antagonist/solo/dreamwalker/ratwood
 
@@ -188,13 +175,13 @@
 	name = "Assassins"
 	villain_event_type = /datum/round_event_control/antagonist/solo/assassins/ratwood
 
-/datum/round_modifier/ratwood/major/assassins/get_desired_count(datum/controller/subsystem/gamemode/mode)
-	return 2
-
 /datum/round_modifier/ratwood/major/vampire_lord
 	name = "Vampire Lord"
 	minimum_cost = 3
 	villain_event_type = /datum/round_event_control/antagonist/solo/vampires/ratwood
+
+/datum/round_modifier/ratwood/major/vampire_lord/get_planning_limit(online_players)
+	return null
 
 /datum/round_modifier/ratwood/major/werewolf
 	name = "Werewolf"
@@ -204,7 +191,7 @@
 
 /datum/round_modifier/ratwood/major/lich
 	name = "Lich"
-	minimum_cost = 2
+	minimum_cost = 3
 	villain_event_type = /datum/round_event_control/antagonist/solo/lich/ratwood
 
 // Round-modifier-only event controls inherit all upstream candidate and spawn behavior.
@@ -264,7 +251,7 @@
 	round_modifier_label = "Lich"
 	round_modifier_only = TRUE
 	max_occurrences = 1
-	antag_cap_weight = 2
+	antag_cap_weight = 3
 	antag_datum = /datum/antagonist/lich/ratwood
 
 // Actual cap weights mirror the costs reserved above.
@@ -294,7 +281,7 @@
 	return 2
 
 /datum/antagonist/lich/ratwood/get_antag_cap_weight()
-	return 2
+	return 3
 
 // Weather wrappers intentionally inherit upstream behavior instead of duplicating it.
 /datum/round_modifier/ratwood/weather/clear

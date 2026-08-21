@@ -212,8 +212,6 @@
 /datum/job/proc/after_spawn(mob/living/H, mob/M, latejoin = FALSE)
 	SHOULD_CALL_PARENT(TRUE)
 	SEND_GLOBAL_SIGNAL(COMSIG_GLOB_JOB_AFTER_SPAWN, src)
-	if(antag_job && SSgamemode?.round_modifier_policy_name == "ratwood")
-		SSgamemode.consume_lesser_villain_lottery_reservation(src)
 	//do actions on H but send messages to M as the key may not have been transferred_yet
 	if(job_traits)
 		for(var/trait in job_traits)

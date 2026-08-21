@@ -173,6 +173,8 @@ SUBSYSTEM_DEF(gamemode)
 	var/round_modifier_policy_name = "upstream"
 	var/chaos_mode_name = "Low Chaos"
 	var/chaos_divisor = ANTAG_CAP_DENOMINATOR
+	/// Connected clients used to calculate the fixed Ratwood roundstart cap.
+	var/roundstart_population_snapshot = 0
 	var/roundstart_cap_snapshot = 0
 	var/roundstart_antag_allocation_complete = TRUE
 	var/roundstart_reserved_antag_weight = 0
@@ -293,14 +295,19 @@ SUBSYSTEM_DEF(gamemode)
 
 /// Gets the number of antagonists the antagonist injection events will stop rolling after.
 /datum/controller/subsystem/gamemode/proc/get_antag_cap()
-	if(round_modifier_policy_name == "ratwood" && !roundstart_antag_allocation_complete && roundstart_cap_snapshot)
+	if(round_modifier_policy_name == "ratwood" && !roundstart_antag_allocation_complete)
 		return roundstart_cap_snapshot
 	var/cap_population = get_antag_cap_population()
-	var/divisor = round_modifier_policy_name == "ratwood" ? chaos_divisor : ANTAG_CAP_DENOMINATOR
-	return calculate_antag_cap_from_population(cap_population, divisor)
+	if(round_modifier_policy_name == "ratwood")
+		return calculate_ratwood_antag_cap(cap_population, chaos_divisor)
+	return calculate_antag_cap_from_population(cap_population, ANTAG_CAP_DENOMINATOR)
 
-/// Gets the population used by the antagonist cap, excluding people who are not part of the town.
+/// Gets the population used by the antagonist cap. Ratwood counts every connected client;
+/// upstream policies retain the town-strength calculation.
 /datum/controller/subsystem/gamemode/proc/get_antag_cap_population()
+	if(round_modifier_policy_name == "ratwood")
+		antag_cap_population = length(GLOB.clients)
+		return antag_cap_population
 	var/town_strength = get_town_strength()
 	antag_cap_population = max(town_strength - antag_cap_excluded_players, 0)
 	return antag_cap_population
@@ -343,11 +350,10 @@ SUBSYSTEM_DEF(gamemode)
 
 /// Remaining antagonist capacity. An explicit current weight is used while roundstart jobs are
 /// being assigned, before those players have antagonist datums that get_antag_count() can see.
-/// Temporary lesser-villain lottery slots remain reserved until claimed or expired.
 /datum/controller/subsystem/gamemode/proc/get_remaining_antag_capacity(current_weight = null, include_roundstart_reservations = TRUE)
 	if(isnull(current_weight))
 		current_weight = get_antag_count()
-	var/reserved_weight = get_lesser_villain_lottery_reserved_weight()
+	var/reserved_weight = 0
 	if(include_roundstart_reservations && !roundstart_antag_allocation_complete)
 		reserved_weight += roundstart_reserved_antag_weight
 	return max(get_antag_cap() - current_weight - reserved_weight, 0)
@@ -814,16 +820,17 @@ SUBSYSTEM_DEF(gamemode)
 	dat += "<BR><font color='#888888'><i>Storyteller determines points gained, event chances, and is the entity responsible for rolling events.</i></font>"
 	dat += "<BR>Active Players: [active_players]   (Royalty: [royalty], Garrison: [garrison], Town Workers: [constructor], Holy Warriors: [holy_warrior])"
 	dat += "<BR>Town Strength: [effective_pop] (Total: [active_players] + Garrison Bonus: [garrison * TOWN_COMBATANT_ADDITIONAL_WEIGHT] + Holy Warrior Bonus: [holy_warrior * TOWN_COMBATANT_ADDITIONAL_WEIGHT])"
-	dat += "<BR>Antagonist Cap Population: [antag_cap_population] (Town Strength: [effective_pop] - Adventurers/Inhumen: [antag_cap_excluded_players])"
+	if(round_modifier_policy_name == "ratwood")
+		dat += "<BR>Antagonist Cap Population: [antag_cap_population] online players"
+	else
+		dat += "<BR>Antagonist Cap Population: [antag_cap_population] (Town Strength: [effective_pop] - Adventurers/Inhumen: [antag_cap_excluded_players])"
 	dat += "<BR>Antagonist Count vs Maximum: [get_antag_count()] / [antag_cap]"
 	dat += "<BR>Round Modifier Policy: [round_modifier_policy_name]"
 	if(round_modifier_policy_name == "ratwood")
 		dat += "<BR>Chaos Mode / Divisor: [chaos_mode_name] / [chaos_divisor]"
-		dat += "<BR>Roundstart Snapshot: [roundstart_cap_snapshot]"
+		dat += "<BR>Roundstart Snapshot: [roundstart_population_snapshot] online / [chaos_divisor] + [ANTAG_CAP_FLAT] = [roundstart_cap_snapshot]"
 		dat += "<BR>Roundstart Allocation Complete: [roundstart_antag_allocation_complete ? "Yes" : "No"]"
 		dat += "<BR>Outstanding Major Reserve: [roundstart_reserved_antag_weight]"
-		dat += "<BR>Lesser Injection Reserve: [get_lesser_villain_lottery_reserved_weight()]"
-		dat += "<BR>Next Lesser Injection: [next_lesser_villain_lottery_at ? DisplayTimeText(max(next_lesser_villain_lottery_at - world.time, 0)) : "Not scheduled"]"
 	var/chaos_name = "Medium"
 	switch(level)
 		if(1)

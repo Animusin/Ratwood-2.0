@@ -1035,7 +1035,10 @@ GLOBAL_LIST_EMPTY(chosen_names)
 				dat += "<a class='linkOff' href='byond://?src=[REF(N)];late_join=1'>JOINLATE</a>"
 			dat += " - <a href='?_src_=prefs;preference=migrants'>MIGRATION</a>"
 			dat += "<br><a href='?_src_=prefs;preference=manifest'>ACTORS</a>"
-			dat += " - <a href='?_src_=prefs;preference=observe'>SPECTATE</a>"
+			if(user.client?.has_whitelist_access())
+				dat += " - <a href='?_src_=prefs;preference=observe'>SPECTATE</a>"
+			else
+				dat += " - <span class='linkOff'>SPECTATE (WL ONLY)</span>"
 			dat += "<br><a href='byond://?src=[REF(N)];villains=1'><b><font color='red'>VILLAINS</font></b></a>"
 	else
 		dat += "<a href='?_src_=prefs;preference=finished'>DONE</a>"

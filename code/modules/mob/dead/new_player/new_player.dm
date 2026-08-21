@@ -362,6 +362,10 @@ GLOBAL_LIST_INIT(roleplay_readme, world.file2list("strings/rt/rp_prompt.txt"))
 	if(QDELETED(src) || !src.client)
 		ready = PLAYER_NOT_READY
 		return FALSE
+	if(!client.has_whitelist_access())
+		ready = PLAYER_NOT_READY
+		to_chat(src, span_warning("Only whitelisted players may observe."))
+		return FALSE
 
 	var/this_is_like_playing_right = alert(src,"Are you sure you wish to observe? Playing is a lot more fun.","SPECTATE","Yes","No")
 

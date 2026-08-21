@@ -1,0 +1,4 @@
+author: "Animusin"
+delete-after: True
+changes:
+  - bugfix: "Restored Garrison and Holy Warrior weighting to Ratwood's dynamic post-roundstart antagonist cap."

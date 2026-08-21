@@ -22,7 +22,8 @@
 		return
 	var/datum/round_modifier_policy/policy = get_round_modifier_policy()
 	policy.handle_vote(src, winner)
-	to_chat(world, span_notice("<b>[chaos_mode_name]!</b>"))
+	if(round_modifier_policy_name != "ratwood")
+		to_chat(world, span_notice("<b>[chaos_mode_name]!</b>"))
 	roll_round_modifiers()
 
 /datum/controller/subsystem/gamemode/proc/roll_round_modifiers()
@@ -100,6 +101,11 @@
 			continue
 		job.total_positions += slots[job_title]
 		job.spawn_positions += slots[job_title]
+
+	// Ratwood's greater-villain roll is secret. It remains visible to admins and in
+	// the opt-in Villain panel, but must not be broadcast to every player.
+	if(round_modifier_policy_name == "ratwood")
+		return
 
 	if(!length(active_modifiers))
 		to_chat(world, span_notice("<b>Nothing.</b>"))

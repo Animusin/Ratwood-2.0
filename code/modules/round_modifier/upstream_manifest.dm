@@ -47,5 +47,5 @@
 		/datum/round_event_control/antagonist/solo/assassins/ratwood = list("base" = 2, "maximum" = 2, "denominator" = 20, "minimum" = 0, "datum" = /datum/antagonist/assassin/ratwood, "roundstart" = TRUE, "weight" = 0.5),
 		/datum/round_event_control/antagonist/solo/vampires/ratwood = list("base" = 1, "maximum" = 2, "denominator" = 80, "minimum" = 0, "datum" = /datum/antagonist/vampire/ratwood, "roundstart" = TRUE, "weight" = 3),
 		/datum/round_event_control/antagonist/solo/werewolf/ratwood = list("base" = 1, "maximum" = 2, "denominator" = 50, "minimum" = 25, "datum" = /datum/antagonist/werewolf/ratwood, "roundstart" = TRUE, "weight" = 2),
-		/datum/round_event_control/antagonist/solo/lich/ratwood = list("base" = 1, "maximum" = 2, "denominator" = 80, "minimum" = 0, "datum" = /datum/antagonist/lich/ratwood, "roundstart" = TRUE, "weight" = 2),
+		/datum/round_event_control/antagonist/solo/lich/ratwood = list("base" = 1, "maximum" = 2, "denominator" = 80, "minimum" = 0, "datum" = /datum/antagonist/lich/ratwood, "roundstart" = TRUE, "weight" = 3),
 	)

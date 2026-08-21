@@ -236,7 +236,7 @@ Turf and target are separate in case you want to teleport some distance from a t
 
 //Admins keep their existing observer tooling even when a target has ghost protection.
 /mob/dead/observer/proc/bypasses_ghost_protection()
-	return !!check_rights_for(client, R_ADMIN) // this should maybe just be an override on /mob/dead/observer/admin
+	return !!client?.holder
 
 /mob/dead/observer/screye/bypasses_ghost_protection()
 	return TRUE

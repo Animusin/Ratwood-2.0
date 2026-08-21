@@ -118,6 +118,30 @@ GLOBAL_LIST_EMPTY(active_alternate_appearances)
 /datum/atom_hud/alternate_appearance/basic/observers/mobShouldSee(mob/M)
 	return isobserver(M)
 
+/// Replaces a protected player's appearance with a transparent image for regular ghosts.
+/datum/atom_hud/alternate_appearance/basic/ghost_protection
+
+/datum/atom_hud/alternate_appearance/basic/ghost_protection/New()
+	..()
+	for(var/mob/dead/observer/observer in GLOB.dead_mob_list)
+		if(mobShouldSee(observer))
+			add_hud_to(observer)
+
+/datum/atom_hud/alternate_appearance/basic/ghost_protection/mobShouldSee(mob/M)
+	if(!isobserver(M))
+		return FALSE
+	var/mob/dead/observer/observer = M
+	return !observer.bypasses_ghost_protection()
+
+/mob/living/proc/update_ghost_protection_visibility()
+	remove_alt_appearance("ghost_protection")
+	if(!client?.prefs?.ghost_protection)
+		return
+	var/image/hidden_appearance = image('icons/blanks/32x32.dmi', src, "nothing")
+	hidden_appearance.override = TRUE
+	hidden_appearance.alpha = 0
+	add_alt_appearance(/datum/atom_hud/alternate_appearance/basic/ghost_protection, "ghost_protection", hidden_appearance, NONE)
+
 /datum/atom_hud/alternate_appearance/basic/blessedAware
 
 /datum/atom_hud/alternate_appearance/basic/blessedAware/New()

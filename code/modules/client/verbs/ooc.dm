@@ -692,11 +692,10 @@ GLOBAL_VAR_INIT(normal_ooc_colour, "#002eb8")
 	// Flip preference
 	prefs.ghost_protection = !prefs.ghost_protection
 	prefs.save_preferences()
+	if(isliving(mob))
+		var/mob/living/living_mob = mob
+		living_mob.update_ghost_protection_visibility()
 	to_chat(src, span_notice("Ghost protection is now [prefs.ghost_protection ? "ENABLED (Ghosts can no longer see or orbit you)" : "DISABLED (Ghosts can now see and orbit you)"]."))
-
-// Currently ghost sprite not displaying
-// Can't return to afterlife or use for teleporting
-// Need to add hide emotes, etc
 
 /client/verb/map_vote_tally_count()
 	set name = "Show Map Vote Tallies"

@@ -8,7 +8,7 @@
 	density = FALSE
 	icon = 'icons/roguetown/misc/foliage.dmi'
 	icon_state = "glowshroom1" //replaced in New
-	layer = SPACEVINE_LAYER //A bit high but keeps it from fucking layering UNDER EVERYTHING
+	layer = 5.06 //Above stairs (layer 5) so kneestingers stay visible on stair tiles
 	light_system = MOVABLE_LIGHT
 	max_integrity = 30
 	blade_dulling = DULLING_CUT

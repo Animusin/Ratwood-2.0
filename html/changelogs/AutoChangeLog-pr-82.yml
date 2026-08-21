@@ -1,0 +1,4 @@
+author: "Animusin"
+delete-after: True
+changes:
+  - bugfix: "Villain Choices now displays dynamic Bandit, Wretch, and Gnoll limits from the available antagonist capacity."

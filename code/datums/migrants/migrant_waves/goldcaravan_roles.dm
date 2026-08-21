@@ -60,7 +60,7 @@
 		shoes = /obj/item/clothing/shoes/roguetown/gladiator
 	if(H.mind)
 		H.mind.AddSpell(new /obj/effect/proc_holder/spell/invoked/appraise/secular)
-	new /obj/structure/handcart/ea_hasir(src)
+	new /obj/structure/handcart/ea_hasir(get_turf(H))
 
 /datum/migrant_role/ea_hasir/guard
 	name = "EA Hasir-ian Guard"

@@ -164,8 +164,8 @@
 	if(!refresh_private_images())
 		return INITIALIZE_HINT_QDEL
 	LAZYADD(investigator.tracking_clue_markers, src)
-	RegisterSignal(investigator, COMSIG_PARENT_QDELETING, PROC_REF(linked_atom_deleted))
-	RegisterSignal(evidence, COMSIG_PARENT_QDELETING, PROC_REF(linked_atom_deleted))
+	RegisterSignal(investigator, COMSIG_QDELETING, PROC_REF(linked_atom_deleted))
+	RegisterSignal(evidence, COMSIG_QDELETING, PROC_REF(linked_atom_deleted))
 	refresh_lifetime(FALSE)
 
 /obj/effect/tracking_clue_marker/Destroy(force)
@@ -174,12 +174,12 @@
 	var/mob/living/carbon/human/investigator = investigator_ref?.resolve()
 	var/atom/evidence = evidence_ref?.resolve()
 	if(investigator)
-		UnregisterSignal(investigator, COMSIG_PARENT_QDELETING)
+		UnregisterSignal(investigator, COMSIG_QDELETING)
 		investigator.client?.images -= private_images
 		investigator.tracking_clue_markers -= src
 		UNSETEMPTY(investigator.tracking_clue_markers)
 	if(evidence)
-		UnregisterSignal(evidence, COMSIG_PARENT_QDELETING)
+		UnregisterSignal(evidence, COMSIG_QDELETING)
 	clear_linked_blood_decals()
 	private_images = null
 	investigator_ref = null
@@ -209,7 +209,7 @@
 			blood_image.filters += filter(type = "outline", color = "#ff0000", size = 1)
 			private_images += blood_image
 			LAZYADD(linked_blood_decals, blood)
-			RegisterSignal(blood, COMSIG_PARENT_QDELETING, PROC_REF(linked_blood_deleted))
+			RegisterSignal(blood, COMSIG_QDELETING, PROC_REF(linked_blood_deleted))
 	else
 		var/image/structure_image = image(icon = icon, loc = src, icon_state = icon_state, layer = ABOVE_MOB_LAYER)
 		structure_image.invisibility = 0
@@ -224,7 +224,7 @@
 /obj/effect/tracking_clue_marker/proc/clear_linked_blood_decals()
 	for(var/obj/effect/decal/cleanable/blood/blood as anything in linked_blood_decals)
 		if(blood && !QDELETED(blood))
-			UnregisterSignal(blood, COMSIG_PARENT_QDELETING)
+			UnregisterSignal(blood, COMSIG_QDELETING)
 	linked_blood_decals = null
 
 /obj/effect/tracking_clue_marker/proc/linked_blood_deleted(datum/source)
@@ -322,12 +322,12 @@
 	..()
 	hunter_ref = WEAKREF(hunter)
 	target_ref = WEAKREF(target)
-	RegisterSignal(target, COMSIG_PARENT_QDELETING, PROC_REF(target_deleted))
+	RegisterSignal(target, COMSIG_QDELETING, PROC_REF(target_deleted))
 
 /datum/tracking_link/Destroy(force)
 	var/mob/living/target = target_ref?.resolve()
 	if(target)
-		UnregisterSignal(target, COMSIG_PARENT_QDELETING)
+		UnregisterSignal(target, COMSIG_QDELETING)
 	hunter_ref = null
 	target_ref = null
 	return ..()
@@ -829,7 +829,7 @@
 //Handles value settings done for a track that need to be done.
 /obj/effect/track/proc/handle_creation(mob/living/track_source)
 	creator = track_source
-	RegisterSignal(track_source, COMSIG_PARENT_QDELETING, PROC_REF(clear_creator_reference), TRUE)
+	RegisterSignal(track_source, COMSIG_QDELETING, PROC_REF(clear_creator_reference), TRUE)
 	creation_time = world.time
 	track_source.get_track_info(src)
 	if(track_source.m_intent == MOVE_INTENT_SNEAK)
@@ -871,14 +871,14 @@
 		tracker.refresh_visible_ordinary_tracks(get_turf(src))
 	else if(tracker.client)
 		tracker.client.images += real_image
-	RegisterSignal(tracker, COMSIG_PARENT_QDELETING, PROC_REF(remove_knower), override = TRUE)
+	RegisterSignal(tracker, COMSIG_QDELETING, PROC_REF(remove_knower), override = TRUE)
 
 ///Removes a knower from the known ones. Usually only done when qdeleted.
 /obj/effect/track/proc/remove_knower(mob/living/tracker)
 	SIGNAL_HANDLER
 	var/turf/track_turf = get_turf(src)
 	var/ordinary_track = type == /obj/effect/track
-	UnregisterSignal(tracker, COMSIG_PARENT_QDELETING)
+	UnregisterSignal(tracker, COMSIG_QDELETING)
 	if(tracker.client)
 		tracker.client.images -= real_image
 		tracker.client.images -= marked_image
@@ -898,7 +898,7 @@
 ///Clears the reference to the creator. Is replaced by the above proc if the creator analyzes it.
 /obj/effect/track/proc/clear_creator_reference(mob/living/creator_arg)
 	SIGNAL_HANDLER
-	UnregisterSignal(creator, COMSIG_PARENT_QDELETING)
+	UnregisterSignal(creator, COMSIG_QDELETING)
 	creator = null
 
 ///Called when the track's time expires, at which point it becomes indistinguishable (aka, deleted)
@@ -1068,6 +1068,60 @@
 	if(bonus_weight)
 		. *= (1 + bonus_weight)
 
+/obj/effect/track/structure
+	name = "clue"
+	real_icon_state = "tracks_structure"
+	markable = FALSE
+	var/skill_level
+	var/tool_used
+	var/tool_used_ambiguous
+	var/is_silver
+
+/obj/effect/track/structure/soft_reset()
+	..()
+	skill_level = null
+	tool_used = null
+	tool_used_ambiguous = null
+	is_silver = null
+
+/obj/effect/track/structure/handle_creation(mob/living/track_source)
+	creator = track_source
+	RegisterSignal(track_source, COMSIG_QDELETING, PROC_REF(clear_creator_reference))
+	creation_time = world.time
+	track_source.get_track_info(src)
+	real_image = image(icon, src, real_icon_state, ABOVE_OPEN_TURF_LAYER, track_source.dir)
+	expiry_time = world.time + 15 MINUTES
+	SStracks.add_track(src)
+
+/obj/effect/track/structure/knowledge_readout(mob/user, knowledge)
+	if(tool_used_ambiguous)
+		. += "Looks like the marks of some kind of \the <font color = '#0d5381'>[tool_used_ambiguous]</font><br>"
+	else if(!tool_used)
+		. += "I have no clue what broke this."
+	if(knowledge > ANALYSIS_TERRIBLE && creator == user)
+		. += "[span_nicegreen("These are your own tracks!")]<br>"
+	if(knowledge < ANALYSIS_DECENT)
+		return .
+	if(knowledge > ANALYSIS_DECENT)
+		var/timepassed = ((world.time - creation_time) * SSticker.station_time_rate_multiplier)
+		var/timetext = ""
+		var/realtime = round((world.time - creation_time) / 600, 1)
+		if(timepassed >= 36000)
+			timetext = "[round(timepassed / 36000)] hour[(round(timepassed / 36000)) == 1 ? "" : "s"]"
+		else
+			timetext = "[round(timepassed / 600)] minute[(round(timepassed / 600)) == 1 ? "" : "s"]"
+		. += "These tracks are about [timetext] old. <i>([realtime] minute[realtime == 1 ? "" : "s"] real-time)</i><br>"
+	if(knowledge >= ANALYSIS_GOOD)
+		if(skill_level)
+			. += "The person was at <font color = '#ebebeb'>[SSskills.level_names_plain[skill_level]]</font> skill level with this item.<br>"
+	if(knowledge >= ANALYSIS_PERFECT)
+		. += "It looks to be the distinct markings of \the <font color = '#5ca2d1'>[tool_used].</font><br>"
+	return .
+
+/obj/effect/track/structure/attack_right(mob/user)
+	to_chat(user,span_info("You can't distinguish an object like this."))
+	return
+
 /obj/effect/track/attack_right(mob/user)
 	if(ishuman(user))
 		var/mob/living/carbon/human/H = user
@@ -1107,7 +1161,7 @@
 
 /obj/effect/track/thievescant/handle_creation(mob/living/track_source, thiefmessage)
 	creator = track_source
-	RegisterSignal(track_source, COMSIG_PARENT_QDELETING, PROC_REF(clear_creator_reference), override = TRUE)
+	RegisterSignal(track_source, COMSIG_QDELETING, PROC_REF(clear_creator_reference), override = TRUE)
 	creation_time = world.time
 	track_source.get_track_info(src)
 	real_image = image(icon, src, real_icon_state, BULLET_HOLE_LAYER, track_source.dir)

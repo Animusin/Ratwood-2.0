@@ -356,14 +356,14 @@ Necra's Censer (by ARefrigerator)
 		S.start()
 
 /*=========================================
-  Dendor’s Endless Hose - additive mode
+  Dendor's Endless Hose - additive mode
   Click soil to add ±100 water/nutrition,
   optional bless, and growth modes incl. KILL
 =========================================*/
 
 /obj/item/artefact/dendor_hose //bless your tree with its piss
 	name = "Dendor's Endless Hose"
-	desc = "A living crook of wood that bends soil to the Treefather’s will. Click soil to add ±100 water/nutriment, bless, or affect growth." //Dendor's piss
+	desc = "A living crook of wood that bends soil to the Treefather's will. Click soil to add ±100 water/nutriment, bless, or affect growth." //Dendor's piss
 	icon = 'icons/roguetown/items/artefactsten.dmi'
 	icon_state = "dendorartefact"
 	w_class = WEIGHT_CLASS_NORMAL
@@ -400,7 +400,7 @@ Necra's Censer (by ARefrigerator)
 	open_config_ui(user)
 
 /obj/item/artefact/dendor_hose/proc/open_config_ui(mob/user)
-	var/contents = "<center><b> — Dendor’s Endless Hose Settings — </b></center><hr>"
+	var/contents = "<center><b> — Dendor's Endless Hose Settings — </b></center><hr>"
 
 	contents += "<b>Water delta per click</b><br>"
 	contents += "<a href='?src=[REF(src)];cyclestep=water'>[hose_state_text(water_step_state)]</a><br><br>"
@@ -1343,7 +1343,7 @@ Necra's Censer (by ARefrigerator)
 				identified_names[_ravox_identity_name(culprit)] = TRUE
 
 	if(!found && !length(event_reports) && !length(found_fibers))
-		SAY_WARN("Ravox’s gaze finds no readable traces on [target].")
+		SAY_WARN("Ravox's gaze finds no readable traces on [target].")
 		return
 
 	for(var/event_report in event_reports)

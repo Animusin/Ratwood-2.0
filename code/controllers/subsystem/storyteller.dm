@@ -302,12 +302,8 @@ SUBSYSTEM_DEF(gamemode)
 		return calculate_ratwood_antag_cap(cap_population, chaos_divisor)
 	return calculate_antag_cap_from_population(cap_population, ANTAG_CAP_DENOMINATOR)
 
-/// Gets the population used by the antagonist cap. Ratwood counts every connected client;
-/// upstream policies retain the town-strength calculation.
+/// Gets the population used by the live antagonist cap after roundstart allocation.
 /datum/controller/subsystem/gamemode/proc/get_antag_cap_population()
-	if(round_modifier_policy_name == "ratwood")
-		antag_cap_population = length(GLOB.clients)
-		return antag_cap_population
 	var/town_strength = get_town_strength()
 	antag_cap_population = max(town_strength - antag_cap_excluded_players, 0)
 	return antag_cap_population
@@ -820,10 +816,7 @@ SUBSYSTEM_DEF(gamemode)
 	dat += "<BR><font color='#888888'><i>Storyteller determines points gained, event chances, and is the entity responsible for rolling events.</i></font>"
 	dat += "<BR>Active Players: [active_players]   (Royalty: [royalty], Garrison: [garrison], Town Workers: [constructor], Holy Warriors: [holy_warrior])"
 	dat += "<BR>Town Strength: [effective_pop] (Total: [active_players] + Garrison Bonus: [garrison * TOWN_COMBATANT_ADDITIONAL_WEIGHT] + Holy Warrior Bonus: [holy_warrior * TOWN_COMBATANT_ADDITIONAL_WEIGHT])"
-	if(round_modifier_policy_name == "ratwood")
-		dat += "<BR>Antagonist Cap Population: [antag_cap_population] online players"
-	else
-		dat += "<BR>Antagonist Cap Population: [antag_cap_population] (Town Strength: [effective_pop] - Adventurers/Inhumen: [antag_cap_excluded_players])"
+	dat += "<BR>Antagonist Cap Population: [antag_cap_population] (Town Strength: [effective_pop] - Adventurers/Inhumen: [antag_cap_excluded_players])"
 	dat += "<BR>Antagonist Count vs Maximum: [get_antag_count()] / [antag_cap]"
 	dat += "<BR>Round Modifier Policy: [round_modifier_policy_name]"
 	if(round_modifier_policy_name == "ratwood")

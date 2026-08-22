@@ -26,7 +26,7 @@
 	subclass_virtues = list(
 		/datum/virtue/utility/riding
 	)
-/datum/outfit/job/roguetown/merchant/ea_hasir/pre_equip(mob/living/carbon/human/H)
+/datum/outfit/job/roguetown/merchant/ea_hasir/pre_equip(mob/living/carbon/human/H, visualsOnly = FALSE)
 	..()
 	H.adjust_blindness(-3)
 	H.adjust_skillrank(/datum/skill/combat/swords, 2, TRUE)
@@ -60,7 +60,8 @@
 		shoes = /obj/item/clothing/shoes/roguetown/gladiator
 	if(H.mind)
 		H.mind.AddSpell(new /obj/effect/proc_holder/spell/invoked/appraise/secular)
-	new /obj/structure/handcart/ea_hasir(get_turf(H))
+	if(!visualsOnly)
+		new /obj/structure/handcart/ea_hasir(get_turf(H))
 
 /datum/migrant_role/ea_hasir/guard
 	name = "EA Hasir-ian Guard"

@@ -241,6 +241,9 @@ Turf and target are separate in case you want to teleport some distance from a t
 /mob/dead/observer/screye/bypasses_ghost_protection()
 	return TRUE
 
+/mob/dead/observer/rogue/arcaneeye/bypasses_ghost_protection()
+	return TRUE
+
 //Whether a protected living target should be hidden from this observer.
 /proc/is_hidden_from_ghosts(atom/target, mob/dead/observer/viewer)
 	if(!isobserver(viewer))

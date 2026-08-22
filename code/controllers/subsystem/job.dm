@@ -82,6 +82,8 @@ SUBSYSTEM_DEF(job)
 /datum/controller/subsystem/job/proc/can_assign_antag_job(datum/job/job)
 	if(!job?.antag_job || !SSgamemode)
 		return TRUE
+	if(SSgamemode.antagonists_disabled)
+		return FALSE
 	if(!SSticker.HasRoundStarted())
 		return job.antag_cap_weight <= SSgamemode.get_remaining_antag_capacity(get_roundstart_antag_weight())
 	return job.antag_cap_weight <= SSgamemode.get_remaining_antag_capacity()
@@ -90,6 +92,8 @@ SUBSYSTEM_DEF(job)
 /// so their visible limit is their occupied slots plus however many still fit in that capacity.
 /datum/controller/subsystem/job/proc/get_latejoin_position_limit(datum/job/job, remaining_antag_capacity = null)
 	if(!job)
+		return 0
+	if(job.antag_job && SSgamemode?.antagonists_disabled)
 		return 0
 	var/job_position_limit = job.get_position_limit(TRUE)
 	if(!job.antag_job || job.antag_cap_weight <= 0 || isnull(remaining_antag_capacity))

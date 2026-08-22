@@ -173,6 +173,8 @@ SUBSYSTEM_DEF(gamemode)
 	var/round_modifier_policy_name = "upstream"
 	var/chaos_mode_name = "Low Chaos"
 	var/chaos_divisor = ANTAG_CAP_DENOMINATOR
+	/// Whether the selected chaos mode prevents all automatic antagonist assignment and injection.
+	var/antagonists_disabled = FALSE
 	/// Connected clients used to calculate the fixed Ratwood roundstart cap.
 	var/roundstart_population_snapshot = 0
 	var/roundstart_cap_snapshot = 0
@@ -295,6 +297,8 @@ SUBSYSTEM_DEF(gamemode)
 
 /// Gets the number of antagonists the antagonist injection events will stop rolling after.
 /datum/controller/subsystem/gamemode/proc/get_antag_cap()
+	if(antagonists_disabled)
+		return 0
 	if(round_modifier_policy_name == "ratwood" && !roundstart_antag_allocation_complete)
 		return roundstart_cap_snapshot
 	var/cap_population = get_antag_cap_population()
@@ -356,6 +360,8 @@ SUBSYSTEM_DEF(gamemode)
 
 /// Whether an antagonist of the supplied weight fits under the current cap.
 /datum/controller/subsystem/gamemode/proc/can_add_antag_weight(weight = 1, current_weight = null)
+	if(antagonists_disabled)
+		return FALSE
 	return max(weight, 0) <= get_remaining_antag_capacity(current_weight)
 
 /// Gets candidates for antagonist roles.
@@ -820,12 +826,17 @@ SUBSYSTEM_DEF(gamemode)
 	dat += "<BR>Antagonist Count vs Maximum: [get_antag_count()] / [antag_cap]"
 	dat += "<BR>Round Modifier Policy: [round_modifier_policy_name]"
 	if(round_modifier_policy_name == "ratwood")
-		dat += "<BR>Chaos Mode / Divisor: [chaos_mode_name] / [chaos_divisor]"
-		dat += "<BR>Roundstart Snapshot: [roundstart_population_snapshot] online / [chaos_divisor] + [ANTAG_CAP_FLAT] = [roundstart_cap_snapshot]"
+		dat += "<BR>Chaos Mode / Divisor: [chaos_mode_name] / [antagonists_disabled ? "disabled" : chaos_divisor]"
+		if(antagonists_disabled)
+			dat += "<BR>Roundstart Snapshot: [roundstart_population_snapshot] online; antagonists disabled = 0"
+		else
+			dat += "<BR>Roundstart Snapshot: [roundstart_population_snapshot] online / [chaos_divisor] + [ANTAG_CAP_FLAT] = [roundstart_cap_snapshot]"
 		dat += "<BR>Roundstart Allocation Complete: [roundstart_antag_allocation_complete ? "Yes" : "No"]"
 		dat += "<BR>Outstanding Major Reserve: [roundstart_reserved_antag_weight]"
 	var/chaos_name = "Medium"
 	switch(level)
+		if(0)
+			chaos_name = "Zero"
 		if(1)
 			chaos_name = "Low"
 		if(3)

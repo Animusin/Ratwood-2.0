@@ -60,6 +60,8 @@
 		restricted_roles |= protected_roles
 
 /datum/round_event_control/antagonist/canSpawnEvent(players_amt, gamemode, fake_check)
+	if(SSgamemode?.antagonists_disabled)
+		return FALSE
 	. = ..()
 	if(!check_required())
 		return FALSE
@@ -69,6 +71,10 @@
 
 /datum/round_event_control/antagonist/return_failure_string(players_amt)
 	. =..()
+	if(SSgamemode?.antagonists_disabled)
+		if(.)
+			. += ", "
+		. += "Antagonists Disabled"
 	if(!check_enemies())
 		if(.)
 			. += ", "

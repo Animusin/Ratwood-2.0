@@ -1,3 +1,4 @@
+#define RATWOOD_CHAOS_ZERO "Zero Chaos"
 #define RATWOOD_CHAOS_LOW "Low Chaos"
 #define RATWOOD_CHAOS_HIGH "High Chaos"
 #define RATWOOD_LOW_DIVISOR 15
@@ -13,8 +14,9 @@
 	return
 
 /datum/round_modifier_policy/upstream/handle_vote(datum/controller/subsystem/gamemode/mode, winner)
-	mode.chaos_mode_name = winner == RATWOOD_CHAOS_HIGH ? RATWOOD_CHAOS_HIGH : RATWOOD_CHAOS_LOW
-	mode.level = mode.chaos_mode_name == RATWOOD_CHAOS_HIGH ? 3 : 1
+	mode.chaos_mode_name = (winner in list(RATWOOD_CHAOS_ZERO, RATWOOD_CHAOS_HIGH)) ? winner : RATWOOD_CHAOS_LOW
+	mode.antagonists_disabled = mode.chaos_mode_name == RATWOOD_CHAOS_ZERO
+	mode.level = mode.antagonists_disabled ? 0 : (mode.chaos_mode_name == RATWOOD_CHAOS_HIGH ? 3 : 1)
 	mode.chaos_divisor = ANTAG_CAP_DENOMINATOR
 	mode.roundstart_antag_allocation_complete = TRUE
 
@@ -25,9 +27,10 @@
 	id = "ratwood"
 
 /datum/round_modifier_policy/ratwood/handle_vote(datum/controller/subsystem/gamemode/mode, winner)
-	mode.chaos_mode_name = winner == RATWOOD_CHAOS_HIGH ? RATWOOD_CHAOS_HIGH : RATWOOD_CHAOS_LOW
-	mode.level = mode.chaos_mode_name == RATWOOD_CHAOS_HIGH ? 3 : 1
-	mode.chaos_divisor = mode.chaos_mode_name == RATWOOD_CHAOS_HIGH ? RATWOOD_HIGH_DIVISOR : RATWOOD_LOW_DIVISOR
+	mode.chaos_mode_name = (winner in list(RATWOOD_CHAOS_ZERO, RATWOOD_CHAOS_HIGH)) ? winner : RATWOOD_CHAOS_LOW
+	mode.antagonists_disabled = mode.chaos_mode_name == RATWOOD_CHAOS_ZERO
+	mode.level = mode.antagonists_disabled ? 0 : (mode.chaos_mode_name == RATWOOD_CHAOS_HIGH ? 3 : 1)
+	mode.chaos_divisor = mode.antagonists_disabled ? 0 : (mode.chaos_mode_name == RATWOOD_CHAOS_HIGH ? RATWOOD_HIGH_DIVISOR : RATWOOD_LOW_DIVISOR)
 	// Snapshot all connected players. The live cap switches back to the same online-player
 	// formula after roundstart allocation finishes.
 	mode.roundstart_population_snapshot = length(GLOB.clients)
@@ -63,6 +66,8 @@
 	roll_weather(mode)
 
 /datum/round_modifier_policy/ratwood/proc/get_major_modifier_pool(chaos_mode)
+	if(chaos_mode == RATWOOD_CHAOS_ZERO)
+		return list()
 	var/list/pool = list(
 		new /datum/round_modifier/ratwood/major/masquerade,
 		new /datum/round_modifier/ratwood/major/rebellion,
@@ -295,6 +300,7 @@
 	parent_type = /datum/round_modifier/stormy
 	min_chaos = 99
 
+#undef RATWOOD_CHAOS_ZERO
 #undef RATWOOD_CHAOS_LOW
 #undef RATWOOD_CHAOS_HIGH
 #undef RATWOOD_LOW_DIVISOR

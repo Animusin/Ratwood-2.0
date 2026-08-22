@@ -1,7 +1,7 @@
 /datum/vote/chaos
 	name = "chaos"
 	default_message = "Vote for the antagonist pressure used for this round."
-	default_choices = list("Low Chaos", "High Chaos")
+	default_choices = list("Zero Chaos", "Low Chaos", "High Chaos")
 	count_method = VOTE_COUNT_METHOD_SINGLE
 	winner_method = VOTE_WINNER_METHOD_SIMPLE
 

@@ -1,0 +1,4 @@
+author: "sigmaboy124124"
+delete-after: True
+changes:
+  - bugfix: "Kneestingers (glowshroom) are no longer hidden under stairs when viewed from the z-level above"

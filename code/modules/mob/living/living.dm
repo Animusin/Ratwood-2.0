@@ -2557,10 +2557,12 @@
 		to_chat(src, span_warning("I need a free hand to take it!"))
 		return FALSE
 
-	accept_offered_item(offerer, offered_item, stealthy)
-	return TRUE
+	return accept_offered_item(offerer, offered_item, stealthy)
 
 /mob/living/proc/accept_offered_item(mob/living/offerer, obj/offered_item, stealthy)
+	if(!can_put_in_hand(offered_item, active_hand_index))
+		to_chat(src, span_warning("I need a free hand to take it!"))
+		return FALSE
 	transferItemToLoc(offered_item, src)
 	put_in_active_hand(offered_item)
 	if(stealthy)
@@ -2576,3 +2578,4 @@
 		)
 	SEND_SIGNAL(offered_item, COMSIG_OBJ_HANDED_OVER, src, offerer)
 	offerer.stop_offering_item()
+	return TRUE

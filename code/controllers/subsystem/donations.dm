@@ -449,7 +449,7 @@ SUBSYSTEM_DEF(donations)
 	return SSdonations.spend_opyxes(src, amount, comment, type)
 
 /client/verb/chaotic_token(token as text)
-	set name = ".chaotic-token"
+	set name = "Chaotic Token"
 	set desc = "Link your Discord account using a Chaotic token."
 	set category = "OOC"
 

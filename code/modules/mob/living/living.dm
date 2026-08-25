@@ -2557,7 +2557,8 @@
 		to_chat(src, span_warning("I need a free hand to take it!"))
 		return FALSE
 
-	return accept_offered_item(offerer, offered_item, stealthy)
+	accept_offered_item(offerer, offered_item, stealthy)
+	return TRUE
 
 /mob/living/proc/accept_offered_item(mob/living/offerer, obj/offered_item, stealthy)
 	if(!can_put_in_hand(offered_item, active_hand_index))

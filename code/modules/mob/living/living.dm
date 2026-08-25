@@ -2265,6 +2265,8 @@
 					found_ping(get_turf(M), client, "trap")
 			if(istype(O, /obj/structure/flora/roguegrass/maneater/real))
 				found_ping(get_turf(O), client, "trap")
+			if(istype(O, /obj/structure/quicksand))
+				found_ping(get_turf(O), client, "trap")
 		if(tracking_investigator)
 			for(var/turf/blood_turf as anything in blood_clue_turfs)
 				if(tracking_investigator.discover_tracking_clue(blood_turf, 7) == 2)

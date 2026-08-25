@@ -16,6 +16,7 @@ GLOBAL_PROTECT(admin_verbs_default)
 	/client/proc/togglespawnmessages,
 	/client/proc/toggle_aghost_invis,
 	/client/proc/admin_ghost,
+	/client/proc/admin_move_oasis,
 	/datum/admins/proc/start_vote,
 	/datum/admins/proc/show_player_panel,
 	/datum/admins/proc/reset_respawn_cooldown,

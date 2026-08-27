@@ -52,16 +52,17 @@
 	show_when_dead = FALSE
 
 /datum/reagent/vampsolution/on_mob_metabolize(mob/living/M, mob/living/S)
-	M.overlay_fullscreen("druqk", /atom/movable/screen/fullscreen/druqks)
+	M.overlay_fullscreen("vampsolution", /atom/movable/screen/fullscreen/vampsolution)
 	M.set_drugginess(30)
+	ADD_TRAIT(M, TRAIT_DRUQK, type)
 	if(M.client)
-		ADD_TRAIT(M, TRAIT_DRUQK, "based")
 		SSdroning.area_entered(get_area(M), M.client)
 
 /datum/reagent/vampsolution/on_mob_end_metabolize(mob/living/M, mob/living/S)
-	M.clear_fullscreen("druqk")
-	M.remove_status_effect(/datum/status_effect/buff/druqks)
+	// This overlay belongs only to vampsolution, so remove it immediately instead
+	// of leaving an animated screen object behind during client/mob transfers.
+	M.clear_fullscreen("vampsolution", FALSE)
 	M.set_drugginess(0)
+	REMOVE_TRAIT(M, TRAIT_DRUQK, type)
 	if(M.client)
-		REMOVE_TRAIT(M, TRAIT_DRUQK, "based")
 		SSdroning.play_area_sound(get_area(M), M.client)

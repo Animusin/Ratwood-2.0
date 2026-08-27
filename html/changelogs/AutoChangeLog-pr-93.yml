@@ -1,0 +1,4 @@
+author: "Animusin"
+delete-after: True
+changes:
+  - admin: "Added a GameMaster verb to reset respawn cooldowns by ckey, including for disconnected players."

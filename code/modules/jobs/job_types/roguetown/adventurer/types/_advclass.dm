@@ -13,6 +13,8 @@
 	var/maximum_possible_slots = -1
 	var/total_slots_occupied = 0
 	var/min_pq = -100
+	/// Minimum storyteller chaos level required before this class can be selected.
+	var/minimum_chaos = 0
 	/// Minimum effective town strength required before this class can be selected.
 	var/minimum_town_strength = 0
 	/// Weight contributed by this class when represented by the Wretch antagonist datum.
@@ -182,6 +184,10 @@
 
 	if(maximum_possible_slots > -1)
 		if(total_slots_occupied >= maximum_possible_slots)
+			return FALSE
+
+	if(minimum_chaos > 0)
+		if(SSgamemode.level < minimum_chaos)
 			return FALSE
 
 	if(minimum_town_strength > 0)

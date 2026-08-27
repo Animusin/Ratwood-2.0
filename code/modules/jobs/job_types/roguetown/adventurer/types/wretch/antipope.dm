@@ -13,6 +13,8 @@
 	cmode_music = 'sound/music/combat_cult.ogg'
 	class_select_category = CLASS_CAT_CLERIC
 	category_tags = list(CTAG_WRETCH)
+	minimum_chaos = 3
+	wretch_antag_cap_weight = 2
 //Seer to see other Inhumen.
 	traits_applied = list(TRAIT_HERETIC_SEER, TRAIT_RITUALIST, TRAIT_GRAVEROBBER, TRAIT_RESONANCE, TRAIT_OVERTHERETIC)
 //Support class statline, somewhat better than Bishop's. No armour traits, DE or CR, so needs good stats desperately.

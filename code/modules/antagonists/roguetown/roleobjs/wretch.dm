@@ -5,8 +5,6 @@
 	show_name_in_check_antagonists = FALSE
 
 /datum/antagonist/wretch/get_antag_cap_weight()
-	if(SSgamemode?.round_modifier_policy_name == "ratwood")
-		return 1
 	if(ishuman(owner?.current))
 		var/mob/living/carbon/human/wretch = owner.current
 		if(!wretch.advjob)

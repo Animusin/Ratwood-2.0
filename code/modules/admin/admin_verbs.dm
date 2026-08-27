@@ -20,6 +20,7 @@ GLOBAL_PROTECT(admin_verbs_default)
 	/datum/admins/proc/start_vote,
 	/datum/admins/proc/show_player_panel,
 	/datum/admins/proc/reset_respawn_cooldown,
+	/datum/admins/proc/reset_respawn_cooldown_by_ckey,
 	/datum/admins/proc/admin_heal,
 	/datum/admins/proc/admin_show_inventory,
 	/datum/admins/proc/admin_revive,

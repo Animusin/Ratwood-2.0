@@ -804,6 +804,29 @@
 	log_admin("[key_name(usr)] reset [key_name(M)]'s respawn cooldown.")
 	SSblackbox.record_feedback("tally", "admin_verb", 1, "Reset Respawn Cooldown")
 
+/datum/admins/proc/reset_respawn_cooldown_by_ckey()
+	set name = "Reset Respawn Cooldown by Ckey"
+	set desc = "Reset a player's respawn cooldown by ckey, including disconnected players"
+	set category = "-GameMaster-"
+
+	if(!check_rights(R_ADMIN))
+		return
+
+	var/target_ckey = ckey(input(usr, "Enter the player's ckey.", "Reset Respawn Cooldown") as null|text)
+	if(!target_ckey)
+		return
+	if(!(target_ckey in GLOB.respawntimes))
+		to_chat(usr, span_warning("[target_ckey] has no active respawn cooldown."))
+		return
+
+	GLOB.respawntimes -= target_ckey
+	var/client/target_client = GLOB.directory[target_ckey]
+	if(target_client)
+		to_chat(target_client, span_notice("An admin has reset my respawn cooldown."))
+	message_admins(span_adminnotice("[key_name_admin(usr)] reset [key_name_admin(target_ckey)]'s respawn cooldown by ckey."))
+	log_admin("[key_name(usr)] reset [key_name(target_ckey)]'s respawn cooldown by ckey.")
+	SSblackbox.record_feedback("tally", "admin_verb", 1, "Reset Respawn Cooldown by Ckey")
+
 /datum/admins/proc/admin_revive(mob/living/M in GLOB.mob_list)
 	set name = "Mob - Revive"
 	set desc = "Resuscitate a mob"

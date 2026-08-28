@@ -120,7 +120,7 @@ SUBSYSTEM_DEF(map_vote)
 	var/list/maps_for_ckey = player_vote_bonus[ckey]
 	return maps_for_ckey[map_id] || 0
 
-/datum/controller/subsystem/map_vote/proc/finalize_map_vote(datum/vote/map_vote/map_vote)
+/datum/controller/subsystem/map_vote/proc/finalize_map_vote(datum/vote/map_vote/map_vote, winning_option)
 	if(already_voted)
 		message_admins("Map vote already finalized.")
 		return
@@ -166,22 +166,13 @@ SUBSYSTEM_DEF(map_vote)
 		send_map_vote_notice("No valid maps.")
 		return
 
-	// Pick the highest tally among maps that were actually voted on this round
-	var/winner_id
-	var/winner_amount = -1
+	// The vote subsystem has already counted the choices and resolved any tie.
+	// Do not replace that result with the separate returning-voter tally.
+	if(!(winning_option in valid_maps))
+		send_map_vote_notice("Vote winner is not a valid map (bad map_id: [winning_option]).")
+		return
 
-	for(var/map_id in valid_maps)
-		if(!(map_id in round_tally))
-			continue
-		var/tally = round_tally[map_id]
-		if(tally > winner_amount)
-			winner_id = map_id
-			winner_amount = tally
-
-	// Nobody voted for anything valid - fall back to the first valid map so
-	// rotation doesn't stall out.
-	if(isnull(winner_id))
-		winner_id = valid_maps[1]
+	var/winner_id = winning_option
 
 	var/datum/map_config/winner_cfg = config.maplist[winner_id]
 	if(!winner_cfg)

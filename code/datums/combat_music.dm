@@ -626,3 +626,38 @@ GLOBAL_LIST_EMPTY(cmode_tracks_by_name)
 	shortname = "Ancient"
 	credits = "Bathory - Call from the Grave"
 	musicpath = list('sound/music/combatheraldprogress.ogg')
+
+/datum/combat_music/aot_op1
+	name = "Feuerroter Pfeil und Bogen"
+	desc = ""
+	shortname = "Feuerroter"
+	credits = "Linked Horizon - Attack on Titan OP1"
+	musicpath = list('sound/music/cmode/aot/aotop1.ogg')
+
+/datum/combat_music/aot_op2
+	name = "Jiyuu no Tsubasa"
+	desc = ""
+	shortname = "Jiyuu Tsubasa"
+	credits = "Linked Horizon - Attack on Titan OP2"
+	musicpath = list('sound/music/cmode/aot/aotop2.ogg')
+
+/datum/combat_music/aot_song1
+	name = "Attack on Titan"
+	desc = ""
+	shortname = "Attack on T."
+	credits = "Hiroyuki Sawano - Attack on Titan OST"
+	musicpath = list('sound/music/cmode/aot/aotsong1.ogg')
+
+/datum/combat_music/aot_song2
+	name = "DOA"
+	desc = ""
+	shortname = "DOA"
+	credits = "Hiroyuki Sawano - Attack on Titan OST"
+	musicpath = list('sound/music/cmode/aot/aotsong2.ogg')
+
+/datum/combat_music/aot_song3
+	name = "E・M・A"
+	desc = ""
+	shortname = "E・M・A"
+	credits = "Hiroyuki Sawano - Attack on Titan OST"
+	musicpath = list('sound/music/cmode/aot/aotsong3.ogg')

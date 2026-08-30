@@ -61,10 +61,11 @@
 		return
 	var/mob/living/player = user
 	var/skill = player.get_skill_level(/datum/skill/craft/engineering)
-	if(current_charge)
-		. += span_warning("The contraption has [current_charge] charges left.")
-	if(!current_charge)
-		. += span_warning("This contraption requires a new [initial(accepted_power_source.name)] to function.")
+	if(battery_accept)
+		if(current_charge)
+			. += span_warning("The contraption has [current_charge] charges left.")
+		if(!current_charge)
+			. += span_warning("This contraption requires a new [initial(accepted_power_source.name)] to function.")
 	if(misfire_chance)
 		. += contraption_misfire_examine_text(misfire_chance, skill)
 	if(skill >= 6 && sneaky_misfire_chance)

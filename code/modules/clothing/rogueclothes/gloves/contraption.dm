@@ -75,10 +75,10 @@
 		var/obj/item/roguegear/wood/cog = I
 		if(cog.misfire_modification || cog.misfire_modification == 0)
 			misfire_chance = cog.misfire_modification
-		playsound(src, pick('sound/combat/hits/onwood/fence_hit1.ogg', 'sound/combat/hits/onwood/fence_hit2.ogg', 'sound/combat/hits/onwood/fence_hit3.ogg'), 100, FALSE)
-		to_chat(user, span_warning("[cog.name] inserted!"))
-		qdel(cog)
-		return
+			playsound(src, pick('sound/combat/hits/onwood/fence_hit1.ogg', 'sound/combat/hits/onwood/fence_hit2.ogg', 'sound/combat/hits/onwood/fence_hit3.ogg'), 100, FALSE)
+			to_chat(user, span_warning("[cog.name] inserted!"))
+			qdel(cog)
+			return
 	..()
 
 

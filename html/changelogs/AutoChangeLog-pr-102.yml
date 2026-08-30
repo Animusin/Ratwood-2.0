@@ -1,0 +1,4 @@
+author: "Animusin"
+delete-after: True
+changes:
+  - bugfix: "Multiple dark crystals now share one limit of two living player-controlled skeletons per summoner."

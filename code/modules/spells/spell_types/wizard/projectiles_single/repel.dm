@@ -48,7 +48,9 @@
 
 /obj/projectile/magic/repel/on_hit(target)
 
-	var/atom/throw_target = get_edge_target_turf(firer, get_dir(firer, target)) //ill be real I got no idea why this worked.
+	// Anchor the throw destination to the victim's z-level. Repel projectiles can
+	// travel between levels, while the firer remains on the level they cast from.
+	var/atom/throw_target = get_edge_target_turf(target, angle2dir(Angle))
 	if(isliving(target))
 		var/mob/living/L = target
 		if(L.anti_magic_check() || !firer)
@@ -63,5 +65,5 @@
 			if (ishuman(firer))
 				carbon_firer = firer
 				if (carbon_firer?.can_catch_item())
-					throw_target = get_edge_target_turf(firer, get_dir(firer, target))
+					throw_target = get_edge_target_turf(target, angle2dir(Angle))
 			I.throw_at(throw_target, 7, 4)

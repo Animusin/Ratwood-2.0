@@ -9,6 +9,7 @@
 	category_tags = list(CTAG_WRETCH)
 	traits_applied = list(TRAIT_ZOMBIE_IMMUNE, TRAIT_MAGEARMOR, TRAIT_GRAVEROBBER, TRAIT_ARCYNE_T3, TRAIT_ALCHEMY_EXPERT, TRAIT_MEDICINE_EXPERT,TRAIT_RITUALIST,TRAIT_OUTLANDER,)
 	maximum_possible_slots = 2
+	minimum_chaos = 3
 	minimum_town_strength = 25
 	wretch_antag_cap_weight = 2
 	subclass_stats = list(

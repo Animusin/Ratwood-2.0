@@ -1,3 +1,22 @@
+/datum/mind
+	/// Player-controlled skeletons currently bound to this summoner, shared by all of their crystals.
+	var/list/active_necro_skeletons = list()
+	/// Prevents separate crystals from starting overlapping summon attempts for the same summoner.
+	var/necro_summon_in_progress = FALSE
+
+/datum/mind/proc/count_active_necro_skeletons()
+	for(var/datum/weakref/skeleton_ref as anything in active_necro_skeletons.Copy())
+		var/mob/living/carbon/human/species/skeleton/no_equipment/skeleton = skeleton_ref.resolve()
+		if(!skeleton || skeleton.stat == DEAD)
+			active_necro_skeletons -= skeleton_ref
+	return length(active_necro_skeletons)
+
+/datum/mind/proc/remove_active_necro_skeleton(mob/living/carbon/human/species/skeleton/no_equipment/skeleton)
+	for(var/datum/weakref/skeleton_ref as anything in active_necro_skeletons.Copy())
+		var/mob/living/tracked_skeleton = skeleton_ref.resolve()
+		if(!tracked_skeleton || tracked_skeleton == skeleton)
+			active_necro_skeletons -= skeleton_ref
+
 /obj/item/necro_relics/necro_crystal
 	name = "dark crystal"
 	desc = "It feels cold in your hands. You shouldn't be holding this."
@@ -7,12 +26,9 @@
 	dropshrink = 0.6
 	var/last_use_time = 0
 	var/use_cooldown = 300 // 30 seconds
-	var/list/active_skeletons = list() //List of active skeletons stored here.
-	var/max_summons = 2 //Maximum amount of skeletons that can be summoned at one time.
+	var/max_summons = 2 //Maximum amount of skeletons one summoner can have at a time across all crystals.
 	var/max_charges = 2 //Maximum amount of charges the crystal can hold.
 	var/current_charges = 2
-	/// Prevents multiple activation procs from passing the limits while the task prompt is open.
-	var/summon_in_progress = FALSE
 	grid_height = 32
 	grid_width = 32
 
@@ -48,11 +64,15 @@
 	if(!user)
 		return FALSE
 
-	if(summon_in_progress)
+	var/datum/mind/summoner_mind = user.mind
+	if(!summoner_mind)
+		return FALSE
+
+	if(summoner_mind.necro_summon_in_progress)
 		to_chat(user, span_warning("The crystal is already gathering its power."))
 		return FALSE
 
-	if(length(active_skeletons) >= max_summons)
+	if(summoner_mind.count_active_necro_skeletons() >= max_summons)
 		to_chat(user, span_warning("The crystal emits an ominous thrumming. The power within is too strained to conjure another skeleton right now."))
 		return FALSE
 
@@ -64,24 +84,24 @@
 		to_chat(user, span_warning("The crystal feels hollow. It hungers for lux."))
 		return FALSE
 
-	summon_in_progress = TRUE
+	summoner_mind.necro_summon_in_progress = TRUE
 
 	// Ask the Necromancer for a task for the skeleton BEFORE the timer
 	var/tasks = list("TOIL","FIGHT","GUARD","SEEK")
 	var/tasks_choice = input(user, "WHAT IS THY BIDDING?", "IN HER NAME") as anything in tasks
 	if(!tasks_choice)
-		summon_in_progress = FALSE
+		summoner_mind.necro_summon_in_progress = FALSE
 		to_chat(user, span_warning("You must assign a task for your skeleton!"))
 		return FALSE
 
 	src.last_use_time = world.time
 
 	if(!do_after(user, 60, src))
-		summon_in_progress = FALSE
+		summoner_mind.necro_summon_in_progress = FALSE
 		to_chat(user, span_warning("You lose your concentration."))
 		return FALSE
 	if(!HAS_TRAIT(user, TRAIT_CABAL))
-		summon_in_progress = FALSE
+		summoner_mind.necro_summon_in_progress = FALSE
 		to_chat(user, span_warning("The crystal rejects you! It shatters within your grasp!"))
 		user.fullscreen_redflash("redflash1")
 		new /obj/item/natural/glass_shard(get_turf(src))
@@ -91,20 +111,20 @@
 
 	var/turf/T = get_step(user, user.dir)
 	if(!isopenturf(T))
-		summon_in_progress = FALSE
+		summoner_mind.necro_summon_in_progress = FALSE
 		to_chat(user, span_warning("The targeted location is blocked. My summon fails to come forth."))
 		return FALSE
 
 	var/necro_name = user.real_name ? user.real_name : user.name
 	var/list/candidates = pollGhostCandidates("The veil splits! A hand reaches forth! Serve [necro_name] in undeath as a Greater Skeleton? YOU WILL [tasks_choice]", ROLE_NECRO_SKELETON, null, null, 10 SECONDS, POLL_IGNORE_NECROMANCER_SKELETON)
 	if(!LAZYLEN(candidates))
-		summon_in_progress = FALSE
+		summoner_mind.necro_summon_in_progress = FALSE
 		to_chat(user, span_warning("The depths are hollow."))
 		return FALSE
 
 	var/mob/C = pick(candidates)
 	if(!C || !istype(C, /mob/dead))
-		summon_in_progress = FALSE
+		summoner_mind.necro_summon_in_progress = FALSE
 		return FALSE
 
 	if(istype(C, /mob/dead/new_player))
@@ -112,13 +132,13 @@
 		N.close_spawn_windows()
 
 	var/mob/living/carbon/human/species/skeleton/no_equipment/target = new /mob/living/carbon/human/species/skeleton/no_equipment(T)
-	target.crystal = WEAKREF(src)
+	target.necromancer_mind = WEAKREF(summoner_mind)
 	target.key = C.key
 	current_charges--
 	SSjob.EquipRank(target, "Fortified Skeleton", TRUE)
 	target.visible_message(span_warning("[target]'s eyes light up with an eerie glow!"))
 	var/datum/weakref/W = WEAKREF(target)
-	active_skeletons += W
+	summoner_mind.active_necro_skeletons |= W
 
 	target.mind.AddSpell(new /obj/effect/proc_holder/spell/self/suicidebomb/lesser)
 	addtimer(CALLBACK(target, TYPE_PROC_REF(/mob/living/carbon/human, choose_name_popup), "FORTIFIED SKELETON"), 3 SECONDS)
@@ -133,7 +153,7 @@
 
 	user.fullscreen_redflash("redflash1")
 	playsound(src, "shatter", 50, TRUE)
-	summon_in_progress = FALSE
+	summoner_mind.necro_summon_in_progress = FALSE
 
 	return TRUE
 

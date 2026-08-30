@@ -448,11 +448,7 @@ SUBSYSTEM_DEF(donations)
 		return FALSE
 	return SSdonations.spend_opyxes(src, amount, comment, type)
 
-/client/verb/chaotic_token(token as text)
-	set name = ".chaotic-token"
-	set desc = "Link your Discord account using a Chaotic token."
-	set category = "OOC"
-
+/client/proc/link_chaotic_token(token)
 	token = trim(token)
 	if(!token)
 		to_chat(src, span_warning("Enter a valid Chaotic token."))
@@ -474,6 +470,20 @@ SUBSYSTEM_DEF(donations)
 		to_chat(src, span_notice("Your Discord account was successfully linked to your BYOND ckey!"))
 	else
 		to_chat(src, span_warning("Failed to link your Discord account. Check the token and try again."))
+
+/client/verb/chaotic_token(token as text)
+	set name = "Chaotic Token"
+	set desc = "Link your Discord account using a Chaotic token."
+	set category = "OOC"
+
+	link_chaotic_token(token)
+
+/client/verb/chaotic_token_entrypoint(token as text)
+	set name = ".chaotic-token"
+	set desc = "Link your Discord account using a Chaotic token."
+	set hidden = TRUE
+
+	link_chaotic_token(token)
 
 #undef DONATION_TIER_NONE
 #undef DONATION_TIER_CARGO

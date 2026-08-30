@@ -1,0 +1,6 @@
+author: "Animusin"
+delete-after: True
+changes:
+  - balance: "Necromancers are now available only during High Chaos rounds."
+  - bugfix: "Dark crystals can no longer stack pending summons to bypass their limits."
+  - bugfix: "Undead creatures can no longer be farmed for lux through surgery."

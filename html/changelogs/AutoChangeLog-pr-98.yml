@@ -1,0 +1,4 @@
+author: "Animusin"
+delete-after: True
+changes:
+  - bugfix: "Repel can no longer throw targets onto the caster's z-level."

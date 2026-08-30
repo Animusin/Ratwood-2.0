@@ -67,6 +67,12 @@
 	var/datum/mind/summoner_mind = user.mind
 	if(!summoner_mind)
 		return FALSE
+	// Summoned skeletons remain part of their original summoner's group if they are handed a crystal.
+	if(istype(user, /mob/living/carbon/human/species/skeleton/no_equipment))
+		var/mob/living/carbon/human/species/skeleton/no_equipment/skeleton_user = user
+		var/datum/mind/original_summoner_mind = skeleton_user.necromancer_mind?.resolve()
+		if(original_summoner_mind)
+			summoner_mind = original_summoner_mind
 
 	if(summoner_mind.necro_summon_in_progress)
 		to_chat(user, span_warning("The crystal is already gathering its power."))

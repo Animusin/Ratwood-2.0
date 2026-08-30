@@ -85,6 +85,7 @@
 		dispel()
 
 #define ARCBARRIER_FILTER "arcyne_barrier"
+#define ARCBARRIER_TRAIT "arcyne_barrier"
 
 /datum/status_effect/buff/arcyne_barrier
 	id = "arcyne_barrier"
@@ -99,8 +100,8 @@
 
 /datum/status_effect/buff/arcyne_barrier/on_apply()
 	. = ..()
-	ADD_TRAIT(owner, TRAIT_ANTIMAGIC, MAGIC_TRAIT)
-	ADD_TRAIT(owner, TRAIT_SPELL_DISPERSION, MAGIC_TRAIT)
+	ADD_TRAIT(owner, TRAIT_ANTIMAGIC, ARCBARRIER_TRAIT)
+	ADD_TRAIT(owner, TRAIT_SPELL_DISPERSION, ARCBARRIER_TRAIT)
 
 	var/filter = owner.get_filter(ARCBARRIER_FILTER)
 	if (!filter)
@@ -108,6 +109,6 @@
 
 /datum/status_effect/buff/arcyne_barrier/on_remove()
 	. = ..()
-	REMOVE_TRAIT(owner, TRAIT_ANTIMAGIC, MAGIC_TRAIT)
-	REMOVE_TRAIT(owner, TRAIT_SPELL_DISPERSION, MAGIC_TRAIT)
+	REMOVE_TRAIT(owner, TRAIT_ANTIMAGIC, ARCBARRIER_TRAIT)
+	REMOVE_TRAIT(owner, TRAIT_SPELL_DISPERSION, ARCBARRIER_TRAIT)
 	owner.remove_filter(ARCBARRIER_FILTER)

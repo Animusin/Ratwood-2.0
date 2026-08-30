@@ -20,6 +20,7 @@
 	overlay_state = "rune2"
 
 #define FILTER_COUNTERSPELL "counterspell_glow"
+#define COUNTERSPELL_TRAIT "counterspell"
 
 /obj/effect/proc_holder/spell/invoked/counterspell/cast(list/targets, mob/user = usr)
 	if(isliving(targets[1]))
@@ -28,8 +29,8 @@
 			to_chat(user, "<span class='warning'>They've counterspelled my counterspell immediately! It's not going to work on them!</span>")
 			revert_cast()
 			return
-		ADD_TRAIT(target, TRAIT_SPELLCOCKBLOCK, MAGIC_TRAIT)
-		ADD_TRAIT(target, TRAIT_ANTIMAGIC, MAGIC_TRAIT)
+		ADD_TRAIT(target, TRAIT_SPELLCOCKBLOCK, COUNTERSPELL_TRAIT)
+		ADD_TRAIT(target, TRAIT_ANTIMAGIC, COUNTERSPELL_TRAIT)
 		target.add_filter(FILTER_COUNTERSPELL, 2, list("type" = "outline", "color" = "#FFFFFF", "alpha" = 30, "size" = 1))
 		to_chat(target, span_warning("I feel as if my connection to the Arcyne disappears entirely. The air feels still..."))
 		target.visible_message("[target]'s arcyne aura seems to fade.")
@@ -38,10 +39,11 @@
 	
 
 /obj/effect/proc_holder/spell/invoked/counterspell/proc/remove_buff(mob/living/carbon/target)
-	REMOVE_TRAIT(target, TRAIT_SPELLCOCKBLOCK, MAGIC_TRAIT)
-	REMOVE_TRAIT(target, TRAIT_ANTIMAGIC, MAGIC_TRAIT)
+	REMOVE_TRAIT(target, TRAIT_SPELLCOCKBLOCK, COUNTERSPELL_TRAIT)
+	REMOVE_TRAIT(target, TRAIT_ANTIMAGIC, COUNTERSPELL_TRAIT)
 	target.remove_filter(FILTER_COUNTERSPELL)
 	to_chat(target, span_warning("I feel my connection to the arcyne surround me once more."))
 	target.visible_message("[target]'s arcyne aura seems to return once more.")
 
 #undef FILTER_COUNTERSPELL
+#undef COUNTERSPELL_TRAIT

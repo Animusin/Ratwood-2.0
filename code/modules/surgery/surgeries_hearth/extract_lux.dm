@@ -31,6 +31,9 @@
 	if(target.stat == DEAD)
 		to_chat(user, "They're dead!")
 		return FALSE
+	if(target.mob_biotypes & MOB_UNDEAD)
+		to_chat(user, "The undead have no living lux to extract!")
+		return FALSE
 
 /datum/surgery_step/extract_lux/preop(mob/user, mob/living/target, target_zone, obj/item/tool, datum/intent/intent)
 	display_results(user, target, span_notice("I begin to scrape lux from [target]'s heart..."),
@@ -39,6 +42,11 @@
 	return TRUE
 
 /datum/surgery_step/extract_lux/success(mob/user, mob/living/target, target_zone, obj/item/tool, datum/intent/intent)
+	if(target.mob_biotypes & MOB_UNDEAD)
+		display_results(user, target, span_notice("You cannot draw lux from [target]; the undead have no living essence to give."),
+			"[user] finds no living lux within [target].",
+			"[user] finds no living lux within [target].")
+		return FALSE
 	if (!target.has_status_effect(/datum/status_effect/buff/ozium))
 		target.emote("painscream")
 	if(target.has_status_effect(/datum/status_effect/debuff/devitalised) || target.has_status_effect(/datum/status_effect/debuff/devitalised/lux_ripped))

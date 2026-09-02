@@ -346,6 +346,17 @@ GLOBAL_LIST_INIT(taur_types, subtypesof(/obj/item/bodypart/taur))
 
 	has_taur_color = TRUE
 
+/obj/item/bodypart/taur/arachne
+	name = "Arachne Body"
+
+	offset_x = -16
+	px_y = 10
+	taur_icon_state = "arachne_s"
+	taur_markings_state = "arachne_markings"
+	taur_tertiary_state = "arachne_markings_2"
+
+	has_taur_color = TRUE
+
 /obj/item/bodypart/taur/centipede
 	name = "Centipede Body"
 

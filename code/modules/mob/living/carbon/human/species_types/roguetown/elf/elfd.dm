@@ -42,7 +42,6 @@
 	species_traits = list(EYECOLOR,HAIR,FACEHAIR,LIPS,OLDGREY)
 	allowed_taur_types = list(
 		/obj/item/bodypart/taur/spider,
-		/obj/item/bodypart/taur/arachne,
 	)
 	default_features = MANDATORY_FEATURE_LIST
 	use_skintones = 1

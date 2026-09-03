@@ -231,6 +231,9 @@
 					human_corpse.update_inv_mouth()
 					break
 	corpse.mind.remove_antag_datum(/datum/antagonist/zombie)
+	corpse.mind.unknow_all_people()
+	for(var/datum/mind/MF in get_minds())
+		corpse.mind.become_unknown_to(MF)
 	var/mob/dead/observer/ghost
 	//Try to find a lost ghost if there is no client
 	if(!corpse.client)

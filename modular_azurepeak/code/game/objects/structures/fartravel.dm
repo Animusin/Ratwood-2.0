@@ -62,6 +62,18 @@
 		for(var/datum/bounty/removing_bounty in GLOB.head_bounties)
 			if(removing_bounty.target == departing_mob.real_name)
 				GLOB.head_bounties -= removing_bounty
+	for(var/mob/living/carbon/human/HU in GLOB.player_list)
+		if(HU == departing_mob)
+			continue
+		if(HU.spouse_mob == departing_mob || HU.marriedto == departing_mob.real_name)
+			HU.spouse_mob = null
+			HU.marriedto = null
+			to_chat(HU, span_love("My beloved, [departing_mob.real_name], has departed [SSmapping.map_adjustment.realm_name] for good. I am widowed now."))
+	if(ishuman(departing_mob.spouse_mob))
+		var/mob/living/carbon/human/ex_spouse = departing_mob.spouse_mob
+		ex_spouse.spouse_mob = null
+		if(ex_spouse.marriedto == departing_mob.real_name)
+			ex_spouse.marriedto = null
 	GLOB.chosen_names -= departing_mob.real_name
 	if(!mob_job)
 		LAZYREMOVE(GLOB.actors_list[SSjob.bitflag_to_department(WANDERERS, FALSE)], departing_mob.mobid)

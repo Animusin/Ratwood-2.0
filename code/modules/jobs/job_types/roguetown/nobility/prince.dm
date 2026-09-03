@@ -7,7 +7,8 @@
 	total_positions = 2
 	spawn_positions = 2
 	f_title = "Princess"
-	allowed_races = RACES_TOLERATED_UP //the duke isn't giving up their throne to a goblin
+	allowed_races = RACES_HUMAN //the duke isn't giving up their throne to a goblin
+	disallowed_races = NO_HUMAN_RACES
 	allowed_sexes = list(MALE, FEMALE)
 	allowed_ages = list(AGE_ADULT)
 	advclass_cat_rolls = list(CTAG_HEIR = 20)

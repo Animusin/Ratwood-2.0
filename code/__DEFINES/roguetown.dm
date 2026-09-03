@@ -98,6 +98,13 @@ Balloon Alert / Floating Text defines
 	/datum/species/harpy,\
 	/datum/species/ooze\
 
+#define RACES_SHUNNED \
+	/datum/species/dullahan,\
+	/datum/species/halforc,\
+	/datum/species/goblinp,\
+	/datum/species/harpy,\
+	/datum/species/ooze\
+
 #define RACES_DESPISED \
 	/datum/species/dullahan,\
 
@@ -107,6 +114,37 @@ Balloon Alert / Floating Text defines
 
 #define RACES_OOZE \
 	/datum/species/ooze,\
+
+#define RACES_HUMAN \
+	/datum/species/human/northern\
+
+#define NO_HUMAN_RACES list(\
+	/datum/species/human/halfelf,\
+	/datum/species/elf/dark,\
+	/datum/species/elf/wood,\
+	/datum/species/dwarf/mountain,\
+	/datum/species/tieberian,\
+	/datum/species/aasimar,\
+	/datum/species/lizardfolk,\
+	/datum/species/lupian,\
+	/datum/species/tabaxi,\
+	/datum/species/vulpkanin,\
+	/datum/species/akula,\
+	/datum/species/moth,\
+	/datum/species/dracon,\
+	/datum/species/anthromorph,\
+	/datum/species/anthromorphsmall,\
+	/datum/species/demihuman,\
+	/datum/species/halforc,\
+	/datum/species/kobold,\
+	/datum/species/goblinp,\
+	/datum/species/dullahan,\
+	/datum/species/lamia,\
+	/datum/species/dwarf/gnome,\
+	/datum/species/harpy,\
+	/datum/species/arachnid,\
+	/datum/species/ooze\
+)
 
 #define RACES_ALL_KINDS list(RACES_DESPISED, RACES_SHUNNED, RACES_TOLERATED, RACES_RESPECTED, RACES_CONSTRUCT, RACES_OOZE)	//Truely no restrictions
 

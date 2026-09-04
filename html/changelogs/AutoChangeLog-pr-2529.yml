@@ -1,4 +1,4 @@
 author: "SirSwagmeyer"
 delete-after: True
 changes:
-  - rscadd: "Adds inhumen revival spells."
+  - rscadd: "Ports repair kits to the game."

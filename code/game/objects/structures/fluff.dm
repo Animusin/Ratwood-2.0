@@ -290,7 +290,7 @@
 	smooth_fences()
 
 /obj/structure/fluff/railing/fence/Destroy()
-	..()
+	. = ..()
 	smooth_fences()
 
 /obj/structure/fluff/railing/fence/OnCrafted(dirin)
@@ -479,7 +479,7 @@
 		user.visible_message("<span class='info'>[user] Carves a name into the passage.</span>")
 		if(do_after(user, 10))
 			var/passagename
-			passagename = input("What name would you like to carve into the passage?")
+			passagename = stripped_input(user, "What name would you like to carve into the passage?", "", "", MAX_NAME_LEN)
 			if (passagename)
 				name = passagename + "(passage)"
 				desc = "a passage with a name carved into it"
@@ -546,7 +546,7 @@
 		user.visible_message("<span class='info'>[user] Carves a name into the grille.</span>")
 		if(do_after(user, 10))
 			var/grillename
-			grillename = input("What name would you like to carve into the grille?")
+			grillename = stripped_input(user, "What name would you like to carve into the grille?", "", "", MAX_NAME_LEN)
 			if (grillename)
 				name = grillename + "(grille)"
 				desc = "a grille with a name carved into it"
@@ -609,8 +609,8 @@
 
 /obj/structure/fluff/clock/Destroy()
 	if(soundloop)
-		soundloop.stop()
-	..()
+		QDEL_NULL(soundloop)
+	return ..()
 
 /obj/structure/fluff/clock/obj_break(damage_flag)
 	icon_state = "b[initial(icon_state)]"
@@ -686,8 +686,8 @@
 
 /obj/structure/fluff/wallclock/Destroy()
 	if(soundloop)
-		soundloop.stop()
-	..()
+		QDEL_NULL(soundloop)
+	return ..()
 
 /obj/structure/fluff/wallclock/examine(mob/user)
 	. = ..()
@@ -1498,7 +1498,7 @@
 								break
 						if(!excomm_found)
 							// Prompt priest for surname
-							var/surname = input(user, "Enter a surname for the couple:", "Marriage Ceremony") as text|null
+							var/surname = reject_bad_name(input(user, "Enter a surname for the couple:", "Marriage Ceremony") as text|null)
 							if(!surname || !length(trim(surname)))
 								surname = thegroom.dna.species.random_surname()
 							priority_announce("[thegroom.real_name] has married [thebride.real_name]!", title = "Holy Union!", sound = 'sound/misc/bell.ogg')
@@ -1551,7 +1551,7 @@
 
 /obj/structure/fluff/psycross/copper/Destroy()
 	addomen("psycross")
-	..()
+	return ..()
 
 /obj/structure/fluff/psycross/proc/AOE_flash(mob/user, range = 15, power = 5, targeted = FALSE)
 	var/list/mob/targets = get_flash_targets(get_turf(src), range, FALSE)
@@ -1607,7 +1607,6 @@
 		I.anti_stall()
 
 	I = new /obj/item/rogueweapon/sword/long/martyr(src.loc)
-	SSroguemachine.martyrweapon = I
 
 	if(user.put_in_hands(I))
 		to_chat(user, span_notice("The martyr sword appears in your hand."))
@@ -1623,7 +1622,6 @@
 		I.anti_stall()
 
 	I = new /obj/item/rogueweapon/greataxe/steel/doublehead/martyr(src.loc)
-	SSroguemachine.martyrweapon = I
 
 	if(user.put_in_hands(I))
 		to_chat(user, span_notice("The martyr axe appears in your hand."))
@@ -1639,7 +1637,6 @@
 		I.anti_stall()
 
 	I = new /obj/item/rogueweapon/mace/goden/martyr(src.loc)
-	SSroguemachine.martyrweapon = I
 
 	if(user.put_in_hands(I))
 		to_chat(user, span_notice("The martyr mace appears in your hand."))
@@ -1655,7 +1652,6 @@
 		I.anti_stall()
 
 	I = new /obj/item/rogueweapon/spear/partizan/martyr(src.loc)
-	SSroguemachine.martyrweapon = I
 
 	if(user.put_in_hands(I))
 		to_chat(user, span_notice("The martyr trident appears in your hand."))

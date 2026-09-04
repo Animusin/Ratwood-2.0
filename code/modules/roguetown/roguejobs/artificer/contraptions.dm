@@ -19,6 +19,12 @@
 	obj_flags_ignore = TRUE
 	/// If this contraption should accept cogs that alter its behaviour
 	var/cog_accept = TRUE
+	var/battery_accept = TRUE
+
+/proc/contraption_misfire_examine_text(misfire_chance, skill)
+	if(skill > 2)
+		return span_warning("You calculate this contraptions chance of failure to be anywhere between [max(0, (misfire_chance - skill) - rand(4))]% and [max(2, (misfire_chance - skill) + rand(3))]%.")
+	return span_warning("It seems slightly unstable...")
 
 /obj/item/contraption/getonmobprop(tag)
 	. = ..()
@@ -55,15 +61,13 @@
 		return
 	var/mob/living/player = user
 	var/skill = player.get_skill_level(/datum/skill/craft/engineering)
-	if(current_charge)
-		. += span_warning("The contraption has [current_charge] charges left.")
-	if(!current_charge)
-		. += span_warning("This contraption requires a new [initial(accepted_power_source.name)] to function.")
-	if(misfire_chance && skill < 6)
-		if(skill > 2)
-			. += span_warning("You calculate this contraptions chance of failure to be anywhere between [max(0, (misfire_chance - skill) - rand(4))]% and [max(2, (misfire_chance - skill) + rand(3))]%.")
-		else
-			. += span_warning("It seems slightly unstable...")
+	if(battery_accept)
+		if(current_charge)
+			. += span_warning("The contraption has [current_charge] charges left.")
+		if(!current_charge)
+			. += span_warning("This contraption requires a new [initial(accepted_power_source.name)] to function.")
+	if(misfire_chance)
+		. += contraption_misfire_examine_text(misfire_chance, skill)
 	if(skill >= 6 && sneaky_misfire_chance)
 		. += span_warning("This contraption has a chance for catastrophic failure in the hands of the inexperient.")
 
@@ -110,7 +114,7 @@
 		S.set_up(1, 1, front)
 		S.start()
 		to_chat(user, "<span class='warning'>[cog.name] inserted!</span>")
-	if(istype(I, accepted_power_source))
+	if(battery_accept && istype(I, accepted_power_source))
 		user.changeNext_move(CLICK_CD_FAST)
 		S.set_up(1, 1, front)
 		S.start()
@@ -381,6 +385,11 @@
 	resistance_flags = FIRE_PROOF
 	grid_height = 32
 	grid_width = 64
+	cog_accept = FALSE
+	battery_accept = FALSE
+
+/obj/item/contraption/folding_table_stored/hammer_action(obj/item/I, mob/user)
+	return
 
 /obj/item/contraption/folding_table_stored/attack_self(mob/user)
 	. = ..()

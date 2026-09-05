@@ -9,6 +9,7 @@
 	icon = 'icons/roguetown/misc/foliage.dmi'
 	icon_state = "glowshroom1" //replaced in New
 	layer = 5.005 //Above stairs (FLY_LAYER 5) so kneestingers stay visible on stair tiles, but below mob effect layers (5.01+)
+	plane = GAME_PLANE
 	light_system = MOVABLE_LIGHT
 	max_integrity = 30
 	blade_dulling = DULLING_CUT

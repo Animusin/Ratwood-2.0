@@ -29,6 +29,8 @@
 	var/max_summons = 2 //Maximum amount of skeletons one summoner can have at a time across all crystals.
 	var/max_charges = 2 //Maximum amount of charges the crystal can hold.
 	var/current_charges = 2
+	/// Skeletons bound to this crystal, retained separately from the summoner-wide cap for crystal cleanup.
+	var/list/active_skeletons = list()
 	grid_height = 32
 	grid_width = 32
 
@@ -145,6 +147,7 @@
 	target.visible_message(span_warning("[target]'s eyes light up with an eerie glow!"))
 	var/datum/weakref/W = WEAKREF(target)
 	summoner_mind.active_necro_skeletons |= W
+	active_skeletons |= W
 
 	target.mind.AddSpell(new /obj/effect/proc_holder/spell/self/suicidebomb/lesser)
 	addtimer(CALLBACK(target, TYPE_PROC_REF(/mob/living/carbon/human, choose_name_popup), "FORTIFIED SKELETON"), 3 SECONDS)
@@ -170,3 +173,13 @@
 	if(alert(src, "Do you wish to change your frame?", "Body Type", "Yes", "No") == "Yes")
 		src.gender = (src.gender == MALE) ? FEMALE : MALE
 	src.regenerate_icons()
+
+/obj/item/necro_relics/necro_crystal/proc/unbind_and_destroy()
+	for(var/datum/weakref/W in active_skeletons)
+		var/mob/living/carbon/human/skele = W.resolve()
+		if(skele && !QDELETED(skele) && skele.stat != DEAD)
+			skele.visible_message(span_warning("[skele] collapses into a pile of inert bones as the dark power binding it fades!"))
+			to_chat(skele, span_warning("The crystal binding your form to this world has been severed. You crumble into dust."))
+			skele.death() // kill rather then delete
+	active_skeletons.Cut()
+	qdel(src)

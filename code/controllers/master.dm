@@ -335,8 +335,7 @@ GLOBAL_REAL(Master, /datum/controller/master)
 	world.change_fps(CONFIG_GET(number/fps))
 	var/initialized_tod = REALTIMEOFDAY
 
-	if(sleep_offline_after_initializations)
-		world.sleep_offline = TRUE
+	world.sleep_offline = sleep_offline_after_initializations
 	sleep(1)
 
 	if(sleep_offline_after_initializations && CONFIG_GET(flag/resume_after_initializations))

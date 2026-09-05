@@ -216,7 +216,12 @@ SUBSYSTEM_DEF(ticker)
 				tipped = TRUE
 
 			if(timeLeft <= 0)
-				if(!checkreqroles() || totalPlayersReady < 1)
+				var/ready_to_start = checkreqroles() && totalPlayersReady >= 1
+#ifdef UNIT_TESTS
+				// CI has no clients; roundstart callbacks must still run the tests.
+				ready_to_start = TRUE
+#endif
+				if(!ready_to_start)
 					current_state = GAME_STATE_STARTUP
 					start_at = world.time + 6000
 					timeLeft = null

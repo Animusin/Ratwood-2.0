@@ -27,6 +27,10 @@
 	var/advjob_examine = TRUE
 	var/horse = FALSE
 
+/// Apply configuration after global role construction, once config is loaded.
+/datum/migrant_role/proc/apply_config()
+	return
+
 /datum/migrant_role/proc/after_spawn(mob/living/carbon/human/character)
 	var/turf/TU = get_turf(character)
 	if(TU)
@@ -55,8 +59,9 @@
 	antag_cap_weight = 0
 	advclass_cat_rolls = list(CTAG_ASSASSIN = 20)
 
-/datum/migrant_role/assassin/New()
-	. = ..()
+/datum/migrant_role/assassin/apply_config()
+	antag_datum = initial(antag_datum)
+	antag_cap_weight = initial(antag_cap_weight)
 	if(CONFIG_GET(string/round_modifier_policy) == "ratwood")
 		antag_datum = /datum/antagonist/assassin/ratwood
 		antag_cap_weight = 0.5

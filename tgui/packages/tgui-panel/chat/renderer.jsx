@@ -124,7 +124,7 @@ const updateMessageBadge = (message) => {
 
 class ChatRenderer {
   constructor() {
-    /** @type {HTMLElement} */
+    /** @type {boolean} */
     this.loaded = false;
     /** @type {HTMLElement} */
     this.rootNode = null;
@@ -443,7 +443,10 @@ class ChatRenderer {
             );
           } else {
             // Fallback: just render the inner content without the component wrapper
-            reactRoot.render(<span dangerouslySetInnerHTML={oldHtml} />, childNode);
+            reactRoot.render(
+              <span dangerouslySetInnerHTML={oldHtml} />,
+              childNode,
+            );
           }
         }
 
@@ -477,8 +480,9 @@ class ChatRenderer {
       }
       // Store the node in the message
       message.node = node;
-      // Query all possible selectors to find out the message type
-      if (!message.type) {
+      // Infer missing or malformed types, including those in saved history.
+      // Filtering and combining messages require a string type.
+      if (typeof message.type !== 'string' || !message.type) {
         const typeDef = MESSAGE_TYPES.find(
           (typeDef) => typeDef.selector && node.querySelector(typeDef.selector),
         );

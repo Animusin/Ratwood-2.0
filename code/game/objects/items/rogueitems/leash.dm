@@ -94,7 +94,7 @@
 	if(!leash_pet.get_item_by_slot(SLOT_NECK)) //The pet has slipped their collar and is not the pet anymore.
 		for(var/mob/viewing in viewers(leash_pet, null))
 			if(viewing == leash_master)
-				to_chat(leash_master, "<span class='notice'>[leash_pet] has escaped their collar!!</span>", 1)
+				to_chat(leash_master, "<span class='notice'>[leash_pet] has escaped their collar!!</span>")
 			else if(viewing == leash_pet)
 				to_chat(leash_pet, "<span class='notice'>You have slipped free of your collar!</span>")
 			else

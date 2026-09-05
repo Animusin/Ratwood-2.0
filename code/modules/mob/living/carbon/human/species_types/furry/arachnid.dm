@@ -136,6 +136,7 @@
 	allowed_taur_types = list(
 		/obj/item/bodypart/taur/spider,
 		/obj/item/bodypart/taur/ant,
+		/obj/item/bodypart/taur/arachne,
 		/obj/item/bodypart/taur/wasp
 	)
 	forced_taur = TRUE

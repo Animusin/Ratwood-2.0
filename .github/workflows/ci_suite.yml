@@ -170,3 +170,11 @@ jobs:
           source $HOME/BYOND/byond/bin/byondsetup
           tools/build/build.sh --ci dm -DCIBUILDING -DANSICOLORS -Werror -ITG0001 -I"loop_checks"
           bash tools/ci/run_server.sh roguetest
+      - name: Upload integration test logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: integration-test-logs
+          path: ci_test/data/logs/
+          if-no-files-found: ignore
+          retention-days: 7

@@ -18,6 +18,9 @@ SUBSYSTEM_DEF(migrants)
 	var/current_parent_wave = null
 
 /datum/controller/subsystem/migrants/Initialize()
+	for(var/role_type in GLOB.migrant_roles)
+		var/datum/migrant_role/role = MIGRANT_ROLE(role_type)
+		role.apply_config()
 	return ..()
 
 /datum/controller/subsystem/migrants/fire(resumed)

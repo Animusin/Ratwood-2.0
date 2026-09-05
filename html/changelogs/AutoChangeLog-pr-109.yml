@@ -1,0 +1,4 @@
+author: "sigmaboy124124"
+delete-after: True
+changes:
+  - bugfix: "far travel now dissolves the departed character's marriage; the widowed spouse gets an IC farewell message instead of a stale link to a removed character"

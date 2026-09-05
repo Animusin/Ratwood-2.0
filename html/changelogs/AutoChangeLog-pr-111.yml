@@ -1,0 +1,5 @@
+author: "Animusin"
+delete-after: True
+changes:
+  - bugfix: "Fixed early Assassin migrant configuration errors and ensured its antagonist policy is applied after startup settings load."
+  - code_imp: "Allowed headless test builds to start their round and preserved integration test logs."

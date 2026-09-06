@@ -229,7 +229,7 @@
 	if(ishuman(caster))
 		var/mob/living/carbon/human/human_caster = caster
 		shape.color = "#[human_caster.dna.features["mcolor"]]"
-	H = new(shape,src,caster)
+	H = new /obj/shapeshift_holder/ooze_form(shape,src,caster)
 	shape.name = "[shape]"
 	shape.faction = caster.faction
 
@@ -239,6 +239,28 @@
 	if(do_gib)
 		playsound(caster.loc, pick('sound/combat/gib (1).ogg','sound/combat/gib (2).ogg'), 200, FALSE, 3)
 		caster.spawn_gibs(FALSE)
+
+/obj/shapeshift_holder/ooze_form/Initialize(mapload, obj/effect/proc_holder/spell/targeted/shapeshift/source, mob/living/caster)
+	. = ..()
+	if(source?.convert_damage)
+		return
+	var/damage_percent = 0
+	if(istype(stored, /mob/living/carbon/human) && shape)
+		damage_percent = clamp((stored.maxHealth - stored.health) / stored.maxHealth, 0, 1)
+	if(damage_percent > 0)
+		shape.apply_damage(shape.maxHealth * damage_percent, BRUTE, forced = TRUE)
+
+/obj/shapeshift_holder/ooze_form/restore(death=FALSE, knockout=0)
+	var/mob/living/carbon/human/returning = istype(stored, /mob/living/carbon/human) ? stored : null
+	var/transfer = 0
+	var/base_handles_damage = source?.convert_damage
+	if(returning && shape && !death && shape.health > 0 && !base_handles_damage)
+		var/shape_missing = clamp((shape.maxHealth - shape.health) / shape.maxHealth, 0, 1)
+		var/human_missing = clamp((returning.maxHealth - returning.health) / returning.maxHealth, 0, 1)
+		transfer = clamp(shape_missing - human_missing, 0, 1)
+	. = ..()
+	if(returning && transfer > 0)
+		returning.apply_damage(returning.maxHealth * transfer, BRUTE, forced = TRUE)
 
 /obj/shapeshift_holder/ooze_death/Initialize(mapload,mob/living/caster)
 	if(!caster)

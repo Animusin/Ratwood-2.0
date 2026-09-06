@@ -400,7 +400,7 @@ GLOBAL_LIST_INIT(spells, typesof(/obj/effect/proc_holder/spell)) //needed for th
 		to_chat(user, span_warning("I can't cast this spell here!"))
 		return FALSE
 
-	if(!charge_check(user))
+	if(!skipcharge && !charge_check(user))
 		return FALSE
 
 	if(user.stat && !stat_allowed)

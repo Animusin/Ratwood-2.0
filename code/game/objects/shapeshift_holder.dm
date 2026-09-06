@@ -4,6 +4,8 @@
 	var/mob/living/stored
 	var/mob/living/shape
 	var/restoring = FALSE
+	var/initial_damage_percent = 0
+	var/obj/item/bodypart/damage_bodypart
 	var/datum/soullink/shapeshift/slink
 	var/obj/effect/proc_holder/spell/targeted/shapeshift/source
 
@@ -19,8 +21,17 @@
 	stored.forceMove(src)
 	stored.notransform = TRUE
 	if(source.convert_damage)
-		var/damage_percent = (stored.maxHealth - stored.health)/stored.maxHealth;
-		var/damapply = damage_percent * shape.maxHealth;
+		initial_damage_percent = max(0, (stored.maxHealth - stored.health) / stored.maxHealth)
+		if(source.preserve_injuries && iscarbon(stored))
+			var/mob/living/carbon/carbon_caster = stored
+			var/worst_injury = -1
+			for(var/obj/item/bodypart/part as anything in carbon_caster.bodyparts)
+				var/injury = (part.brute_dam + part.burn_dam) / part.max_damage
+				if(injury > worst_injury)
+					worst_injury = injury
+					damage_bodypart = part
+			initial_damage_percent = min(0.99, max(initial_damage_percent, worst_injury))
+		var/damapply = initial_damage_percent * shape.maxHealth
 
 		shape.apply_damage(damapply, source.convert_damage_type, forced = TRUE);
 
@@ -68,6 +79,8 @@
 		restore(knockout=source.knockout_on_death)
 
 /obj/shapeshift_holder/proc/restore(death=FALSE, knockout=0)
+	if(restoring)
+		return
 	restoring = TRUE
 	qdel(slink)
 	if (stored)
@@ -90,12 +103,18 @@
 	if(death)
 		stored.death()
 	else if(stored && source.convert_damage)
-		stored.revive(full_heal = TRUE, admin_revive = FALSE)
+		var/damage_percent = (shape.maxHealth - shape.health) / shape.maxHealth
+		if(source.preserve_injuries)
+			// Carbon health ignores brute wounds. Return damage to the same limb
+			// used on entry, so shifting again cannot provide a fresh health pool.
+			if(damage_bodypart?.owner == stored && damage_percent > initial_damage_percent)
+				var/new_damage = max(0, damage_percent * damage_bodypart.max_damage - damage_bodypart.brute_dam - damage_bodypart.burn_dam)
+				stored.apply_damage(new_damage, source.convert_damage_type, damage_bodypart, forced = TRUE)
+		else
+			stored.revive(full_heal = TRUE, admin_revive = FALSE)
+			var/damapply = stored.maxHealth * damage_percent
 
-		var/damage_percent = (shape.maxHealth - shape.health)/shape.maxHealth;
-		var/damapply = stored.maxHealth * damage_percent
-
-		stored.apply_damage(damapply, source.convert_damage_type, forced = TRUE)
+			stored.apply_damage(damapply, source.convert_damage_type, forced = TRUE)
 	to_chat(stored, span_notice("Bug notice: If you can no longer see emotes, move to a different z level and back (up/down a level). This is a known bug."))
 	qdel(shape)
 	if (!QDELETED(src))

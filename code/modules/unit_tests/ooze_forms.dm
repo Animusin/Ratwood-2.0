@@ -1,0 +1,101 @@
+/datum/unit_test/ooze_form_cast/Run()
+	var/mob/living/carbon/human/caster = allocate(/mob/living/carbon/human/consistent)
+	caster.set_species(/datum/species/ooze)
+	caster.mind_initialize()
+	var/datum/mind/player = caster.mind
+	var/obj/effect/proc_holder/spell/targeted/shapeshift/ooze/spell = allocate(/obj/effect/proc_holder/spell/targeted/shapeshift/ooze)
+	player.AddSpell(spell)
+	spell.centcom_cancast = TRUE
+	TEST_ASSERT(spell.cast_check(FALSE, caster), "A ready Blob Form must pass its initial cast check.")
+	var/started = world.time
+	var/expected_delay = spell.chargetime * caster.do_after_coefficent()
+	TEST_ASSERT(spell.perform(list(caster), user = caster), "Casting Blob Form should succeed for an unrestrained ooze.")
+	TEST_ASSERT(world.time >= started + expected_delay, "Changing form must take the declared channel time.")
+	TEST_ASSERT(!spell.charge_check(player.current, TRUE), "The channel must not consume the cooldown before the form changes.")
+	var/mob/living/shape = player.current
+	TEST_ASSERT(shape != caster, "Casting must enter blob form.")
+	spell.finish_recharge()
+	TEST_ASSERT(spell.cast_check(FALSE, shape), "Blob Form must be usable again after its cooldown.")
+	TEST_ASSERT(spell.perform(list(shape), user = shape), "Casting in blob form must return success when restoring.")
+	TEST_ASSERT_EQUAL(player.current, caster, "Casting again must restore the original body.")
+	TEST_ASSERT(!spell.charge_check(caster, TRUE), "Restoring must also start a cooldown.")
+	spell.changing_form = TRUE
+	TEST_ASSERT(!spell.cast(list(caster), caster), "Overlapping transformations must be rejected.")
+	spell.changing_form = FALSE
+	addtimer(CALLBACK(caster, TYPE_PROC_REF(/atom/movable, forceMove), run_loc_floor_top_right), 1)
+	TEST_ASSERT(!spell.cast(list(caster), caster), "Movement must interrupt transformation.")
+	TEST_ASSERT_EQUAL(player.current, caster, "An interrupted channel must keep the original form.")
+
+/datum/unit_test/ooze_form_damage/Run()
+	var/mob/living/carbon/human/caster = allocate(/mob/living/carbon/human/consistent)
+	caster.set_species(/datum/species/ooze)
+	caster.mind_initialize()
+	var/datum/mind/player = caster.mind
+	var/obj/effect/proc_holder/spell/targeted/shapeshift/ooze/spell = allocate(/obj/effect/proc_holder/spell/targeted/shapeshift/ooze)
+	player.AddSpell(spell)
+	caster.adjustFireLoss(20)
+	var/burn_damage = caster.getFireLoss()
+	var/initial_brute = caster.getBruteLoss()
+	spell.Shapeshift(caster)
+	var/mob/living/shape = player.current
+	TEST_ASSERT(shape != caster, "An ooze should enter blob form.")
+	TEST_ASSERT(shape.health < shape.maxHealth, "Blob form must inherit existing damage.")
+	shape.adjustBruteLoss(20)
+	var/blob_health_fraction = shape.health / shape.maxHealth
+	spell.Restore(shape)
+	TEST_ASSERT_EQUAL(player.current, caster, "Restoring must return the mind to its original body.")
+	TEST_ASSERT_EQUAL(caster.getFireLoss(), burn_damage, "Shifting must not erase burns.")
+	TEST_ASSERT(caster.getBruteLoss() > initial_brute, "Blob damage must be carried back into the body.")
+	var/brute_after_damage = caster.getBruteLoss()
+	spell.Shapeshift(caster)
+	TEST_ASSERT(abs(player.current.health / player.current.maxHealth - blob_health_fraction) < 0.01, "Another shift must not grant a fresh blob health pool.")
+	spell.Restore(player.current)
+	TEST_ASSERT(abs(caster.getBruteLoss() - brute_after_damage) < 0.1, "Another shift must neither heal nor double-count old damage.")
+	caster.death()
+	var/mob/living/remains = player.current
+	TEST_ASSERT(istype(remains, /mob/living/simple_animal/hostile/retaliate/rogue/ooze_blob/suffering), "Lethal damage should leave vulnerable remains.")
+	TEST_ASSERT(!spell.can_change_form(remains), "Vulnerable remains must not change form freely.")
+	remains.death()
+	TEST_ASSERT_EQUAL(remains.stat, DEAD, "Vulnerable remains must be killable.")
+	TEST_ASSERT_EQUAL(player.current, remains, "Death must not return the player to a living body.")
+	qdel(remains)
+	TEST_ASSERT_EQUAL(caster.stat, DEAD, "Deleting remains must not revive the ooze.")
+
+/datum/unit_test/ooze_blob_death/Run()
+	var/mob/living/carbon/human/caster = allocate(/mob/living/carbon/human/consistent)
+	caster.set_species(/datum/species/ooze)
+	caster.mind_initialize()
+	var/datum/mind/player = caster.mind
+	var/obj/effect/proc_holder/spell/targeted/shapeshift/ooze/spell = allocate(/obj/effect/proc_holder/spell/targeted/shapeshift/ooze)
+	player.AddSpell(spell)
+	spell.Shapeshift(caster)
+	player.current.death()
+	var/mob/living/remains = player.current
+	TEST_ASSERT(istype(remains, /mob/living/simple_animal/hostile/retaliate/rogue/ooze_blob/suffering), "Killing blob form must require revival, not grant a fresh body.")
+	TEST_ASSERT(istype(caster.loc, /obj/shapeshift_holder/ooze_death), "The body must remain inside its death holder.")
+	remains.revive(TRUE)
+	TEST_ASSERT_EQUAL(player.current, caster, "A real revival must restore the humanoid body.")
+	TEST_ASSERT(!caster.notransform, "Revival must release the body from its holder.")
+	TEST_ASSERT(player.has_spell(/obj/effect/proc_holder/spell/targeted/shapeshift/ooze), "Revival must restore Blob Form.")
+
+/datum/unit_test/ooze_werewolf_death/Run()
+	var/mob/living/carbon/human/caster = allocate(/mob/living/carbon/human/consistent)
+	caster.set_species(/datum/species/ooze)
+	caster.mind_initialize()
+	var/datum/mind/player = caster.mind
+	var/datum/antagonist/werewolf/wolf = player.add_antag_datum(/datum/antagonist/werewolf/lesser)
+	caster.werewolf_transform()
+	wolf.transformed = TRUE
+	var/mob/living/beast = player.current
+	TEST_ASSERT(istype(beast, /mob/living/carbon/human/species/werewolf), "The test must enter werewolf form.")
+	beast.death()
+	var/mob/living/remains = player.current
+	TEST_ASSERT(istype(remains, /mob/living/simple_animal/hostile/retaliate/rogue/ooze_blob/suffering), "A slain ooze werewolf must leave vulnerable remains.")
+	TEST_ASSERT(istype(caster.loc, /obj/shapeshift_holder/ooze_death), "Untransform must not pull the ooze out of its death holder.")
+	TEST_ASSERT_EQUAL(get_turf(remains), get_turf(caster), "The remains must stay on the map with the stored body.")
+	TEST_ASSERT(!wolf.transformed && !wolf.transforming && !wolf.untransforming, "Werewolf state must reset after death.")
+	wolf.on_life(remains)
+	remains.death()
+	TEST_ASSERT_EQUAL(remains.stat, DEAD, "An ooze werewolf's remains must be killable.")
+	TEST_ASSERT_EQUAL(player.current, remains, "Killing remains must not grant another werewolf body.")
+	qdel(remains)

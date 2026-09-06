@@ -35,17 +35,16 @@
 	dna?.species?.stop_wagging_tail(src)
 
 	//OV edit
-	if(isooze(src))
-		var/obj/shapeshift_holder/ooze_death/H = locate() in src
-		if(!H)
+	if(isooze(src) && !gibbed)
+		if(!istype(loc, /obj/shapeshift_holder/ooze_death))
 			var/shapeshift_type = /mob/living/simple_animal/hostile/retaliate/rogue/ooze_blob/suffering
 			var/mob/living/shape = new shapeshift_type(src.loc)
 			shape.color = "#[dna.features["mcolor"]]"
 
-			H = new(shape,src)
+			new /obj/shapeshift_holder/ooze_death(shape, src)
 			shape.name = "[shape]"
 
-			shape.mind.RemoveSpell(/obj/effect/proc_holder/spell/targeted/shapeshift/ooze)
+			shape.mind?.RemoveSpell(/obj/effect/proc_holder/spell/targeted/shapeshift/ooze)
 
 			return
 	//OV edit end

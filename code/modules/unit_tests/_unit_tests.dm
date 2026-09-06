@@ -92,6 +92,7 @@
 #include "create_and_destroy.dm"
 #include "focus_only_tests.dm"
 #include "migrant_config.dm"
+#include "ooze_forms.dm"
 #include "reagent_id_typos.dm"
 #include "reagent_recipe_collisions.dm"
 #include "spawn_humans.dm"

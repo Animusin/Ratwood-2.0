@@ -187,16 +187,41 @@
 
 /obj/effect/proc_holder/spell/targeted/shapeshift/ooze
 	name = "Blob Form"
-	desc = ""
+	desc = "Spend five seconds changing between blob and humanoid form. Injuries persist between forms; losing your blob form requires revival."
 	overlay_state = ""
 	gesture_required = TRUE
 	chargetime = 5 SECONDS
 	recharge_time = 50
 	cooldown_min = 50
-	die_with_shapeshifted_form = FALSE
+	die_with_shapeshifted_form = TRUE
 	shapeshift_type = /mob/living/simple_animal/hostile/retaliate/rogue/ooze_blob/transformed
-	convert_damage = FALSE
+	convert_damage = TRUE
+	preserve_injuries = TRUE
 	do_gib = FALSE
+	var/changing_form = FALSE
+
+/obj/effect/proc_holder/spell/targeted/shapeshift/ooze/cast(list/targets, mob/user = usr)
+	if(changing_form || !can_change_form(user))
+		return FALSE
+	changing_form = TRUE
+	var/completed = do_after(user, chargetime, target = user)
+	changing_form = FALSE
+	if(!completed || !can_change_form(user) || !cast_check(TRUE, user))
+		return FALSE
+	// The recharge used during the channel must not allow an immediate reversal.
+	charge_counter = 0
+	last_process_time = world.time
+	return ..()
+
+/obj/effect/proc_holder/spell/targeted/shapeshift/ooze/proc/can_change_form(mob/living/caster)
+	if(!istype(caster) || caster.stat != CONSCIOUS || caster.notransform || caster.health <= 0)
+		return FALSE
+	if(caster.restrained(ignore_grab = FALSE))
+		return FALSE
+	if(isooze(caster))
+		return TRUE
+	var/obj/shapeshift_holder/H = locate() in caster
+	return istype(caster, /mob/living/simple_animal/hostile/retaliate/rogue/ooze_blob/transformed) && H?.source == src
 
 /mob/living/simple_animal/hostile/retaliate/rogue/ooze_blob/transformed
 	melee_damage_lower = 9
@@ -220,6 +245,8 @@
 		H.restore()
 
 /obj/effect/proc_holder/spell/targeted/shapeshift/ooze/Shapeshift(mob/living/caster)
+	if(!isooze(caster) || !can_change_form(caster))
+		return
 	var/obj/shapeshift_holder/H = locate() in caster
 	if(H)
 		to_chat(caster, span_warning("You're already shapeshifted!"))
@@ -255,6 +282,18 @@
 	playsound(shape.loc, pick('sound/combat/gib (1).ogg','sound/combat/gib (2).ogg'), 200, FALSE, 3)
 	slink = soullink(/datum/soullink/shapeshift, stored , shape)
 	slink.source = src
+	return INITIALIZE_HINT_NORMAL
+
+/obj/shapeshift_holder/ooze_death/Destroy()
+	// Deleting the remains must not invoke restore(), which revives the ooze.
+	if(!restoring)
+		restoring = TRUE
+		QDEL_NULL(slink)
+		if(stored)
+			stored.forceMove(get_turf(src))
+			stored.notransform = FALSE
+			stored.death(TRUE, TRUE)
+	return ..()
 
 /obj/shapeshift_holder/ooze_death/restore(death=FALSE, knockout=0)
 	if(restoring || QDELETED(src))
@@ -277,7 +316,7 @@
 		shape.mind?.transfer_to(stored)
 	stored.revive(full_heal = TRUE, admin_revive = FALSE)
 	to_chat(stored, span_notice("Bug notice: If you can no longer see emotes, move to a different z level and back (up/down a level). This is a known bug."))
-	stored.mind.AddSpell(new /obj/effect/proc_holder/spell/targeted/shapeshift/ooze)
+	stored.mind?.AddSpell(new /obj/effect/proc_holder/spell/targeted/shapeshift/ooze)
 	stored.Knockdown(200)
 	stored.Stun(200)
 	stored.apply_status_effect(/datum/status_effect/debuff/revived)

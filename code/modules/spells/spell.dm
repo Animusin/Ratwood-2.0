@@ -385,6 +385,14 @@ GLOBAL_LIST_INIT(spells, typesof(/obj/effect/proc_holder/spell)) //needed for th
 			stats += span_info("Stamina cost: [base_fd]")
 	return stats
 
+/obj/effect/proc_holder/spell/proc/get_caster_body(mob/user)
+	if(ishuman(user))
+		return user
+	var/obj/shapeshift_holder/shapeshift = locate() in user
+	if(istype(shapeshift) && istype(shapeshift.stored, /mob/living/carbon/human))
+		return shapeshift.stored
+	return null
+
 /obj/effect/proc_holder/spell/proc/cast_check(skipcharge, mob/user = usr) //checks if the spell can be cast based on its settings; skipcharge is used when an additional cast_check is called inside the spell
 	if(player_lock)
 		if(!user.mind || !(src in user.mind.spell_list) && !(src in user.mob_spell_list))
@@ -461,6 +469,12 @@ GLOBAL_LIST_INIT(spells, typesof(/obj/effect/proc_holder/spell)) //needed for th
 			return FALSE
 		if(nonabstract_req && (isbrain(user)))
 			to_chat(user, span_warning("This spell can only be cast by physical beings!"))
+			return FALSE
+
+	if(miracle && !ishuman(user))
+		var/mob/living/carbon/human/devotee = get_caster_body(user)
+		if(devotee && !devotee.devotion?.check_devotion(src))
+			to_chat(user, span_warning("I don't have enough devotion!"))
 			return FALSE
 
 	if(req_items.len)
@@ -647,14 +661,14 @@ GLOBAL_LIST_INIT(spells, typesof(/obj/effect/proc_holder/spell)) //needed for th
 			playMagSound()
 		after_cast(targets, user = user)
 		if(isliving(user))
-			var/mob/living/L = user
+			var/mob/living/L = get_caster_body(user) || user
 			// Apply stamina drain — the on_mmb path is never reached due to check_click_intercept consuming the click first
 			if(releasedrain > 0)
 				var/fatigue = calculate_fatigue_drain(L)
 				if(fatigue > 0)
 					L.stamina_add(fatigue)
-			if(L.has_status_effect(/datum/status_effect/buff/clash))
-				var/mob/living/carbon/human/H = user
+			if(L.has_status_effect(/datum/status_effect/buff/clash) && ishuman(L))
+				var/mob/living/carbon/human/H = L
 				H.bad_guard(span_warning("I can't focus while casting spells!"), cheesy = TRUE)
 		if(action)
 			action.UpdateButtonIcon()
@@ -707,10 +721,11 @@ GLOBAL_LIST_INIT(spells, typesof(/obj/effect/proc_holder/spell)) //needed for th
 				var/datum/effect_system/smoke_spread/sleeping/smoke = new
 				smoke.set_up(smoke_amt, location)
 				smoke.start()
-	if(devotion_cost && ishuman(user))
-		var/mob/living/carbon/human/devotee = user
-		devotee.devotion?.update_devotion(-devotion_cost)
-		to_chat(devotee, "<font color='purple'>I [devotion_cost > 0 ? "lost" : "gained"] [abs(devotion_cost)] devotion.</font>")
+	if(devotion_cost)
+		var/mob/living/carbon/human/devotee = get_caster_body(user)
+		devotee?.devotion?.update_devotion(-devotion_cost)
+		if(devotee?.devotion)
+			to_chat(user, "<font color='purple'>I [devotion_cost > 0 ? "lost" : "gained"] [abs(devotion_cost)] devotion.</font>")
 
 	if(user.mmb_intent && user.mmb_intent.mob_light)
 		QDEL_NULL(user.mmb_intent.mob_light)

@@ -393,6 +393,13 @@ GLOBAL_LIST_INIT(spells, typesof(/obj/effect/proc_holder/spell)) //needed for th
 		return shapeshift.stored
 	return null
 
+/obj/effect/proc_holder/spell/proc/guard_human_cast(mob/user)
+	if(ishuman(user))
+		return TRUE
+	revert_cast(user)
+	to_chat(user, span_warning("My current form cannot channel this."))
+	return FALSE
+
 /obj/effect/proc_holder/spell/proc/cast_check(skipcharge, mob/user = usr) //checks if the spell can be cast based on its settings; skipcharge is used when an additional cast_check is called inside the spell
 	if(player_lock)
 		if(!user.mind || !(src in user.mind.spell_list) && !(src in user.mob_spell_list))
@@ -464,7 +471,7 @@ GLOBAL_LIST_INIT(spells, typesof(/obj/effect/proc_holder/spell)) //needed for th
 				return FALSE
 
 	else
-		if(clothes_req || human_req)
+		if((clothes_req || human_req) && !get_caster_body(user))
 			to_chat(user, span_warning("This spell can only be cast by humans!"))
 			return FALSE
 		if(nonabstract_req && (isbrain(user)))
@@ -478,11 +485,12 @@ GLOBAL_LIST_INIT(spells, typesof(/obj/effect/proc_holder/spell)) //needed for th
 			return FALSE
 
 	if(req_items.len)
+		var/mob/living/carbon/human/truebody = get_caster_body(user)
 		var/list/missing_names = list()
 		var/met_requirement = FALSE
 		for(var/I in req_items)
 			met_requirement = FALSE
-			for(var/obj/item/IN in user.contents)
+			for(var/obj/item/IN in (truebody ? truebody.contents : user.contents))
 				if(istype(IN, I))
 					met_requirement = TRUE
 					continue
@@ -494,7 +502,9 @@ GLOBAL_LIST_INIT(spells, typesof(/obj/effect/proc_holder/spell)) //needed for th
 			return FALSE
 
 	if(req_inhand)
-		if(!istype(user.get_active_held_item(), req_inhand))
+		var/mob/living/carbon/human/truebody = get_caster_body(user)
+		var/mob/living/hand_body = truebody || user
+		if(!istype(hand_body.get_active_held_item(), req_inhand))
 			var/obj/item/M = req_inhand
 			var/req_name = M.name
 			to_chat(user, span_warning("I'm missing [req_name] in my hand to cast this."))
@@ -877,7 +887,7 @@ GLOBAL_LIST_INIT(spells, typesof(/obj/effect/proc_holder/spell)) //needed for th
 	action.UpdateButtonIcon(status_only, force)
 
 /obj/effect/proc_holder/spell/proc/can_be_cast_by(mob/caster)
-	if((human_req || clothes_req) && !ishuman(caster))
+	if((human_req || clothes_req) && !get_caster_body(caster))
 		return 0
 	return 1
 
@@ -911,7 +921,7 @@ GLOBAL_LIST_INIT(spells, typesof(/obj/effect/proc_holder/spell)) //needed for th
 			return FALSE
 
 	if(!ishuman(user))
-		if(clothes_req || human_req)
+		if((clothes_req || human_req) && !get_caster_body(user))
 			return FALSE
 		if(nonabstract_req && (isbrain(user)))
 			return FALSE
@@ -962,6 +972,8 @@ GLOBAL_LIST_INIT(spells, typesof(/obj/effect/proc_holder/spell)) //needed for th
 
 /obj/effect/proc_holder/spell/self/basic_heal/cast(mob/living/carbon/human/user) //Note the lack of "list/targets" here. Instead, use a "user" var depending on mob requirements.
 	//Also, notice the lack of a "for()" statement that looks through the targets. This is, again, because the spell can only have a single target.
+	if(!guard_human_cast(user))
+		return FALSE
 	user.visible_message(span_warning("A wreath of gentle light passes over [user]!"), span_info("I wreath myself in healing light!"))
 	user.adjustBruteLoss(-10)
 	user.adjustFireLoss(-10)

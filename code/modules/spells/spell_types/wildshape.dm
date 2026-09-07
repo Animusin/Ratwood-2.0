@@ -28,6 +28,8 @@
 
 /obj/effect/proc_holder/spell/self/wildshape/cast(list/targets, mob/living/carbon/human/user = usr)
 	. = ..()
+	if(!guard_human_cast(user))
+		return FALSE
 	if(user.has_status_effect(/datum/status_effect/debuff/submissive))
 		to_chat(user, span_warning("Your will is too broken to change form."))
 		return FALSE

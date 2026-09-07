@@ -170,6 +170,8 @@
 	human_req = TRUE
 
 /obj/effect/proc_holder/spell/self/the_division_bell/cast(list/targets, mob/living/carbon/human/user = usr)
+	if(!guard_human_cast(user))
+		return FALSE
 	if(user.has_status_effect(/datum/status_effect/buff/herald_progress_harmony))
 		user.remove_status_effect(/datum/status_effect/buff/herald_progress_harmony)
 		to_chat(user, span_warning("My music will show the division of the faithful from the fearful."))

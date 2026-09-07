@@ -105,8 +105,7 @@
 
 /obj/effect/proc_holder/spell/self/psydonrespite/cast(mob/living/carbon/human/user) // It's a very tame self-heal. Nothing too special.
 	. = ..()
-	if(!ishuman(user))
-		revert_cast()
+	if(!guard_human_cast(user))
 		return FALSE
 
 	var/mob/living/carbon/human/H = user
@@ -211,8 +210,7 @@
 
 /obj/effect/proc_holder/spell/self/psydonpersist/cast(mob/living/carbon/human/user) // It's a very tame self-heal. Nothing too special.
 	. = ..()
-	if(!ishuman(user))
-		revert_cast()
+	if(!guard_human_cast(user))
 		return FALSE
 
 	var/mob/living/carbon/human/H = user

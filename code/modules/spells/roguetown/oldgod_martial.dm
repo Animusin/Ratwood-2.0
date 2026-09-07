@@ -173,7 +173,7 @@ Given the nature of Psydon, two of these are INTENDED to be refluffed Tennite sp
 	devotion_cost = 80
 
 /obj/effect/proc_holder/spell/self/psydonic_sacrosanctity/cast(mob/living/carbon/human/user)
-	if(!isliving(user))
+	if(!guard_human_cast(user))
 		return FALSE
 	user.set_blood_volume(max(user.get_blood_volume()+200, 0))
 	user.handle_blood()
@@ -205,7 +205,7 @@ Given the nature of Psydon, two of these are INTENDED to be refluffed Tennite sp
 	devotion_cost = 100
 
 /obj/effect/proc_holder/spell/self/psydonic_inviolability/cast(mob/living/carbon/human/user)
-	if(!isliving(user))
+	if(!guard_human_cast(user))
 		return FALSE
 	user.set_blood_volume(max(user.get_blood_volume()-300, 0))//RAAAA!!!!
 	user.handle_blood()
@@ -268,9 +268,8 @@ Given the nature of Psydon, two of these are INTENDED to be refluffed Tennite sp
 	var/obj/item/rogueweapon/conjured_lux_bolt = null
 
 /obj/effect/proc_holder/spell/self/psydonic_lux_bolt/cast(mob/living/carbon/human/user)
-	if(!isliving(user))
+	if(!guard_human_cast(user))
 		return FALSE
-
 	if(src.conjured_lux_bolt)
 		qdel(conjured_lux_bolt)
 	var/obj/item/ammo_casing/caseless/rogue/heavy_bolt/R = new /obj/item/ammo_casing/caseless/rogue/heavy_bolt/lux(user.drop_location())

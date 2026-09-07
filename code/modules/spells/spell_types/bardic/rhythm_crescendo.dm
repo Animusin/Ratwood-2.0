@@ -122,6 +122,8 @@
 	action.UpdateButtonIcon(force = TRUE)
 
 /obj/effect/proc_holder/spell/self/rhythm/cast(list/targets, mob/living/carbon/human/user)
+	if(!guard_human_cast(user))
+		return FALSE
 	if(!user?.inspiration || user.inspiration.level < BARD_T2)
 		to_chat(user, span_warning("I do not know how to hold a battle rhythm."))
 		return FALSE
@@ -319,6 +321,8 @@
 	action.UpdateButtonIcon(force = TRUE)
 
 /obj/effect/proc_holder/spell/self/crescendo/cast(list/targets, mob/living/carbon/human/user)
+	if(!guard_human_cast(user))
+		return FALSE
 	if(!user?.inspiration || user.inspiration.level < BARD_T3)
 		to_chat(user, span_warning("I cannot build a crescendo yet."))
 		return FALSE

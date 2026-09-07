@@ -544,8 +544,10 @@
 	var/first_cast = FALSE
 
 /obj/effect/proc_holder/spell/self/howl/call_of_the_moon/cast(mob/living/carbon/human/user)
+	if(!guard_human_cast(user))
+		return FALSE
 	// only usable at night
-	if (!GLOB.tod == "night")
+	if (GLOB.tod != "night")
 		to_chat(user, span_warning("I must wait for the hidden moon to rise before I may call upon it."))
 		revert_cast()
 		return

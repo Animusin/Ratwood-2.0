@@ -111,7 +111,8 @@
 	var/obj/item/stored_neck = wear_neck
 	var/obj/item/stored_ring = wear_ring
 	for(var/obj/item/W in src)
-		dropItemToGround(W)
+		// This body is deleted at the end of the transformation, so its items must not stay inside it.
+		dropItemToGround(W, force = TRUE)
 	icon = null
 	invisibility = INVISIBILITY_MAXIMUM
 

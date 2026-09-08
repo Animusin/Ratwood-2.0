@@ -352,6 +352,7 @@ GLOBAL_LIST_INIT(spells, typesof(/obj/effect/proc_holder/spell)) //needed for th
 
 /obj/effect/proc_holder/spell/proc/get_spell_statistics(mob/living/user)
 	var/list/stats = list()
+	var/mob/living/cost_user = get_caster_body(user) || user
 	if(range)
 		stats += span_info("Range: [range] tiles")
 	var/base_ct = chargetime
@@ -376,22 +377,24 @@ GLOBAL_LIST_INIT(spells, typesof(/obj/effect/proc_holder/spell)) //needed for th
 			stats += span_info("Cooldown: [DisplayTimeText(base_cd)]")
 	var/base_fd = releasedrain
 	if(base_fd > 0)
-		var/dynamic_fd = user ? calculate_fatigue_drain(user) : base_fd
+		var/dynamic_fd = cost_user ? calculate_fatigue_drain(cost_user) : base_fd
 		if(dynamic_fd != base_fd)
 			stats += span_info("Stamina cost: [base_fd] (current: [dynamic_fd])")
-			if(user)
-				stats += get_fatigue_breakdown(user)
+			if(cost_user)
+				stats += get_fatigue_breakdown(cost_user)
 		else
 			stats += span_info("Stamina cost: [base_fd]")
 	return stats
 
 /obj/effect/proc_holder/spell/proc/get_caster_body(mob/user)
+	if(!user)
+		return
 	if(ishuman(user))
 		return user
 	var/obj/shapeshift_holder/shapeshift = locate() in user
-	if(istype(shapeshift) && istype(shapeshift.stored, /mob/living/carbon/human))
-		return shapeshift.stored
-	return null
+	var/mob/living/carbon/human/caster_body = shapeshift?.stored
+	if(istype(caster_body))
+		return caster_body
 
 /obj/effect/proc_holder/spell/proc/guard_human_cast(mob/user)
 	if(ishuman(user))
@@ -443,6 +446,7 @@ GLOBAL_LIST_INIT(spells, typesof(/obj/effect/proc_holder/spell)) //needed for th
 		to_chat(user, span_warning("[name] cannot be cast unless I am completely manifested in the material plane!"))
 		return FALSE
 
+	var/mob/living/carbon/human/caster_body = get_caster_body(user)
 	if(ishuman(user))
 		var/mob/living/carbon/human/H = user
 		if((invocation_type == "whisper" || invocation_type == "shout") && ((!H.can_speak_vocal() && !(mute_allowed && HAS_TRAIT(H, TRAIT_PERMAMUTE) && !H.check_mouth_grabbed())) || !H.getorganslot(ORGAN_SLOT_TONGUE)))
@@ -459,9 +463,6 @@ GLOBAL_LIST_INIT(spells, typesof(/obj/effect/proc_holder/spell)) //needed for th
 			to_chat(user, span_warning("My body is paralyzed!"))
 			return FALSE
 
-		if(miracle && !H.devotion?.check_devotion(src))
-			to_chat(H, span_warning("I don't have enough devotion!"))
-			return FALSE
 		if(gesture_required)
 			if(H.handcuffed)
 				to_chat(user, span_warning("[name] cannot be cast with my hands tied up!"))
@@ -471,40 +472,36 @@ GLOBAL_LIST_INIT(spells, typesof(/obj/effect/proc_holder/spell)) //needed for th
 				return FALSE
 
 	else
-		if((clothes_req || human_req) && !get_caster_body(user))
+		if((clothes_req || human_req) && !caster_body)
 			to_chat(user, span_warning("This spell can only be cast by humans!"))
 			return FALSE
 		if(nonabstract_req && (isbrain(user)))
 			to_chat(user, span_warning("This spell can only be cast by physical beings!"))
 			return FALSE
 
-	if(miracle && !ishuman(user))
-		var/mob/living/carbon/human/devotee = get_caster_body(user)
-		if(devotee && !devotee.devotion?.check_devotion(src))
-			to_chat(user, span_warning("I don't have enough devotion!"))
-			return FALSE
+	if(miracle && caster_body && !caster_body.devotion?.check_devotion(src))
+		to_chat(user, span_warning("I don't have enough devotion!"))
+		return FALSE
 
 	if(req_items.len)
-		var/mob/living/carbon/human/truebody = get_caster_body(user)
+		var/mob/living/requirement_body = caster_body || user
 		var/list/missing_names = list()
-		var/met_requirement = FALSE
 		for(var/I in req_items)
-			met_requirement = FALSE
-			for(var/obj/item/IN in (truebody ? truebody.contents : user.contents))
+			var/met_requirement = FALSE
+			for(var/obj/item/IN in requirement_body.contents)
 				if(istype(IN, I))
 					met_requirement = TRUE
-					continue
+					break
 			if(!met_requirement)
 				var/obj/item/M = I
 				missing_names.Add(M.name)
-		if(!met_requirement)
+		if(missing_names.len)
 			to_chat(user, span_warning("I'm missing [missing_names.Join(", ")] to cast this."))
 			return FALSE
 
 	if(req_inhand)
-		var/mob/living/carbon/human/truebody = get_caster_body(user)
-		var/mob/living/hand_body = truebody || user
-		if(!istype(hand_body.get_active_held_item(), req_inhand))
+		var/mob/living/requirement_body = caster_body || user
+		if(!istype(requirement_body.get_active_held_item(), req_inhand))
 			var/obj/item/M = req_inhand
 			var/req_name = M.name
 			to_chat(user, span_warning("I'm missing [req_name] in my hand to cast this."))
@@ -671,14 +668,14 @@ GLOBAL_LIST_INIT(spells, typesof(/obj/effect/proc_holder/spell)) //needed for th
 			playMagSound()
 		after_cast(targets, user = user)
 		if(isliving(user))
-			var/mob/living/L = get_caster_body(user) || user
+			var/mob/living/cost_user = get_caster_body(user) || user
 			// Apply stamina drain — the on_mmb path is never reached due to check_click_intercept consuming the click first
 			if(releasedrain > 0)
-				var/fatigue = calculate_fatigue_drain(L)
+				var/fatigue = calculate_fatigue_drain(cost_user)
 				if(fatigue > 0)
-					L.stamina_add(fatigue)
-			if(L.has_status_effect(/datum/status_effect/buff/clash) && ishuman(L))
-				var/mob/living/carbon/human/H = L
+					cost_user.stamina_add(fatigue)
+			if(cost_user.has_status_effect(/datum/status_effect/buff/clash) && ishuman(cost_user))
+				var/mob/living/carbon/human/H = cost_user
 				H.bad_guard(span_warning("I can't focus while casting spells!"), cheesy = TRUE)
 		if(action)
 			action.UpdateButtonIcon()

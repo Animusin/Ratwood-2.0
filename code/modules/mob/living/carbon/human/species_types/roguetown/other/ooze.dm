@@ -242,22 +242,21 @@
 
 /obj/shapeshift_holder/ooze_form/Initialize(mapload, obj/effect/proc_holder/spell/targeted/shapeshift/source, mob/living/caster)
 	. = ..()
-	if(source?.convert_damage)
-		return
-	var/damage_percent = 0
-	if(istype(stored, /mob/living/carbon/human) && shape)
-		damage_percent = clamp((stored.maxHealth - stored.health) / stored.maxHealth, 0, 1)
-	if(damage_percent > 0)
-		shape.apply_damage(shape.maxHealth * damage_percent, BRUTE, forced = TRUE)
+	if(!source?.convert_damage && shape)
+		var/missing_health = get_missing_health_percent(stored)
+		if(missing_health > 0)
+			shape.apply_damage(shape.maxHealth * missing_health, BRUTE, forced = TRUE)
+
+/obj/shapeshift_holder/ooze_form/proc/get_missing_health_percent(mob/living/body)
+	if(!body || !body.maxHealth)
+		return 0
+	return clamp((body.maxHealth - body.health) / body.maxHealth, 0, 1)
 
 /obj/shapeshift_holder/ooze_form/restore(death=FALSE, knockout=0)
 	var/mob/living/carbon/human/returning = istype(stored, /mob/living/carbon/human) ? stored : null
 	var/transfer = 0
-	var/base_handles_damage = source?.convert_damage
-	if(returning && shape && !death && shape.health > 0 && !base_handles_damage)
-		var/shape_missing = clamp((shape.maxHealth - shape.health) / shape.maxHealth, 0, 1)
-		var/human_missing = clamp((returning.maxHealth - returning.health) / returning.maxHealth, 0, 1)
-		transfer = clamp(shape_missing - human_missing, 0, 1)
+	if(returning && shape && !death && shape.health > 0 && !source?.convert_damage)
+		transfer = clamp(get_missing_health_percent(shape) - get_missing_health_percent(returning), 0, 1)
 	. = ..()
 	if(returning && transfer > 0)
 		returning.apply_damage(returning.maxHealth * transfer, BRUTE, forced = TRUE)

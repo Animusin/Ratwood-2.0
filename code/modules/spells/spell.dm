@@ -392,6 +392,8 @@ GLOBAL_LIST_INIT(spells, typesof(/obj/effect/proc_holder/spell)) //needed for th
 	if(ishuman(user))
 		return user
 	var/obj/shapeshift_holder/shapeshift = locate() in user
+	if(!shapeshift?.source)
+		return
 	var/mob/living/carbon/human/caster_body = shapeshift?.stored
 	if(istype(caster_body))
 		return caster_body

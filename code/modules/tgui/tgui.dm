@@ -88,6 +88,7 @@
 /datum/tgui/proc/open()
 	if(!user.client)
 		return FALSE
+	var/client/opening_client = user.client
 	if(window)
 		return FALSE
 	process_status()
@@ -107,7 +108,18 @@
 			))
 	else
 		window.send_message("ping")
+	if(QDELETED(src) || closing)
+		return FALSE
+	if(user?.client != opening_client)
+		close(FALSE)
+		return FALSE
 	send_assets()
+	// Asset delivery can yield while a lobby spawn or Back to Lobby changes the client mob.
+	if(QDELETED(src) || closing)
+		return FALSE
+	if(user?.client != opening_client)
+		close(FALSE)
+		return FALSE
 	window.send_message("update", get_payload(
 		with_data = TRUE,
 		with_static_data = TRUE))
@@ -127,7 +139,7 @@
 	for(var/datum/asset/asset in src_object.ui_assets(user))
 		flush_queue |= window.send_asset(asset)
 	if (flush_queue)
-		user.client.browse_queue_flush()
+		user?.client?.browse_queue_flush()
 
 /**
  * public

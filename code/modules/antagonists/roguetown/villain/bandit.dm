@@ -23,7 +23,8 @@
 	//owner.assigned_role = "Bandit"
 	forge_objectives()
 	. = ..()
-	equip_bandit()
+	if(!preserve_character)
+		equip_bandit()
 	finalize_bandit()
 
 /datum/antagonist/bandit/proc/finalize_bandit()

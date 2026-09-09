@@ -175,6 +175,10 @@ SUBSYSTEM_DEF(gamemode)
 	var/chaos_divisor = ANTAG_CAP_DENOMINATOR
 	/// Whether the selected chaos mode prevents all automatic antagonist assignment and injection.
 	var/antagonists_disabled = FALSE
+	/// Null follows the population formula; a number overrides the cap for this round.
+	var/admin_antag_cap = null
+	/// One outstanding consent request per character, shared by all admins.
+	var/list/pending_admin_antags = list()
 	/// Connected clients used to calculate the fixed Ratwood roundstart cap.
 	var/roundstart_population_snapshot = 0
 	var/roundstart_cap_snapshot = 0
@@ -299,6 +303,8 @@ SUBSYSTEM_DEF(gamemode)
 /datum/controller/subsystem/gamemode/proc/get_antag_cap()
 	if(antagonists_disabled)
 		return 0
+	if(!isnull(admin_antag_cap))
+		return admin_antag_cap
 	if(round_modifier_policy_name == "ratwood" && !roundstart_antag_allocation_complete)
 		return roundstart_cap_snapshot
 	var/cap_population = get_antag_cap_population()
@@ -824,6 +830,11 @@ SUBSYSTEM_DEF(gamemode)
 	dat += "<BR>Town Strength: [effective_pop] (Total: [active_players] + Garrison Bonus: [garrison * TOWN_COMBATANT_ADDITIONAL_WEIGHT] + Holy Warrior Bonus: [holy_warrior * TOWN_COMBATANT_ADDITIONAL_WEIGHT])"
 	dat += "<BR>Antagonist Cap Population: [antag_cap_population] (Town Strength: [effective_pop] - Adventurers/Inhumen: [antag_cap_excluded_players])"
 	dat += "<BR>Antagonist Count vs Maximum: [get_antag_count()] / [antag_cap]"
+	dat += " <a href='byond://?src=[REF(src)];panel=main;action=set_antag_cap'>Set Cap</a> <a href='byond://?src=[REF(src)];panel=main;action=reset_antag_cap'>Automatic Cap</a> ([isnull(admin_antag_cap) ? "automatic" : "admin override: [admin_antag_cap]"])"
+	dat += "<BR><a href='byond://?src=[REF(src)];panel=main;action=add_minor_slots'>Add Cap-Exempt Minor Slots</a> <a href='byond://?src=[REF(src)];panel=main;action=assign_antag_ckey'>Offer Antagonist by Ckey</a>"
+	for(var/datum/job/job as anything in SSjob.occupations)
+		if(job.admin_slot_antag_type)
+			dat += "<BR>[job.title]: [job.admin_antag_slots] unclaimed cap-exempt slots"
 	dat += "<BR>Round Modifier Policy: [round_modifier_policy_name]"
 	if(round_modifier_policy_name == "ratwood")
 		dat += "<BR>Chaos Mode / Divisor: [chaos_mode_name] / [antagonists_disabled ? "disabled" : chaos_divisor]"
@@ -1052,6 +1063,21 @@ SUBSYSTEM_DEF(gamemode)
 	switch(href_list["panel"])
 		if("main")
 			switch(href_list["action"])
+				if("set_antag_cap")
+					var/new_cap = input(user, "Set the antagonist cap for this round (0 or greater). Lowering it does not remove existing antagonists. Zero Chaos still disables antagonists.", "Antagonist Cap", get_antag_cap()) as num|null
+					if(isnull(new_cap) || new_cap < 0 || !check_rights_for(user?.client, R_ADMIN))
+						return
+					admin_antag_cap = round(new_cap)
+					log_admin("[key_name(user)] set the antagonist cap to [admin_antag_cap].")
+					message_admins("[key_name_admin(user)] set the antagonist cap to [admin_antag_cap].")
+				if("reset_antag_cap")
+					admin_antag_cap = null
+					log_admin("[key_name(user)] restored the automatic antagonist cap.")
+					message_admins("[key_name_admin(user)] restored the automatic antagonist cap.")
+				if("add_minor_slots")
+					admin_add_minor_slots(user)
+				if("assign_antag_ckey")
+					admin_offer_antag(user)
 				if("set_storyteller")
 					message_admins("[key_name_admin(usr)] is picking a new Storyteller.")
 					var/list/name_list = list()

@@ -87,15 +87,16 @@
 	L.update_body_parts(redraw = TRUE)
 
 /datum/antagonist/lich/proc/equip_lich()
-	owner.unknow_all_people()
-	for (var/datum/mind/MF in get_minds())
-		owner.become_unknown_to(MF)
+	if(!preserve_character)
+		owner.unknow_all_people()
+		for (var/datum/mind/MF in get_minds())
+			owner.become_unknown_to(MF)
 
 	var/mob/living/carbon/human/L = owner.current
 	L.cmode_music = 'sound/music/combat_heretic.ogg'
 	L.faction = list("undead")
 
-	if (L.charflaw)
+	if (L.charflaw && !preserve_character)
 		QDEL_NULL(L.charflaw)
 
 	L.mob_biotypes |= MOB_UNDEAD
@@ -104,10 +105,21 @@
 	for (var/obj/item/bodypart/B in L.bodyparts)
 		B.skeletonize(FALSE)
 
-	equip_and_traits()
-	L.equipOutfit(/datum/outfit/job/roguetown/lich)
+	if(preserve_character)
+		for(var/trait in traits_lich)
+			ADD_TRAIT(L, trait, "[type]")
+		L.grant_lich_powers(FALSE)
+		L.mind.adjust_spellpoints(27)
+		var/obj/item/phylactery/new_phylactery = new(get_turf(L))
+		phylacteries += new_phylactery
+		new_phylactery.possessor = src
+		L.put_in_hands(new_phylactery)
+	else
+		equip_and_traits()
+		L.equipOutfit(/datum/outfit/job/roguetown/lich)
 	L.set_patron(/datum/patron/inhumen/zizo)
-	owner.current.forceMove(pick(GLOB.lich_starts)) // as opposed to spawning at their normal role spot as a skeleton; which is le bad
+	if(!preserve_character)
+		owner.current.forceMove(pick(GLOB.lich_starts)) // as opposed to spawning at their normal role spot as a skeleton; which is le bad
 
 
 /datum/outfit/job/roguetown/lich/pre_equip(mob/living/carbon/human/H) //Equipment is located below
@@ -134,7 +146,10 @@
 	H.change_stat(STATKEY_CON, 5)
 	H.change_stat(STATKEY_PER, 3)
 	H.change_stat(STATKEY_SPD, 1)
+	H.grant_lich_powers()
 
+/mob/living/carbon/human/proc/grant_lich_powers(rename = TRUE)
+	var/mob/living/carbon/human/H = src
 	H.grant_language(/datum/language/undead)
 
 	if(H.mind)
@@ -154,7 +169,8 @@
 		H.mind.AddSpell(new /obj/effect/proc_holder/spell/invoked/raise_deadite)
 	H.ambushable = FALSE
 
-	addtimer(CALLBACK(H, TYPE_PROC_REF(/mob/living/carbon/human, choose_name_popup), "LICH"), 5 SECONDS)
+	if(rename)
+		addtimer(CALLBACK(H, TYPE_PROC_REF(/mob/living/carbon/human, choose_name_popup), "LICH"), 5 SECONDS)
 
 /datum/antagonist/lich/proc/replace_eyes(mob/living/carbon/human/L)
 	var/obj/item/organ/eyes/eyes = L.getorganslot(ORGAN_SLOT_EYES)

@@ -6,6 +6,7 @@
 	total_positions = 0
 	spawn_positions = 0
 	antag_job = TRUE
+	admin_slot_antag_type = /datum/antagonist/bandit
 	allowed_races = RACES_ALL_KINDS
 	tutorial = "At some point in your lyfe, you'd fallen to the wrong side of the carriage. Whether by butchery or finesse, you're known throughout the land. \
 	Yet one of many faces in a tavern, hung up on a wall. A tale told by the locals. Now, you lyve in a camp with your fellows, to avoid an unpleasant end."

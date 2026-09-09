@@ -26,6 +26,8 @@ GLOBAL_LIST_EMPTY(antagonists)
 	var/rogue_enabled = FALSE
 	/// If TRUE, the player will be prompted to confirm the antag role. If declined, the antag is removed.
 	var/requires_confirmation = FALSE
+	/// Admin ckey assignment keeps the existing character instead of applying a spawn loadout.
+	var/preserve_character = FALSE
 
 	///flags used by storytellers
 	var/antag_flags = NONE

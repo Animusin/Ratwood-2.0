@@ -3,6 +3,7 @@
 	title = "Wretch"
 	flag = WRETCH
 	antag_job = TRUE
+	admin_slot_antag_type = /datum/antagonist/wretch
 	department_flag = WANDERERS
 	faction = "Station"
 	total_positions = 9

@@ -33,6 +33,8 @@ GLOBAL_LIST_EMPTY(personal_objective_minds)
 
 
 /datum/mind
+	/// Pending exemption from an admin-created latejoin slot, limited to its minor role.
+	var/admin_slot_antag_type
 	var/key
 	var/name				//replaces mob/var/original_name
 	var/ghostname			//replaces name for observers name if set
@@ -378,6 +380,9 @@ GLOBAL_LIST_EMPTY(personal_objective_minds)
 		qdel(A)
 		return
 	A.owner = src
+	if(admin_slot_antag_type && A.type == admin_slot_antag_type)
+		A.antag_flags |= FLAG_ANTAG_CAP_IGNORE
+		admin_slot_antag_type = null
 	LAZYADD(antag_datums, A)
 	A.create_team(team)
 	var/datum/team/antag_team = A.get_team()

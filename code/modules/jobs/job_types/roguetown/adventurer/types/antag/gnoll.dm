@@ -2,6 +2,7 @@
 	title = "Gnoll"
 	flag = GNOLL
 	antag_job = TRUE
+	admin_slot_antag_type = /datum/antagonist/gnoll
 	faction = "Station"
 	total_positions = 0
 	spawn_positions = 0
@@ -229,4 +230,3 @@
 	mob_examine_panel.holder = tracked_target
 	mob_examine_panel.viewing = src
 	mob_examine_panel.ui_interact(src)
-

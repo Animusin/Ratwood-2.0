@@ -20,24 +20,26 @@
 
 /datum/antagonist/vampire/lord/on_gain()
 	. = ..()
-	addtimer(CALLBACK(owner.current, TYPE_PROC_REF(/mob/living/carbon/human, choose_name_popup), "[name]"), 5 SECONDS)
-
-	owner.unknow_all_people()
-	for(var/datum/mind/MF in get_minds())
-		owner.become_unknown_to(MF)
-	for(var/datum/mind/MF in get_minds("Vampire Spawn"))
-		owner.i_know_person(MF)
-		owner.person_knows_me(MF)
+	if(!preserve_character)
+		addtimer(CALLBACK(owner.current, TYPE_PROC_REF(/mob/living/carbon/human, choose_name_popup), "[name]"), 5 SECONDS)
+		owner.unknow_all_people()
+		for(var/datum/mind/MF in get_minds())
+			owner.become_unknown_to(MF)
+		for(var/datum/mind/MF in get_minds("Vampire Spawn"))
+			owner.i_know_person(MF)
+			owner.person_knows_me(MF)
 
 	var/mob/living/carbon/human/H = owner.current
-	H.equipOutfit(/datum/outfit/job/vamplord)
+	if(!preserve_character)
+		H.equipOutfit(/datum/outfit/job/vamplord)
 	H.set_patron(/datum/patron/inhumen/zizo)
 	H.verbs |= /mob/living/carbon/human/proc/demand_submission
 	H.adjust_maxbloodpool(3000)
 	H.adjust_bloodpool(3000)
-	for(var/S in MOBSTATS)
-		H.change_stat(S, 2)
-	H.forceMove(pick(GLOB.vlord_starts))
+	if(!preserve_character)
+		for(var/S in MOBSTATS)
+			H.change_stat(S, 2)
+		H.forceMove(pick(GLOB.vlord_starts))
 
 /datum/antagonist/vampire/lord/greet()
 	to_chat(owner.current, span_userdanger("I am ancient. I am the Land. And I am now awoken to trespassers upon my domain."))

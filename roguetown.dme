@@ -1363,6 +1363,7 @@
 #include "code\modules\admin\adminmenu.dm"
 #include "code\modules\admin\agevetting.dm"
 #include "code\modules\admin\antag_panel.dm"
+#include "code\modules\admin\storyteller_antags.dm"
 #include "code\modules\admin\blacklist.dm"
 #include "code\modules\admin\chat_commands.dm"
 #include "code\modules\admin\check_antagonists.dm"

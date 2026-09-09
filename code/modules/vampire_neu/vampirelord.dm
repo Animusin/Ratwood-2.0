@@ -18,6 +18,20 @@
 /datum/antagonist/vampire/lord/get_antag_cap_weight()
 	return 3
 
+/datum/antagonist/vampire/lord/get_admin_skill_profile()
+	return list(
+		/datum/skill/magic/blood = 6,
+		/datum/skill/combat/wrestling = 5,
+		/datum/skill/combat/unarmed = 4,
+		/datum/skill/combat/swords = 5,
+		/datum/skill/combat/axes = 4,
+		/datum/skill/combat/maces = 4,
+		/datum/skill/combat/polearms = 4,
+		/datum/skill/combat/whipsflails = 4,
+		/datum/skill/misc/reading = 5,
+		/datum/skill/misc/climbing = 5,
+	)
+
 /datum/antagonist/vampire/lord/on_gain()
 	. = ..()
 	if(!preserve_character)

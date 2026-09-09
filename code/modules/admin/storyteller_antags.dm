@@ -1,7 +1,7 @@
 /// Add single-use exemptions without changing the weight of ordinary antagonists.
 /datum/controller/subsystem/gamemode/proc/admin_add_minor_slots(mob/user)
-	if(!check_rights_for(user?.client, R_ADMIN) || !SSticker.HasRoundStarted() || antagonists_disabled)
-		to_chat(user, span_warning("Minor slots can only be added during a round with antagonists enabled."))
+	if(!check_rights_for(user?.client, R_ADMIN) || !SSticker.IsRoundInProgress())
+		to_chat(user, span_warning("Minor slots can only be added during a round."))
 		return
 	var/list/jobs = list()
 	for(var/datum/job/job as anything in SSjob.occupations)
@@ -11,7 +11,7 @@
 	if(!choice)
 		return
 	var/amount = input(user, "How many additional cap-exempt slots (1-100)? These are consumed before normal slots; normal job requirements still apply.", "Extra Minor Slots", 1) as num|null
-	if(isnull(amount) || amount < 1 || amount > 100 || !check_rights_for(user?.client, R_ADMIN) || !SSticker.HasRoundStarted() || antagonists_disabled)
+	if(isnull(amount) || amount < 1 || amount > 100 || !check_rights_for(user?.client, R_ADMIN) || !SSticker.IsRoundInProgress())
 		return
 	amount = round(amount)
 	var/datum/job/job = jobs[choice]
@@ -21,7 +21,7 @@
 	log_admin("[key_name(user)] added [amount] cap-exempt [job.title] slots ([job.admin_antag_slots] unclaimed).")
 	message_admins("[key_name_admin(user)] added [amount] cap-exempt [job.title] slots ([job.admin_antag_slots] unclaimed).")
 
-/// Only roles with an audited in-place gain path belong here. No job/subclass outfits are run.
+/// Only roles with an audited conversion path belong here. No job/subclass outfits are run.
 /datum/controller/subsystem/gamemode/proc/get_admin_antag_types()
 	return list(
 		"Bandit" = /datum/antagonist/bandit,
@@ -35,8 +35,14 @@
 		"Lich" = /datum/antagonist/lich,
 	)
 
-/datum/controller/subsystem/gamemode/proc/can_receive_admin_antag(mob/living/carbon/human/target, datum/antagonist/antag)
-	if(!istype(target) || QDELETED(target) || target.stat == DEAD || !target.client || QDELETED(target.mind) || target.mind.current != target)
+/datum/controller/subsystem/gamemode/proc/can_receive_admin_antag(mob/target, datum/antagonist/antag, require_client = TRUE)
+	if(QDELETED(target) || (require_client && !target.client) || QDELETED(target.mind) || target.mind.current != target)
+		return FALSE
+	if(isnewplayer(target))
+		var/mob/dead/new_player/lobby = target
+		if(lobby.spawning)
+			return FALSE
+	else if(!ishuman(target) || target.stat == DEAD)
 		return FALSE
 	if(QDELETED(antag) || !antag.can_be_owned(target.mind) || antag.is_banned(target))
 		return FALSE
@@ -46,32 +52,33 @@
 	for(var/datum/antagonist/existing as anything in target.mind.antag_datums)
 		if(!(existing.antag_flags & FLAG_FAKE_ANTAG))
 			return FALSE
-	if(istype(antag, /datum/antagonist/werewolf) && !target.can_werewolf())
-		return FALSE
-	if(istype(antag, /datum/antagonist/gnoll) && !is_species(target, /datum/species/gnoll))
-		return FALSE
+	if(ishuman(target))
+		var/mob/living/carbon/human/character = target
+		if(istype(antag, /datum/antagonist/werewolf) && !character.can_werewolf())
+			return FALSE
+		if(istype(antag, /datum/antagonist/gnoll) && !is_species(character, /datum/species/gnoll))
+			return FALSE
 	return TRUE
 
 /datum/controller/subsystem/gamemode/proc/admin_offer_antag(mob/user)
-	if(!check_rights_for(user?.client, R_ADMIN) || !SSticker.HasRoundStarted() || antagonists_disabled)
-		to_chat(user, span_warning("Roles can only be offered during a round with antagonists enabled."))
+	if(!check_rights_for(user?.client, R_ADMIN) || SSticker.current_state == GAME_STATE_FINISHED)
 		return
 	var/target_ckey = ckey(input(user, "Enter the connected player's ckey:", "Offer Antagonist") as text|null)
 	if(!target_ckey)
 		return
 	var/client/target_client = GLOB.directory[target_ckey]
-	var/mob/living/carbon/human/target = target_client?.mob
-	if(!istype(target) || !target.mind || target.stat == DEAD)
-		to_chat(user, span_warning("That ckey must control a living human character."))
+	var/mob/target = target_client?.mob
+	if(!target?.mind || (!isnewplayer(target) && (!ishuman(target) || target.stat == DEAD)))
+		to_chat(user, span_warning("That ckey must be in the lobby or control a living human character."))
 		return
 	var/datum/mind/target_mind = target.mind
 	var/list/types = get_admin_antag_types()
-	var/choice = input(user, "Choose the role to offer. Existing skills, equipment, job and location are retained; role powers and traits are added.", "Offer Antagonist") as null|anything in types
+	var/choice = input(user, "Choose the role to offer. Lobby offers apply after the player joins and finishes character setup. Skills use the higher of the character's rank and the role's rank, never their sum.", "Offer Antagonist") as null|anything in types
 	if(!choice)
 		return
 	var/antag_type = types[choice]
 	var/datum/antagonist/antag = new antag_type
-	if(!check_rights_for(user?.client, R_ADMIN) || !can_receive_admin_antag(target, antag) || target.client != target_client || target.mind != target_mind || pending_admin_antags[target_mind] || target_mind.picking)
+	if(!check_rights_for(user?.client, R_ADMIN) || !can_receive_admin_antag(target, antag) || target.client != target_client || target.mind != target_mind || pending_admin_antags[target_mind] || target_mind.queued_admin_antag || target_mind.picking)
 		to_chat(user, span_warning("The character is unavailable, incompatible, banned, or already has a pending antagonist offer."))
 		qdel(antag)
 		return
@@ -83,7 +90,7 @@
 	pending_admin_antags[target_mind] = antag
 	target_mind.picking = TRUE
 	log_admin("[key_name(user)] offered [choice] to [target_ckey] (cap-exempt: [cap_exempt]).")
-	var/response = tgui_input_list(target, "An administrator offers your current character the [choice] antagonist role. Your existing skills, equipment, job and location will be kept. Role powers, objectives, appearance and patron may change. Do you accept?", "Antagonist Offer", list("Decline", "Accept"), default = "Decline", timeout = 30 SECONDS, strict_modern = TRUE)
+	var/response = tgui_input_list(target, "An administrator offers you the [choice] antagonist role. If you are in the lobby, it will apply to your next character after job/class setup. Skills use the higher of your existing rank and the role's rank, never their sum. Equipment, job and location stay; role powers, objectives, appearance and patron may change. Do you accept?", "Antagonist Offer", list("Decline", "Accept"), default = "Decline", timeout = 30 SECONDS, strict_modern = TRUE)
 	// Select a clan before adding the datum; vampire on_gain otherwise opens a blocking dialog
 	// halfway through converting the character, after which they may be in another body.
 	if(response == "Accept" && istype(antag, /datum/antagonist/vampire) && can_receive_admin_antag(target, antag) && target.client == target_client && target.mind == target_mind)
@@ -107,9 +114,16 @@
 		qdel(antag)
 		return
 	// The dialog yields: consent belongs to this exact client, mind and body.
-	if(!check_rights_for(user?.client, R_ADMIN) || !SSticker.HasRoundStarted() || antagonists_disabled || !can_receive_admin_antag(target, antag) || target.client != target_client || target.mind != target_mind || target_client.ckey != target_ckey)
+	if(!check_rights_for(user?.client, R_ADMIN) || SSticker.current_state == GAME_STATE_FINISHED || !can_receive_admin_antag(target, antag) || target.client != target_client || target.mind != target_mind || target_client.ckey != target_ckey)
 		to_chat(user, span_warning("The offer expired because the player, character or admin permissions changed."))
 		qdel(antag)
+		return
+	var/mob/living/carbon/human/character = target
+	if(isnewplayer(target) || (istype(character) && character.admin_antag_setup_pending))
+		target_mind.queue_admin_antag(antag, target_ckey, user.ckey)
+		to_chat(target, span_notice("Your [choice] role is reserved for your next character, after job and class setup."))
+		log_admin("[key_name(user)] queued [choice] for [target_ckey] with player consent (cap-exempt: [cap_exempt]).")
+		message_admins("[key_name_admin(user)] queued [choice] for [target_ckey]'s character after job/class setup, with player consent.")
 		return
 	var/datum/antagonist/granted = target_mind.add_antag_datum(antag)
 	if(QDELETED(granted))
@@ -117,3 +131,61 @@
 		return
 	log_admin("[key_name(user)] assigned [choice] to [target_ckey] with player consent (cap-exempt: [cap_exempt]).")
 	message_admins("[key_name_admin(user)] assigned [choice] to [key_name_admin(target)] with player consent (cap-exempt: [cap_exempt]).")
+
+/datum/mind/proc/queue_admin_antag(datum/antagonist/antag, player_ckey, admin_ckey)
+	if(queued_admin_antag || QDELETED(antag) || antag.owner)
+		return FALSE
+	queued_admin_antag = antag
+	queued_admin_antag_ckey = player_ckey
+	queued_admin_antag_author = admin_ckey
+	return TRUE
+
+/datum/mind/proc/clear_queued_admin_antag()
+	QDEL_NULL(queued_admin_antag)
+	queued_admin_antag_ckey = null
+	queued_admin_antag_author = null
+
+/// Called only after the ordinary job, subclass and preference bonuses have all finished.
+/mob/living/carbon/human/proc/finish_admin_antag_setup()
+	admin_antag_setup_pending = FALSE
+	mind?.apply_queued_admin_antag()
+
+/datum/mind/proc/apply_queued_admin_antag()
+	if(!queued_admin_antag)
+		return FALSE
+	var/mob/living/carbon/human/character = current
+	if(istype(character) && character.admin_antag_setup_pending)
+		return FALSE
+	var/datum/antagonist/antag = queued_admin_antag
+	var/player_ckey = queued_admin_antag_ckey
+	var/admin_ckey = queued_admin_antag_author
+	// Consume before running any gain effects, even if they yield or trigger another setup hook.
+	queued_admin_antag = null
+	queued_admin_antag_ckey = null
+	queued_admin_antag_author = null
+	// Consent is attached to this mind. A disconnect after spawning does not change its owner.
+	if(!istype(character) || QDELETED(character) || character.stat == DEAD || character.mind != src || ckey(key) != player_ckey || (character.client && character.client.ckey != player_ckey) || SSticker.current_state == GAME_STATE_FINISHED)
+		qdel(antag)
+		return FALSE
+	var/role_ban = istype(antag, /datum/antagonist/wretch) ? "Wretch" : antag.job_rank
+	if(is_banned_from(player_ckey, list(ROLE_SYNDICATE, role_ban)))
+		qdel(antag)
+		return FALSE
+	var/datum/antagonist/existing = has_antag_datum(antag.type, FALSE)
+	if(existing)
+		// The chosen job may already have granted this exact role. Do not run its on_gain twice.
+		existing.antag_flags |= antag.antag_flags & FLAG_ANTAG_CAP_IGNORE
+		existing.apply_admin_skill_profile()
+		qdel(antag)
+	else
+		if(!SSgamemode.can_receive_admin_antag(character, antag, require_client = FALSE))
+			message_admins("Cancelled [admin_ckey]'s queued [antag.name] offer for [player_ckey]: the spawned character is incompatible or banned.")
+			to_chat(character, span_warning("Your reserved antagonist role could not be applied to this character. Contact an administrator."))
+			qdel(antag)
+			return FALSE
+		existing = add_antag_datum(antag)
+	if(QDELETED(existing))
+		return FALSE
+	log_admin("Applied [admin_ckey]'s consented [existing.name] offer to [player_ckey] after character setup.")
+	message_admins("Applied [admin_ckey]'s consented [existing.name] offer to [key_name_admin(character)] after character setup.")
+	return TRUE

@@ -37,6 +37,8 @@ GLOBAL_LIST_INIT(roleplay_readme, world.file2list("strings/rt/rp_prompt.txt"))
 	GLOB.new_player_list += src
 
 /mob/dead/new_player/Destroy()
+	// During normal spawning the mind has already transferred to the new character.
+	mind?.clear_queued_admin_antag()
 	GLOB.new_player_list -= src
 	return ..()
 
@@ -794,6 +796,7 @@ GLOBAL_LIST_INIT(roleplay_readme, world.file2list("strings/rt/rp_prompt.txt"))
 	close_spawn_windows()
 
 	var/mob/living/carbon/human/H = new(loc)
+	H.admin_antag_setup_pending = TRUE
 
 	var/frn = CONFIG_GET(flag/force_random_names)
 	if(!frn)

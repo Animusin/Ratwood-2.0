@@ -82,12 +82,12 @@ SUBSYSTEM_DEF(job)
 /datum/controller/subsystem/job/proc/can_assign_antag_job(datum/job/job)
 	if(!job?.antag_job || !SSgamemode)
 		return TRUE
+	if(SSticker.HasRoundStarted() && job.admin_slot_antag_type && job.admin_antag_slots > 0)
+		return TRUE
 	if(SSgamemode.antagonists_disabled)
 		return FALSE
 	if(!SSticker.HasRoundStarted())
 		return job.antag_cap_weight <= SSgamemode.get_remaining_antag_capacity(get_roundstart_antag_weight())
-	if(job.admin_slot_antag_type && job.admin_antag_slots > 0)
-		return TRUE
 	return job.antag_cap_weight <= SSgamemode.get_remaining_antag_capacity()
 
 /// The slot limit shown in latejoin. Real antagonist jobs share the storyteller capacity,
@@ -95,10 +95,12 @@ SUBSYSTEM_DEF(job)
 /datum/controller/subsystem/job/proc/get_latejoin_position_limit(datum/job/job, remaining_antag_capacity = null)
 	if(!job)
 		return 0
-	if(job.antag_job && SSgamemode?.antagonists_disabled)
-		return 0
 	var/job_position_limit = job.get_position_limit(TRUE)
 	var/bonus_slots = SSticker.HasRoundStarted() && job.admin_slot_antag_type ? job.admin_antag_slots : 0
+	if(job.antag_job && SSgamemode?.antagonists_disabled)
+		if(!bonus_slots)
+			return 0
+		return job_position_limit < 0 ? job.current_positions + bonus_slots : min(job_position_limit, job.current_positions + bonus_slots)
 	if(job.antag_job && isnull(remaining_antag_capacity) && SSgamemode)
 		remaining_antag_capacity = SSgamemode.get_remaining_antag_capacity()
 	if(!job.antag_job || job.antag_cap_weight <= 0 || isnull(remaining_antag_capacity))
@@ -162,7 +164,7 @@ SUBSYSTEM_DEF(job)
 
 /// Reserve before character creation, so even antagonist datums added by outfits see the exemption.
 /datum/controller/subsystem/job/proc/claim_admin_antag_slot(datum/job/job, datum/mind/player)
-	if(!SSticker.HasRoundStarted() || SSgamemode?.antagonists_disabled || !job?.admin_slot_antag_type || job.admin_antag_slots <= 0 || QDELETED(player))
+	if(!SSticker.HasRoundStarted() || !job?.admin_slot_antag_type || job.admin_antag_slots <= 0 || QDELETED(player))
 		return FALSE
 	job.admin_antag_slots--
 	player.admin_slot_antag_type = job.admin_slot_antag_type

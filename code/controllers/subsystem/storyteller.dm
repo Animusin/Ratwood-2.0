@@ -301,10 +301,10 @@ SUBSYSTEM_DEF(gamemode)
 
 /// Gets the number of antagonists the antagonist injection events will stop rolling after.
 /datum/controller/subsystem/gamemode/proc/get_antag_cap()
-	if(antagonists_disabled)
-		return 0
 	if(!isnull(admin_antag_cap))
 		return admin_antag_cap
+	if(antagonists_disabled)
+		return 0
 	if(round_modifier_policy_name == "ratwood" && !roundstart_antag_allocation_complete)
 		return roundstart_cap_snapshot
 	var/cap_population = get_antag_cap_population()
@@ -352,11 +352,14 @@ SUBSYSTEM_DEF(gamemode)
 
 /// Whether events can inject more antagonists into the round
 /datum/controller/subsystem/gamemode/proc/can_inject_antags()
-	return (get_antag_cap() > get_antag_count())
+	return !antagonists_disabled && (get_antag_cap() > get_antag_count())
 
 /// Remaining antagonist capacity. An explicit current weight is used while roundstart jobs are
 /// being assigned, before those players have antagonist datums that get_antag_count() can see.
 /datum/controller/subsystem/gamemode/proc/get_remaining_antag_capacity(current_weight = null, include_roundstart_reservations = TRUE)
+	// Zero Chaos stops automatic assignments, but not explicit admin slots or ckey grants.
+	if(antagonists_disabled)
+		return 0
 	if(isnull(current_weight))
 		current_weight = get_antag_count()
 	var/reserved_weight = 0
@@ -376,7 +379,7 @@ SUBSYSTEM_DEF(gamemode)
 	var/list/candidate_candidates = list() //lol
 
 	for(var/mob/player as anything in GLOB.player_list)
-		if(QDELETED(player) || player.mind?.picking)
+		if(QDELETED(player) || player.mind?.picking || player.mind?.queued_admin_antag)
 			continue
 		if(ready_newplayers && isnewplayer(player))
 			var/mob/dead/new_player/new_player = player
@@ -1064,7 +1067,7 @@ SUBSYSTEM_DEF(gamemode)
 		if("main")
 			switch(href_list["action"])
 				if("set_antag_cap")
-					var/new_cap = input(user, "Set the antagonist cap for this round (0 or greater). Lowering it does not remove existing antagonists. Zero Chaos still disables antagonists.", "Antagonist Cap", get_antag_cap()) as num|null
+					var/new_cap = input(user, "Set the antagonist cap for this round (0 or greater). Lowering it does not remove existing antagonists. Zero Chaos stops automatic selection, but admin slots and offers still work.", "Antagonist Cap", get_antag_cap()) as num|null
 					if(isnull(new_cap) || new_cap < 0 || !check_rights_for(user?.client, R_ADMIN))
 						return
 					admin_antag_cap = round(new_cap)

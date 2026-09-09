@@ -109,7 +109,7 @@
 		for(var/trait in traits_lich)
 			ADD_TRAIT(L, trait, "[type]")
 		L.grant_lich_powers(FALSE)
-		L.mind.adjust_spellpoints(27)
+		L.mind.adjust_spellpoints(max(27 - L.mind.spell_points, 0))
 		var/obj/item/phylactery/new_phylactery = new(get_turf(L))
 		phylacteries += new_phylactery
 		new_phylactery.possessor = src
@@ -121,6 +121,24 @@
 	if(!preserve_character)
 		owner.current.forceMove(pick(GLOB.lich_starts)) // as opposed to spawning at their normal role spot as a skeleton; which is le bad
 
+
+/datum/antagonist/lich/get_admin_skill_profile()
+	return list(
+		/datum/skill/misc/reading = 6,
+		/datum/skill/craft/alchemy = 5,
+		/datum/skill/magic/arcane = 6,
+		/datum/skill/misc/riding = 4,
+		/datum/skill/combat/polearms = 4,
+		/datum/skill/combat/wrestling = 3,
+		/datum/skill/combat/unarmed = 1,
+		/datum/skill/misc/swimming = 1,
+		/datum/skill/misc/climbing = 1,
+		/datum/skill/misc/athletics = 1,
+		/datum/skill/combat/swords = 2,
+		/datum/skill/combat/knives = 5,
+		/datum/skill/craft/crafting = 1,
+		/datum/skill/misc/medicine = 3,
+	)
 
 /datum/outfit/job/roguetown/lich/pre_equip(mob/living/carbon/human/H) //Equipment is located below
 	..()

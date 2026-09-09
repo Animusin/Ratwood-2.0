@@ -1247,6 +1247,7 @@
 		/obj/item/carvedgem,  //Some of these aren't particularly worth much, but it'd be REALLY unintuitive for "valuables" to not actually be offerings
 		/obj/item/rogueweapon/huntingknife/stoneknife/kukri,
 		/obj/item/rogueweapon/huntingknife/stoneknife/opalknife,
+		/obj/item/rogueweapon/huntingknife/idagger/silver/elvish,
 		/obj/item/rogueweapon/mace/cudgel/shellrungu,
 		/obj/item/clothing/mask/rogue/facemask/carved,
 		/obj/item/clothing/neck/roguetown/carved,

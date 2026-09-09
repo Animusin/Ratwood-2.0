@@ -1,0 +1,4 @@
+author: "sigmaboy124124"
+delete-after: True
+changes:
+  - bugfix: "Master Fisher town class now grants Sneaking at Apprentice level, matching the regular Fisher class."

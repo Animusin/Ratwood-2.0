@@ -488,22 +488,24 @@
 	if(skill >= 2)
 		. += span_warning("The [name] is currently in [mode] mode.")
 		if(skill >= 4)
-			if(stored_lock_hash)
-				if(stored_lock_id)
-					. += span_warning("The current stored Lock ID is [stored_lock_id].")
-				else
-					. += span_warning("The current stored Lock ID is custom.")
+			if(stored_lock_id)
+				. += span_warning("The current stored Lock ID is [stored_lock_id].")
+			else if(stored_lock_hash)
+				. += span_warning("The current stored Lock ID is custom.")
 			else
 				. += span_warning("There is no stored Lock ID.")
 		else
 			. += span_warning("I cannot yet fully understand this contraption.")
 
-/obj/item/contraption/lock_imprinter/proc/store_lock_data(lock_id, lock_hash, mob/user, atom/source)
-	if(!lock_hash)
-		to_chat(user, span_warning("The [name] identifies an absense of a lock or lock ID."))
-		return
+/obj/item/contraption/lock_imprinter/proc/set_stored_lock_data(lock_id, lock_hash)
 	stored_lock_id = lock_id
 	stored_lock_hash = lock_hash
+
+/obj/item/contraption/lock_imprinter/proc/store_lock_data(lock_id, lock_hash, mob/user, atom/source)
+	if(!lock_id && !lock_hash)
+		to_chat(user, span_warning("The [name] identifies an absense of a lock or lock ID."))
+		return
+	set_stored_lock_data(lock_id, lock_hash)
 	user.changeNext_move(CLICK_CD_FAST)
 	flick(off_icon, src)
 	playsound(user, 'sound/foley/doors/unlock.ogg', 100, TRUE)
@@ -513,6 +515,34 @@
 	S.start()
 	user.visible_message(span_notice("[user] scans \a [source] with the [name] and it starts ticking..."))
 	addtimer(CALLBACK(src, PROC_REF(play_clock_sound)), 5)
+
+/obj/item/contraption/lock_imprinter/proc/imprint_lock(obj/O, mob/living/user)
+	if(istype(O, /obj/structure/roguemachine/steward))
+		if(!stored_lock_id)
+			to_chat(user, span_warning("The [name] requires a stored Lock ID to imprint this lock."))
+			return FALSE
+		var/obj/structure/roguemachine/steward/steward = O
+		steward.keycontrol = stored_lock_id
+		return TRUE
+	if(istype(O, /obj/structure/roguemachine/vendor))
+		if(!stored_lock_id)
+			to_chat(user, span_warning("The [name] requires a stored Lock ID to imprint this lock."))
+			return FALSE
+		var/obj/structure/roguemachine/vendor/vendor = O
+		vendor.keycontrol = stored_lock_id
+		return TRUE
+	if(istype(O, /obj/structure/roguemachine/goldface))
+		if(!stored_lock_id)
+			to_chat(user, span_warning("The [name] requires a stored Lock ID to imprint this lock."))
+			return FALSE
+		O.lockid = stored_lock_id
+		return TRUE
+	if(!stored_lock_hash)
+		to_chat(user, span_warning("The [name] has no stored lock data to imprint."))
+		return FALSE
+	O.lockid = stored_lock_id
+	O.lockhash = stored_lock_hash
+	return TRUE
 
 /obj/item/contraption/lock_imprinter/attackby(obj/item/I, mob/user, params)
 	..()
@@ -534,11 +564,20 @@
 		if(istype(O, type))
 			valid_lock = TRUE
 			if(mode == "Examiner")
-				if(O.lockhash)
-					stored_lock_id = O.lockid
-					stored_lock_hash = O.lockhash
-					if(O.lockid)
-						to_chat(user, span_warning("The [name] identifies this lock's ID as [O.lockid]."))
+				var/lock_id = O.lockid
+				var/lock_hash = O.lockhash
+				if(istype(O, /obj/structure/roguemachine/steward))
+					var/obj/structure/roguemachine/steward/steward = O
+					lock_id = steward.keycontrol
+					lock_hash = null
+				else if(istype(O, /obj/structure/roguemachine/vendor))
+					var/obj/structure/roguemachine/vendor/vendor = O
+					lock_id = vendor.keycontrol
+					lock_hash = null
+				if(lock_id || lock_hash)
+					set_stored_lock_data(lock_id, lock_hash)
+					if(lock_id)
+						to_chat(user, span_warning("The [name] identifies this lock's ID as [lock_id]."))
 					else
 						to_chat(user, span_warning("The [name] identifies a custom lock."))
 				else
@@ -547,11 +586,8 @@
 				flick(off_icon, src)
 				break
 			if(mode == "Imprinter")
-				if(!stored_lock_hash)
-					to_chat(user, span_warning("The [name] has no stored lock data to imprint."))
+				if(!imprint_lock(O, user))
 					return
-				O.lockid = stored_lock_id
-				O.lockhash = stored_lock_hash
 				flick(on_icon, src)
 				shake_camera(user, 1, 1)
 				user.visible_message(span_notice("[user] holds the [name] up to the [O.name] causing sparks to fly!"))

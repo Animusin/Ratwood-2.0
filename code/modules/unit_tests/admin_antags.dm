@@ -146,6 +146,25 @@
 		TEST_ASSERT_EQUAL(player.spell_points, 27, "Lich spell points must use a floor, not 20 + 27.")
 		TEST_ASSERT(player.get_spell(/obj/effect/proc_holder/spell/invoked/raise_undead), "An in-place lich still needs its role powers.")
 
+	// Check teardown too: CI waits for garbage collection after the gain assertions.
+	var/list/coven_actions = list()
+	for(var/datum/action/coven/action in character.actions)
+		coven_actions += action
+	var/list/phylacteries = list()
+	if(istype(granted, /datum/antagonist/lich))
+		var/datum/antagonist/lich/lich = granted
+		phylacteries = lich.phylacteries.Copy()
+	player.remove_all_antag_datums()
+	for(var/datum/action/coven/action in coven_actions)
+		TEST_ASSERT(QDELETED(action), "Removing vampire status must delete its coven actions.")
+		TEST_ASSERT_NULL(action.coven, "Deleted actions must release their covens.")
+	for(var/obj/item/phylactery/phyl in phylacteries)
+		TEST_ASSERT_NULL(phyl.possessor, "Removing lich status must release its phylacteries.")
+	player.RemoveAllSpells()
+	qdel(character)
+	for(var/datum/atom_hud/hud in GLOB.all_huds)
+		TEST_ASSERT(!(character in hud.next_time_allowed), "HUD cooldowns must release deleted characters even after role removal.")
+
 /datum/unit_test/admin_antag_preserve/bandit
 	antag_type = /datum/antagonist/bandit
 
@@ -166,6 +185,24 @@
 	prompt.wait()
 	TEST_ASSERT(QDELETED(prompt), "An unanswered role offer must expire.")
 	TEST_ASSERT_NULL(prompt.choice, "An expired offer must never imply acceptance.")
+
+/datum/unit_test/admin_antag_phylactery_cleanup/Run()
+	var/datum/antagonist/lich/lich = new
+	allocated += lich
+	var/obj/item/phylactery/phyl = allocate(/obj/item/phylactery)
+	lich.phylacteries += phyl
+	phyl.possessor = lich
+	qdel(phyl)
+	TEST_ASSERT(!length(lich.phylacteries), "Destroyed phylacteries must leave their living owner's list.")
+	TEST_ASSERT_NULL(phyl.possessor, "Destroyed phylacteries must release their owner.")
+	phyl = allocate(/obj/item/phylactery)
+	lich.phylacteries += phyl
+	phyl.possessor = lich
+	qdel(lich)
+	TEST_ASSERT_NULL(phyl.possessor, "Deleting the role first must also break the link.")
+	phyl.be_consumed(1)
+	sleep(2)
+	TEST_ASSERT(QDELETED(phyl), "Consumption without a living role must safely dispose of the phylactery.")
 
 /datum/unit_test/admin_antag_lobby
 	var/datum/mind/player

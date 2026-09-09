@@ -207,6 +207,12 @@
 	new_phylactery.possessor = lichman
 	H.equip_to_slot_or_del(new_phylactery,SLOT_IN_BACKPACK, TRUE)
 
+/datum/antagonist/lich/Destroy()
+	for(var/obj/item/phylactery/phyl in phylacteries)
+		phyl.possessor = null
+	phylacteries.Cut()
+	return ..()
+
 /datum/antagonist/lich/proc/consume_phylactery(timer = 10 SECONDS)
 	if(phylacteries.len)
 		for(var/obj/item/phylactery/phyl in phylacteries)
@@ -313,12 +319,23 @@
 	. = ..()
 	filters += filter(type="drop_shadow", x=0, y=0, size=1, offset=2, color=rgb(rand(1,255),rand(1,255),rand(1,255)))
 
+/obj/item/phylactery/Destroy()
+	possessor?.phylacteries -= src
+	possessor = null
+	mind = null
+	return ..()
+
 /obj/item/phylactery/proc/be_consumed(timer)
 	var/offset = prob(50) ? -2 : 2
 	animate(src, pixel_x = pixel_x + offset, time = 0.2, loop = -1) //start shaking
 	visible_message(span_warning("[src] begins to glow and shake violently!"))
 
 	spawn(timer)
+		if(QDELETED(src))
+			return
+		if(QDELETED(possessor) || !possessor.owner?.current)
+			qdel(src)
+			return
 		possessor.owner.current.forceMove(get_turf(src))
 		possessor.rise_anew()
 		qdel(src)

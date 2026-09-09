@@ -38,16 +38,16 @@
 	attacker.visible_message(span_danger("[attacker] dips \the [dipper] in \the [attacked_container]!"), "You dip \the [dipper] in \the [attacked_container]!", vision_distance = 2)
 	log_combat(attacker, dipper, "poisoned", addition="with [reagentlog]")
 
-/datum/element/tipped_item/proc/try_inject(obj/item/source, mob/living/user, obj/item/bodypart/affecting, intent, mob/living/victim, selzone)
+/datum/element/tipped_item/proc/try_inject(obj/item/source, mob/living/user, obj/item/bodypart/affecting, intent, mob/living/victim, selzone, thrown)
 	SIGNAL_HANDLER
 
-	if(!can_inject_with_intent(user) || !source.reagents?.total_volume)
+	if(!can_inject_with_attack(source, user, thrown) || !source.reagents?.total_volume)
 		return
 	log_combat(user, victim, "poisoned", addition="with [source.reagents]")
 	source.reagents.trans_to(victim, 1, transfered_by = user)
 
-/datum/element/tipped_item/proc/can_inject_with_intent(mob/living/user)
-	var/blade_class = user.used_intent?.blade_class
+/datum/element/tipped_item/proc/can_inject_with_attack(obj/item/source, mob/living/user, thrown)
+	var/blade_class = thrown ? source.thrown_bclass : user?.used_intent?.blade_class
 	return blade_class == BCLASS_STAB || blade_class == BCLASS_PICK
 
 /datum/element/tipped_item/proc/on_examine(atom/movable/source, mob/user, list/examine_list)

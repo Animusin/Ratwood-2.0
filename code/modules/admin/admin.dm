@@ -1398,14 +1398,26 @@
 	set category = "-Special Verbs-"
 	set name = "Back to Lobby"
 
-	var/mob/living/carbon/human/H = mob
-	H.admin_send_back_to_lobby(usr)
+	mob?.admin_send_back_to_lobby(usr)
 
 
-/mob/living/carbon/human/proc/admin_send_back_to_lobby(mob/admin, delete_character = FALSE)
+/mob/proc/admin_send_back_to_lobby(mob/admin, delete_character = FALSE)
+	if(isnewplayer(src))
+		to_chat(admin || src, span_notice("Already in the lobby."))
+		return FALSE
+	if(!ishuman(src))
+		if(!client)
+			return FALSE
+		returntolobby()
+		return TRUE
 	var/datum/job/mob_job
 	var/target_job = SSrole_class_handler.get_advclass_by_name(advjob)
 	var/player_key = key ? key : mind?.key
+	if(!player_key)
+		to_chat(admin, span_warning("[src] has no key to return to the lobby."))
+		return FALSE
+	SSrole_class_handler.cancel_class_handler(ckey(player_key))
+	mind?.clear_queued_admin_antag()
 	if(mind)
 		mob_job = SSjob.GetJob(mind.assigned_role)
 		if(mob_job)
@@ -1427,6 +1439,7 @@
 		LAZYREMOVE(GLOB.actors_list[SSjob.bitflag_to_department(mob_job.department_flag, mob_job.obsfuscated_job)], mobid)
 	LAZYREMOVE(GLOB.roleplay_ads, mobid)
 	if(client)
+		SStgui.close_user_uis(src)
 		SSdroning.kill_droning(client)
 		SSdroning.kill_loop(client)
 		SSdroning.kill_rain(client)
@@ -1436,6 +1449,7 @@
 	else if(admin)
 		to_chat(admin, span_warning("[src] has no key to return to the lobby."))
 	if(delete_character)
+		mind?.remove_all_antag_datums()
 		qdel(src)
 	return TRUE
 

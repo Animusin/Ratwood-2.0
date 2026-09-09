@@ -1,4 +1,6 @@
 /mob/dead/new_player/Login()
+	// Returning during class selection must not carry that old body's selector into the lobby.
+	SSrole_class_handler.cancel_class_handler(ckey)
 	if(CONFIG_GET(flag/use_exp_tracking))
 		client.set_exp_from_db()
 		client.set_db_player_flags()

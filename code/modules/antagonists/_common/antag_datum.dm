@@ -3,6 +3,8 @@ GLOBAL_LIST_EMPTY(antagonists)
 /mob/living/carbon/human
 	/// Prevent lobby offers from applying before normal job/class bonuses are finished.
 	var/admin_antag_setup_pending = FALSE
+	/// Explicit admission bypasses storyteller/class capacity while this character chooses a class.
+	var/admin_antag_spawn = FALSE
 
 /datum/antagonist
 	var/name = "Antagonist"

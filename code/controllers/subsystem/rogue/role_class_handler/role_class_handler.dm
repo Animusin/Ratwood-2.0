@@ -78,11 +78,19 @@ SUBSYSTEM_DEF(role_class_handler)
 	We will cache it per server session via an assc list with a ckey leading to the datum.
 */
 /datum/controller/subsystem/role_class_handler/proc/setup_class_handler(mob/living/carbon/human/H, advclass_rolls_override = null, register_id = null)
+	if(QDELETED(H) || !H.client)
+		return
+	var/datum/job/character_job = SSjob.GetJob(H.job)
+	if(!length(advclass_rolls_override) && !length(character_job?.advclass_cat_rolls))
+		return
 	if(!register_id)
 		if(H.job == "Towner")
 			register_id = "towner"
 	// insure they somehow aren't closing the datum they got and opening a new one w rolls
 	var/datum/class_select_handler/GOT_IT = class_select_handlers[H.client.ckey]
+	if(GOT_IT && GOT_IT.character_ref?.resolve() != H)
+		cancel_class_handler(H.client.ckey)
+		GOT_IT = null
 	if(GOT_IT)
 		if(!GOT_IT.linked_client) // this ref will disappear if they disconnect neways probably, as its a client
 			GOT_IT.linked_client = H.client // Thus we just give it back to them
@@ -91,6 +99,7 @@ SUBSYSTEM_DEF(role_class_handler)
 
 	var/datum/class_select_handler/XTRA_MEATY = new()
 	XTRA_MEATY.linked_client = H.client
+	XTRA_MEATY.character_ref = WEAKREF(H)
 
 		// Hack for Migrants
 	if(advclass_rolls_override)
@@ -116,6 +125,12 @@ SUBSYSTEM_DEF(role_class_handler)
 		return // There was just one advclass that got automatically selected
 	class_select_handlers[H.client.ckey] = XTRA_MEATY
 
+/// A selector belongs to one character, never to the next body using the same client.
+/datum/controller/subsystem/role_class_handler/proc/cancel_class_handler(player_ckey)
+	var/datum/class_select_handler/handler = class_select_handlers[player_ckey]
+	class_select_handlers -= player_ckey
+	qdel(handler)
+
 
 /*
 	Attempt to finish the class handling ordeal, aka they picked something
@@ -124,13 +139,16 @@ SUBSYSTEM_DEF(role_class_handler)
 /datum/controller/subsystem/role_class_handler/proc/finish_class_handler(mob/living/carbon/human/H, datum/advclass/picked_class, datum/class_select_handler/related_handler, plus_factor, special_session_queue)
 	if(!picked_class || !related_handler || !H) // ????????? This is realistically only going to happen when someones doubling up or trying to href exploit
 		return FALSE
-	if(!(picked_class.maximum_possible_slots == -1)) // Is the class not set to infinite?
+	if(related_handler.character_ref?.resolve() != H || related_handler.linked_client?.mob != H)
+		return FALSE
+	if(!H.admin_antag_spawn && !(picked_class.maximum_possible_slots == -1)) // Is the class not set to infinite?
 		if(picked_class.total_slots_occupied >= picked_class.maximum_possible_slots) // are the occupied slots greater than or equal to the current maximum possible slots on the datum?
 			related_handler.rolled_class_is_full(picked_class) //If so we inform the datum in the off-chance some desyncing is occurring so we don't have a deadslot in their options.
 			return FALSE // Along with stop here as they didn't get it.
 
 
 	H.advsetup = FALSE // This is actually on a lot of shit, so its a ghetto selector protector if u need one
+	H.advjob = picked_class.name // Back to Lobby must release the class even while its outfit prompts are open.
 	picked_class.equipme(H)
 	H.invisibility = 0
 	var/atom/movable/screen/advsetup/GET_IT_OUT = locate() in H.hud_used.static_inventory // dis line sux its basically a loop anyways if i remember

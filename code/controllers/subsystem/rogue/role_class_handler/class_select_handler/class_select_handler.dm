@@ -3,6 +3,7 @@
 */
 /datum/class_select_handler
 	var/client/linked_client //the ss will link it!
+	var/datum/weakref/character_ref
 	//Well, we basically need to fill out our options
 
 /*
@@ -74,17 +75,20 @@
 
 // The second step, aka we just want to make sure the resources are there and that the menu is being displayed
 /datum/class_select_handler/proc/second_step()
+	if(!linked_client || character_ref?.resolve() != linked_client.mob)
+		return
 	var/datum/asset/thicc_assets = get_asset_datum(/datum/asset/simple/blackedstone_class_menu_slop_layout)
 	thicc_assets.send(linked_client)
 
 	browser_slop()
 
 /datum/class_select_handler/Destroy()
-	if(register_id)
-		SSrole_class_handler.remove_class_register_listener(register_id, linked_client.mob)
+	if(register_id && character_ref?.resolve())
+		SSrole_class_handler.remove_class_register_listener(register_id, character_ref.resolve())
 	ForceCloseMenus() // force menus closed
 	// Cleanup anything holding references, aka these lists holding refs to class datums and the other two
 	linked_client = null
+	character_ref = null
 	cur_picked_class = null
 	class_cat_alloc_attempts = null
 	forced_class_additions = null
@@ -161,8 +165,13 @@
 
 	testing("assemble_the_CLASSES completed")
 	if(!rolled_classes.len)
-		linked_client.mob.returntolobby()
+		if(H.admin_antag_spawn)
+			H.admin_send_back_to_lobby(null, TRUE)
+		else
+			linked_client.mob.returntolobby()
 		message_admins("CLASS_SELECT_HANDLER HAD PERSON WITH 0 CLASS SELECT OPTIONS. THIS IS REALLY BAD! RETURNED THEM TO LOBBY")
+		qdel(src)
+		return FALSE
 
 	if(rolled_classes.len == 1)
 		SSrole_class_handler.finish_class_handler(linked_client.mob, pick(rolled_classes), src, plus_power, special_selected)
@@ -173,6 +182,9 @@
 // Something is calling to tell this datum a class it rolled is currently maxed out.
 // More shitcode!
 /datum/class_select_handler/proc/rolled_class_is_full(datum/advclass/filled_class)
+	var/mob/living/carbon/human/character = character_ref?.resolve()
+	if(character?.admin_antag_spawn)
+		return
 	// Fun fact, if you don't remove the class that is maxed they just get new choices infinitely
 	// Also all the checks are done causing this to be called anyways
 	rolled_classes.Remove(filled_class)
@@ -350,6 +362,8 @@
 
 /datum/class_select_handler/Topic(href, href_list)
 	. = ..()
+	if(!linked_client || usr?.client != linked_client || character_ref?.resolve() != linked_client.mob)
+		return
 	if(href_list["class_selected"])
 		var/selected_class = href_list["selected_class"]
 		var/locvar_check = locate(selected_class)

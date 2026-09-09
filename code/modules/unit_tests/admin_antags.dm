@@ -186,6 +186,45 @@
 	TEST_ASSERT(QDELETED(prompt), "An unanswered role offer must expire.")
 	TEST_ASSERT_NULL(prompt.choice, "An expired offer must never imply acceptance.")
 
+/datum/unit_test/admin_antag_spawn_jobs/Run()
+	var/list/jobs = list(
+		/datum/antagonist/bandit = /datum/job/roguetown/bandit,
+		/datum/antagonist/wretch = /datum/job/roguetown/wretch,
+		/datum/antagonist/gnoll = /datum/job/roguetown/gnoll,
+		/datum/antagonist/lich = /datum/job/roguetown/admin_antagonist,
+		/datum/antagonist/vampire/lord = /datum/job/roguetown/admin_antagonist,
+	)
+	for(var/antag_type in jobs)
+		var/datum/antagonist/antag = new antag_type
+		allocated += antag
+		var/datum/job/job = SSgamemode.get_admin_antag_job(antag)
+		TEST_ASSERT(istype(job, jobs[antag_type]), "Lobby grants must select the antagonist's own spawn job.")
+		if(istype(antag, /datum/antagonist/bandit))
+			TEST_ASSERT(CTAG_BANDIT in job.advclass_cat_rolls, "Bandit offers must open Bandit classes.")
+	var/mob/dead/new_player/lobby = allocate(/mob/dead/new_player)
+	TEST_ASSERT(!lobby.admin_send_back_to_lobby(null), "Back to Lobby in the lobby must be a safe no-op.")
+
+/datum/unit_test/admin_antag_class_admission/Run()
+	var/mob/living/carbon/human/character = allocate(/mob/living/carbon/human/consistent)
+	var/datum/advclass/choice = new
+	allocated += choice
+	choice.allowed_races = null
+	choice.maximum_possible_slots = 0
+	choice.minimum_chaos = INFINITY
+	choice.minimum_town_strength = INFINITY
+	choice.min_pq = INFINITY
+	TEST_ASSERT(!choice.check_requirements(character), "Normal class selection must enforce capacity and progression.")
+	character.admin_antag_spawn = TRUE
+	TEST_ASSERT(choice.check_requirements(character), "Explicit admin admission must permit classes even at Zero Chaos and full capacity.")
+	character.finish_admin_antag_setup()
+	TEST_ASSERT(!choice.check_requirements(character), "The admission override must end with character setup.")
+	var/datum/class_select_handler/handler = new
+	handler.character_ref = WEAKREF(character)
+	SSrole_class_handler.class_select_handlers["unit-test-admin-antag"] = handler
+	SSrole_class_handler.cancel_class_handler("unit-test-admin-antag")
+	TEST_ASSERT(QDELETED(handler), "Cancelling setup must delete the old character's selector.")
+	TEST_ASSERT_NULL(SSrole_class_handler.class_select_handlers["unit-test-admin-antag"], "The next character must not reuse a cancelled selector.")
+
 /datum/unit_test/admin_antag_phylactery_cleanup/Run()
 	var/datum/antagonist/lich/lich = new
 	allocated += lich

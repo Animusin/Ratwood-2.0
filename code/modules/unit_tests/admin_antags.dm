@@ -198,7 +198,7 @@
 		var/datum/antagonist/antag = new antag_type
 		allocated += antag
 		var/datum/job/job = SSgamemode.get_admin_antag_job(antag)
-		TEST_ASSERT(istype(job, jobs[antag_type]), "Lobby grants must select the antagonist's own spawn job.")
+		TEST_ASSERT(istype(job, jobs[antag_type]), "Lobby grants must select a registered spawn job for [antag_type].")
 		if(istype(antag, /datum/antagonist/bandit))
 			TEST_ASSERT(CTAG_BANDIT in job.advclass_cat_rolls, "Bandit offers must open Bandit classes.")
 	var/mob/dead/new_player/lobby = allocate(/mob/dead/new_player)

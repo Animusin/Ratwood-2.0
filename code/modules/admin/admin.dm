@@ -1418,6 +1418,9 @@
 		return FALSE
 	SSrole_class_handler.cancel_class_handler(ckey(player_key))
 	mind?.clear_queued_admin_antag()
+	var/mob/living/carbon/human/character = src
+	character.admin_antag_spawn = FALSE
+	character.admin_antag_setup_pending = FALSE
 	if(mind)
 		mob_job = SSjob.GetJob(mind.assigned_role)
 		if(mob_job)

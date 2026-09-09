@@ -144,6 +144,7 @@
 /// Major roles with their own complete outfit do not need an unrelated job or subclass.
 /datum/job/roguetown/admin_antagonist
 	title = "Antagonist"
+	faction = "Station"
 	total_positions = 0
 	spawn_positions = 0
 	outfit = null

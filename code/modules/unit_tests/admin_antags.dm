@@ -225,6 +225,19 @@
 	TEST_ASSERT(QDELETED(handler), "Cancelling setup must delete the old character's selector.")
 	TEST_ASSERT_NULL(SSrole_class_handler.class_select_handlers["unit-test-admin-antag"], "The next character must not reuse a cancelled selector.")
 
+/// A loaded preferences object without client/disk setup, for the actual gnoll copy path.
+/datum/preferences/unit_test_admin_antag/New()
+	return
+
+/datum/unit_test/admin_antag_gnoll_preferences/Run()
+	var/datum/preferences/preferences = new /datum/preferences/unit_test_admin_antag
+	allocated += preferences
+	var/mob/living/carbon/human/character = allocate(/mob/living/carbon/human/consistent)
+	var/datum/statpack/selected_statpack = preferences.statpack
+	preferences.copy_to(character, skip_normal_prefs = TRUE)
+	TEST_ASSERT(is_species(character, /datum/species/gnoll), "Direct Gnoll entry must create a gnoll body.")
+	TEST_ASSERT_EQUAL(character.statpack, selected_statpack, "Gnoll creation must retain the loaded statpack without trying to read a null savefile.")
+
 /datum/unit_test/admin_antag_phylactery_cleanup/Run()
 	var/datum/antagonist/lich/lich = new
 	allocated += lich

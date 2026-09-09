@@ -1,8 +1,17 @@
+/datum/unit_test/ooze_form_cast
+	var/datum/mind/player
+
+/datum/unit_test/ooze_form_cast/Destroy()
+	// Mind-owned spells must be unregistered before the fixture deletes them.
+	player?.RemoveAllSpells()
+	player = null
+	return ..()
+
 /datum/unit_test/ooze_form_cast/Run()
 	var/mob/living/carbon/human/caster = allocate(/mob/living/carbon/human/consistent)
 	caster.set_species(/datum/species/ooze)
 	caster.mind_initialize()
-	var/datum/mind/player = caster.mind
+	player = caster.mind
 	var/obj/effect/proc_holder/spell/targeted/shapeshift/ooze/spell = allocate(/obj/effect/proc_holder/spell/targeted/shapeshift/ooze)
 	player.AddSpell(spell)
 	spell.centcom_cancast = TRUE
@@ -47,6 +56,9 @@
 	TEST_ASSERT_EQUAL(caster.getFireLoss(), burn_damage, "Shifting must not erase burns.")
 	TEST_ASSERT(caster.getBruteLoss() > initial_brute, "Blob damage must be carried back into the body.")
 	var/brute_after_damage = caster.getBruteLoss()
+	var/datum/skill_holder/restored_skills = caster.skills
+	TEST_ASSERT(!QDELETED(restored_skills) && restored_skills.current == caster, "Deleting blob form must preserve the restored body's skills.")
+	TEST_ASSERT_NULL(shape.skills, "The discarded form must release its reference to the restored body's skills.")
 	spell.Shapeshift(caster)
 	TEST_ASSERT(abs(player.current.health / player.current.maxHealth - blob_health_fraction) < 0.01, "Another shift must not grant a fresh blob health pool.")
 	spell.Restore(player.current)

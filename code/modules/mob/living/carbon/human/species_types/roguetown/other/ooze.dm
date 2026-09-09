@@ -300,7 +300,7 @@
 		return
 
 	restoring = TRUE
-	qdel(slink)
+	QDEL_NULL(slink)
 	if (stored)
 		stored.forceMove(get_turf(src))
 		stored.notransform = FALSE

@@ -41,6 +41,9 @@
 /obj/shapeshift_holder/Destroy()
 	if(!restoring)
 		restore()
+	QDEL_NULL(slink)
+	source = null
+	damage_bodypart = null
 	stored = null
 	shape = null
 	. = ..()
@@ -82,7 +85,7 @@
 	if(restoring)
 		return
 	restoring = TRUE
-	qdel(slink)
+	QDEL_NULL(slink)
 	if (stored)
 		stored.forceMove(get_turf(src))
 		stored.notransform = FALSE
@@ -122,6 +125,10 @@
 
 /datum/soullink/shapeshift
 	var/obj/shapeshift_holder/source
+
+/datum/soullink/shapeshift/Destroy()
+	source = null
+	return ..()
 
 /datum/soullink/shapeshift/ownerDies(gibbed, mob/living/owner)
 	if(source)

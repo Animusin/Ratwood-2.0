@@ -759,25 +759,25 @@ SPECIALS START HERE
 	var/KD_dur = 1 SECONDS
 	var/self_immob_dur = 1.5 SECONDS
 	var/dam = 50
-	var/pixel_z
 	var/prev_pixel_z
-	var/prev_transform
-	var/transform
+	var/matrix/prev_transform
 
 
 /datum/special_intent/upper_cut/on_create()
 	. = ..()
-	
+	prev_pixel_z = howner.pixel_z
+	prev_transform = howner.transform ? matrix(howner.transform) : null
 	howner.OffBalance(self_immob_dur)
 	howner.Immobilize(self_immob_dur)
-	animate(howner, pixel_z = pixel_z - 4, time = 3) // windup
+	animate(howner, pixel_z = prev_pixel_z - 4, time = 3) // windup
 	dam = initial(dam)
 	playsound(howner, 'sound/combat/ground_smash_start.ogg', 100, TRUE)
 
 /datum/special_intent/upper_cut/apply_hit(turf/T)
-
-	animate(howner, pixel_z = pixel_z + 12, time = 2) //shoryuken
-	animate(pixel_z = prev_pixel_z, transform = turn(transform, pick(-12, 0, 12)), time=2)
+	var/matrix/uppercut_transform = matrix(prev_transform)
+	uppercut_transform.Turn(pick(-12, 0, 12))
+	animate(howner, pixel_z = prev_pixel_z + 12, time = 2) //shoryuken
+	animate(pixel_z = prev_pixel_z, transform = uppercut_transform, time = 2)
 	animate(transform = prev_transform, time = 0)
 
 	for(var/mob/living/L in get_hearers_in_view(0, T))
@@ -1075,4 +1075,3 @@ tile_coordinates = list(list(1,1), list(-1,1), list(-1,-1), list(1,-1),list(0,0)
 
 //Example of a sweeping line from left to right from the clicked turf. The second tile and the line will only appear after 1.1 seconds (the first delay).
 //tile_coordinates = list(list(0,0), list(1,0, 1.1 SECONDS), list(2,0, 1.2 SECONDS), list(3,0,1.3 SECONDS), list(4,0,1.4 SECONDS), list(5,0,1.5 SECONDS))
-

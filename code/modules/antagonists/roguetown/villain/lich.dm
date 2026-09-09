@@ -87,15 +87,16 @@
 	L.update_body_parts(redraw = TRUE)
 
 /datum/antagonist/lich/proc/equip_lich()
-	owner.unknow_all_people()
-	for (var/datum/mind/MF in get_minds())
-		owner.become_unknown_to(MF)
+	if(!preserve_character)
+		owner.unknow_all_people()
+		for (var/datum/mind/MF in get_minds())
+			owner.become_unknown_to(MF)
 
 	var/mob/living/carbon/human/L = owner.current
 	L.cmode_music = 'sound/music/combat_heretic.ogg'
 	L.faction = list("undead")
 
-	if (L.charflaw)
+	if (L.charflaw && !preserve_character)
 		QDEL_NULL(L.charflaw)
 
 	L.mob_biotypes |= MOB_UNDEAD
@@ -104,11 +105,40 @@
 	for (var/obj/item/bodypart/B in L.bodyparts)
 		B.skeletonize(FALSE)
 
-	equip_and_traits()
-	L.equipOutfit(/datum/outfit/job/roguetown/lich)
+	if(preserve_character)
+		for(var/trait in traits_lich)
+			ADD_TRAIT(L, trait, "[type]")
+		L.grant_lich_powers(FALSE)
+		L.mind.adjust_spellpoints(max(27 - L.mind.spell_points, 0))
+		var/obj/item/phylactery/new_phylactery = new(get_turf(L))
+		phylacteries += new_phylactery
+		new_phylactery.possessor = src
+		L.put_in_hands(new_phylactery)
+	else
+		equip_and_traits()
+		L.equipOutfit(/datum/outfit/job/roguetown/lich)
 	L.set_patron(/datum/patron/inhumen/zizo)
-	owner.current.forceMove(pick(GLOB.lich_starts)) // as opposed to spawning at their normal role spot as a skeleton; which is le bad
+	if(!preserve_character)
+		owner.current.forceMove(pick(GLOB.lich_starts)) // as opposed to spawning at their normal role spot as a skeleton; which is le bad
 
+
+/datum/antagonist/lich/get_admin_skill_profile()
+	return list(
+		/datum/skill/misc/reading = 6,
+		/datum/skill/craft/alchemy = 5,
+		/datum/skill/magic/arcane = 6,
+		/datum/skill/misc/riding = 4,
+		/datum/skill/combat/polearms = 4,
+		/datum/skill/combat/wrestling = 3,
+		/datum/skill/combat/unarmed = 1,
+		/datum/skill/misc/swimming = 1,
+		/datum/skill/misc/climbing = 1,
+		/datum/skill/misc/athletics = 1,
+		/datum/skill/combat/swords = 2,
+		/datum/skill/combat/knives = 5,
+		/datum/skill/craft/crafting = 1,
+		/datum/skill/misc/medicine = 3,
+	)
 
 /datum/outfit/job/roguetown/lich/pre_equip(mob/living/carbon/human/H) //Equipment is located below
 	..()
@@ -134,7 +164,10 @@
 	H.change_stat(STATKEY_CON, 5)
 	H.change_stat(STATKEY_PER, 3)
 	H.change_stat(STATKEY_SPD, 1)
+	H.grant_lich_powers()
 
+/mob/living/carbon/human/proc/grant_lich_powers(rename = TRUE)
+	var/mob/living/carbon/human/H = src
 	H.grant_language(/datum/language/undead)
 
 	if(H.mind)
@@ -154,7 +187,8 @@
 		H.mind.AddSpell(new /obj/effect/proc_holder/spell/invoked/raise_deadite)
 	H.ambushable = FALSE
 
-	addtimer(CALLBACK(H, TYPE_PROC_REF(/mob/living/carbon/human, choose_name_popup), "LICH"), 5 SECONDS)
+	if(rename)
+		addtimer(CALLBACK(H, TYPE_PROC_REF(/mob/living/carbon/human, choose_name_popup), "LICH"), 5 SECONDS)
 
 /datum/antagonist/lich/proc/replace_eyes(mob/living/carbon/human/L)
 	var/obj/item/organ/eyes/eyes = L.getorganslot(ORGAN_SLOT_EYES)
@@ -172,6 +206,13 @@
 	lichman.phylacteries += new_phylactery
 	new_phylactery.possessor = lichman
 	H.equip_to_slot_or_del(new_phylactery,SLOT_IN_BACKPACK, TRUE)
+
+/datum/antagonist/lich/Destroy()
+	SSmapping.retainer?.liches -= owner
+	for(var/obj/item/phylactery/phyl in phylacteries)
+		phyl.possessor = null
+	phylacteries.Cut()
+	return ..()
 
 /datum/antagonist/lich/proc/consume_phylactery(timer = 10 SECONDS)
 	if(phylacteries.len)
@@ -279,12 +320,23 @@
 	. = ..()
 	filters += filter(type="drop_shadow", x=0, y=0, size=1, offset=2, color=rgb(rand(1,255),rand(1,255),rand(1,255)))
 
+/obj/item/phylactery/Destroy()
+	possessor?.phylacteries -= src
+	possessor = null
+	mind = null
+	return ..()
+
 /obj/item/phylactery/proc/be_consumed(timer)
 	var/offset = prob(50) ? -2 : 2
 	animate(src, pixel_x = pixel_x + offset, time = 0.2, loop = -1) //start shaking
 	visible_message(span_warning("[src] begins to glow and shake violently!"))
 
 	spawn(timer)
+		if(QDELETED(src))
+			return
+		if(QDELETED(possessor) || !possessor.owner?.current)
+			qdel(src)
+			return
 		possessor.owner.current.forceMove(get_turf(src))
 		possessor.rise_anew()
 		qdel(src)

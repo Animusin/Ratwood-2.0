@@ -33,6 +33,12 @@ GLOBAL_LIST_EMPTY(personal_objective_minds)
 
 
 /datum/mind
+	/// Pending exemption from an admin-created latejoin slot, limited to its minor role.
+	var/admin_slot_antag_type
+	/// A consented lobby offer, transferred with this character's mind and consumed after setup.
+	var/datum/antagonist/queued_admin_antag
+	var/queued_admin_antag_ckey
+	var/queued_admin_antag_author
 	var/key
 	var/name				//replaces mob/var/original_name
 	var/ghostname			//replaces name for observers name if set
@@ -123,8 +129,10 @@ GLOBAL_LIST_EMPTY(personal_objective_minds)
 	sleep_adv = new /datum/sleep_adv(src)
 
 /datum/mind/Destroy()
+	clear_queued_admin_antag()
 	SSticker.minds -= src
 	QDEL_NULL(sleep_adv)
+	QDEL_NULL(language_holder)
 	if(islist(antag_datums))
 		QDEL_LIST(antag_datums)
 	RemoveAllSpells()
@@ -378,6 +386,9 @@ GLOBAL_LIST_EMPTY(personal_objective_minds)
 		qdel(A)
 		return
 	A.owner = src
+	if(admin_slot_antag_type && A.type == admin_slot_antag_type)
+		A.antag_flags |= FLAG_ANTAG_CAP_IGNORE
+		admin_slot_antag_type = null
 	LAZYADD(antag_datums, A)
 	A.create_team(team)
 	var/datum/team/antag_team = A.get_team()
@@ -387,6 +398,8 @@ GLOBAL_LIST_EMPTY(personal_objective_minds)
 		A.on_gain(TRUE)
 	else
 		A.on_gain()
+	if(A.preserve_character)
+		A.apply_admin_skill_profile()
 	log_game("[key_name(src)] has gained antag datum [A.name]([A.type])")
 	var/client/picked_client = src.current?.client
 	picked_client?.mob?.mind.picking = FALSE

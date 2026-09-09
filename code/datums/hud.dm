@@ -23,6 +23,9 @@ GLOBAL_LIST_INIT(huds, alist(
 	GLOB.all_huds += src
 
 /datum/atom_hud/Destroy()
+	for(var/mob/M in next_time_allowed)
+		UnregisterSignal(M, COMSIG_QDELETING)
+	next_time_allowed.Cut()
 	for(var/v in hudusers)
 		remove_hud_from(v)
 	for(var/v in hudatoms)
@@ -56,8 +59,11 @@ GLOBAL_LIST_INIT(huds, alist(
 		M.client.images -= A.hud_list[i]
 
 /datum/atom_hud/proc/add_hud_to(mob/M)
-	if(!M)
+	if(QDELETED(M))
 		return
+	if(!(M in next_time_allowed))
+		RegisterSignal(M, COMSIG_QDELETING, PROC_REF(on_hud_user_deleted))
+		next_time_allowed[M] = 0
 	if(!hudusers[M])
 		hudusers[M] = 1
 		if(next_time_allowed[M] > world.time)
@@ -70,6 +76,18 @@ GLOBAL_LIST_INIT(huds, alist(
 				add_to_single_hud(M, A)
 	else
 		hudusers[M]++
+
+/// Cooldowns outlive HUD membership, but must never retain a deleted mob.
+/datum/atom_hud/proc/on_hud_user_deleted(mob/M)
+	SIGNAL_HANDLER
+	if(hudusers[M])
+		hudusers[M] = 1
+		remove_hud_from(M)
+	remove_from_hud(M)
+	next_time_allowed -= M
+	queued_to_see -= M
+	hud_exceptions -= M
+	UnregisterSignal(M, COMSIG_QDELETING)
 
 /datum/atom_hud/proc/hide_single_atomhud_from(hud_user,hidden_atom)
 	if(hudusers[hud_user])

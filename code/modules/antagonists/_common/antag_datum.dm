@@ -1,5 +1,9 @@
 GLOBAL_LIST_EMPTY(antagonists)
 
+/mob/living/carbon/human
+	/// Prevent lobby offers from applying before normal job/class bonuses are finished.
+	var/admin_antag_setup_pending = FALSE
+
 /datum/antagonist
 	var/name = "Antagonist"
 	var/roundend_category = "other villains"				//Section of roundend report, datums with same category will be displayed together, also default header for the section
@@ -26,6 +30,8 @@ GLOBAL_LIST_EMPTY(antagonists)
 	var/rogue_enabled = FALSE
 	/// If TRUE, the player will be prompted to confirm the antag role. If declined, the antag is removed.
 	var/requires_confirmation = FALSE
+	/// Admin ckey assignment keeps the existing character instead of applying a spawn loadout.
+	var/preserve_character = FALSE
 
 	///flags used by storytellers
 	var/antag_flags = NONE
@@ -61,6 +67,15 @@ GLOBAL_LIST_EMPTY(antagonists)
 /// Proc to return the weight of this antagonist for purpose of antag cap calculations. Meant to be overriddeable
 /datum/antagonist/proc/get_antag_cap_weight()
 	return 1
+
+/// Role-specific minimum skill ranks for an admin conversion; never add ranks together.
+/datum/antagonist/proc/get_admin_skill_profile()
+	return list()
+
+/datum/antagonist/proc/apply_admin_skill_profile()
+	var/list/profile = get_admin_skill_profile()
+	for(var/skill in profile)
+		owner.current.adjust_skillrank_up_to(skill, profile[skill], TRUE)
 
 //This will be called in add_antag_datum before owner assignment.
 //Should return antag datum without owner.

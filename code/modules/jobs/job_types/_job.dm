@@ -39,6 +39,10 @@
 	var/antag_job = FALSE
 	/// How much capacity this job consumes from the storyteller antagonist cap when latejoining.
 	var/antag_cap_weight = 1
+	/// Antagonist granted by an admin-created, cap-exempt latejoin slot.
+	var/admin_slot_antag_type
+	/// Unclaimed admin slots; consumed before normal latejoin slots.
+	var/admin_antag_slots = 0
 
 	//Supervisors, who this person answers to directly
 	var/supervisors = ""

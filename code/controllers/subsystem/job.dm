@@ -82,6 +82,8 @@ SUBSYSTEM_DEF(job)
 /datum/controller/subsystem/job/proc/can_assign_antag_job(datum/job/job)
 	if(!job?.antag_job || !SSgamemode)
 		return TRUE
+	if(SSticker.HasRoundStarted() && job.admin_slot_antag_type && job.admin_antag_slots > 0)
+		return TRUE
 	if(SSgamemode.antagonists_disabled)
 		return FALSE
 	if(!SSticker.HasRoundStarted())
@@ -93,13 +95,18 @@ SUBSYSTEM_DEF(job)
 /datum/controller/subsystem/job/proc/get_latejoin_position_limit(datum/job/job, remaining_antag_capacity = null)
 	if(!job)
 		return 0
-	if(job.antag_job && SSgamemode?.antagonists_disabled)
-		return 0
 	var/job_position_limit = job.get_position_limit(TRUE)
+	var/bonus_slots = SSticker.HasRoundStarted() && job.admin_slot_antag_type ? job.admin_antag_slots : 0
+	if(job.antag_job && SSgamemode?.antagonists_disabled)
+		if(!bonus_slots)
+			return 0
+		return job_position_limit < 0 ? job.current_positions + bonus_slots : min(job_position_limit, job.current_positions + bonus_slots)
+	if(job.antag_job && isnull(remaining_antag_capacity) && SSgamemode)
+		remaining_antag_capacity = SSgamemode.get_remaining_antag_capacity()
 	if(!job.antag_job || job.antag_cap_weight <= 0 || isnull(remaining_antag_capacity))
 		return job_position_limit
 	var/remaining_positions = FLOOR(max(remaining_antag_capacity, 0) / job.antag_cap_weight, 1)
-	var/cap_position_limit = job.current_positions + remaining_positions
+	var/cap_position_limit = job.current_positions + remaining_positions + bonus_slots
 	if(job_position_limit < 0)
 		return cap_position_limit
 	return min(job_position_limit, cap_position_limit)
@@ -133,6 +140,8 @@ SUBSYSTEM_DEF(job)
 			if(old_job)
 				old_job.current_positions = max(old_job.current_positions - 1, 0)
 		player.mind.assigned_role = rank
+		if(latejoin && claim_admin_antag_slot(job, player.mind))
+			log_admin("[key_name(player)] claimed a cap-exempt [rank] slot ([job.admin_antag_slots] remaining).")
 		unassigned -= player
 		job.current_positions++
 		if(!latejoin)
@@ -152,6 +161,14 @@ SUBSYSTEM_DEF(job)
 	JobDebug("AR has failed, Player: [player], Rank: [rank]")
 	return FALSE
 
+
+/// Reserve before character creation, so even antagonist datums added by outfits see the exemption.
+/datum/controller/subsystem/job/proc/claim_admin_antag_slot(datum/job/job, datum/mind/player)
+	if(!SSticker.HasRoundStarted() || !job?.admin_slot_antag_type || job.admin_antag_slots <= 0 || QDELETED(player))
+		return FALSE
+	job.admin_antag_slots--
+	player.admin_slot_antag_type = job.admin_slot_antag_type
+	return TRUE
 
 /datum/controller/subsystem/job/proc/FindOccupationCandidates(datum/job/job, level, flag)
 	JobDebug("Running FOC, Job: [job], Level: [level], Flag: [flag]")

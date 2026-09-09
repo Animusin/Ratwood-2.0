@@ -1,5 +1,5 @@
 /datum/antagonist/werewolf/on_life(mob/user)
-	if(!user) return
+	if(!ishuman(user)) return
 	var/mob/living/carbon/human/H = user
 	if(H.stat == DEAD) return
 	if(H.advsetup) return
@@ -53,6 +53,8 @@
 
 
 /mob/living/carbon/human/species/werewolf/death(gibbed, nocutscene = FALSE)
+	if(!stored_mob)
+		return ..()
 	werewolf_untransform(TRUE, gibbed)
 
 /mob/living/carbon/human/proc/werewolf_transform()
@@ -183,15 +185,17 @@
 	var/mob/living/carbon/human/W = stored_mob
 	stored_mob = null
 	REMOVE_TRAIT(W, TRAIT_NOSLEEP, TRAIT_GENERIC)
-	if(dead)
-		W.death(gibbed)
-
 	W.forceMove(get_turf(src))
 
 	REMOVE_TRAIT(W, TRAIT_NOMOOD, TRAIT_GENERIC)
 	REMOVE_TRAIT(W, TRAIT_SILVER_WEAK, TRAIT_GENERIC)
 
-	mind.transfer_to(W)
+	var/datum/antagonist/werewolf/wolf = mind?.has_antag_datum(/datum/antagonist/werewolf)
+	if(wolf)
+		wolf.transformed = FALSE
+		wolf.transforming = FALSE
+		wolf.untransforming = FALSE
+	mind?.transfer_to(W)
 
 	var/mob/living/carbon/human/species/werewolf/WA = src
 	W.remove_all_languages()
@@ -209,5 +213,9 @@
 	W.spawn_gibs(FALSE)
 	W.Knockdown(30)
 	W.Stun(30)
+	// Ooze death transfers the mind into vulnerable remains. Do it only after
+	// restoring the original body, so it cannot be pulled out of its death holder.
+	if(dead)
+		W.death(gibbed)
 
 	qdel(src)

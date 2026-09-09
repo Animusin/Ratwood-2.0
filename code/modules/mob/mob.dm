@@ -58,6 +58,8 @@ GLOBAL_VAR_INIT(mobids, 1)
 		var/datum/skill_holder/my_skill = skills
 		my_skill.current = null
 		QDEL_NULL(skills)
+	// A previous form can still reference skills now owned by the restored body.
+	skills = null
 	client_colours = null
 	ghostize(drawskip=TRUE)
 	// spell/action removal must go after ghostize, so we only delete the ones not transferred by a mind

@@ -208,6 +208,7 @@
 	H.equip_to_slot_or_del(new_phylactery,SLOT_IN_BACKPACK, TRUE)
 
 /datum/antagonist/lich/Destroy()
+	SSmapping.retainer?.liches -= owner
 	for(var/obj/item/phylactery/phyl in phylacteries)
 		phyl.possessor = null
 	phylacteries.Cut()

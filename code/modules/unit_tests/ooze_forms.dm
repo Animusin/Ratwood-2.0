@@ -99,9 +99,10 @@
 	var/datum/antagonist/werewolf/wolf = player.add_antag_datum(/datum/antagonist/werewolf/lesser)
 	caster.werewolf_transform()
 	wolf.transformed = TRUE
-	var/mob/living/beast = player.current
+	var/mob/living/carbon/human/beast = player.current
 	TEST_ASSERT(istype(beast, /mob/living/carbon/human/species/werewolf), "The test must enter werewolf form.")
 	beast.death()
+	TEST_ASSERT_NULL(beast.skin_armor, "Deleting werewolf form must release its skin armor.")
 	var/mob/living/remains = player.current
 	TEST_ASSERT(istype(remains, /mob/living/simple_animal/hostile/retaliate/rogue/ooze_blob/suffering), "A slain ooze werewolf must leave vulnerable remains.")
 	TEST_ASSERT(istype(caster.loc, /obj/shapeshift_holder/ooze_death), "Untransform must not pull the ooze out of its death holder.")

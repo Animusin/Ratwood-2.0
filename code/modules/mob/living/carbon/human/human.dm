@@ -188,6 +188,7 @@
 
 /mob/living/carbon/human/Destroy()
 	set_tracking_mark(null)
+	QDEL_NULL(skin_armor)
 	QDEL_NULL(sexcon)
 	STOP_PROCESSING(SShumannpc, src)
 	QDEL_NULL(physiology)

@@ -132,6 +132,7 @@ GLOBAL_LIST_EMPTY(personal_objective_minds)
 	clear_queued_admin_antag()
 	SSticker.minds -= src
 	QDEL_NULL(sleep_adv)
+	QDEL_NULL(language_holder)
 	if(islist(antag_datums))
 		QDEL_LIST(antag_datums)
 	RemoveAllSpells()

@@ -263,3 +263,11 @@
 	qdel(abandoned_lobby)
 	TEST_ASSERT_NULL(abandoned_mind.queued_admin_antag, "Leaving the lobby without spawning must cancel the reservation.")
 	TEST_ASSERT(QDELETED(abandoned_offer), "Abandoned lobby offers must not leak antagonist datums.")
+	player.remove_all_antag_datums()
+	TEST_ASSERT(!(player in SSmapping.retainer.liches), "Removing lich status must release the mind from the retainer.")
+	var/datum/language_holder/languages = player.language_holder
+	qdel(character)
+	qdel(player)
+	TEST_ASSERT(QDELETED(languages), "Deleting the consenting mind must delete its copied language holder.")
+	TEST_ASSERT_NULL(languages.owner, "The deleted language holder must release its mind.")
+	player = null

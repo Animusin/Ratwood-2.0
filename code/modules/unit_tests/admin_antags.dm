@@ -319,6 +319,7 @@
 	TEST_ASSERT(!(player in SSmapping.retainer.liches), "Removing lich status must release the mind from the retainer.")
 	var/datum/language_holder/languages = player.language_holder
 	qdel(character)
+	TEST_ASSERT_NULL(character.mind, "A deleted character must release its mind before either object reaches garbage collection.")
 	qdel(player)
 	TEST_ASSERT(QDELETED(languages), "Deleting the consenting mind must delete its copied language holder.")
 	TEST_ASSERT_NULL(languages.owner, "The deleted language holder must release its mind.")

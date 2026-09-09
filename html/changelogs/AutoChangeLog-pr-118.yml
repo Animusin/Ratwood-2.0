@@ -1,0 +1,4 @@
+author: "sigmaboy124124"
+delete-after: True
+changes:
+  - bugfix: "Allow elvish daggers as Matthios shrine offerings"

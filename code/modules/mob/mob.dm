@@ -73,6 +73,8 @@ GLOBAL_VAR_INIT(mobids, 1)
 			action.Remove(src)
 	// remove any actions not transferred in ghostize or removed above
 	QDEL_LIST(actions)
+	// Ghosting and action cleanup are complete; the deleted body must not retain its mind.
+	mind = null
 	..()
 	return QDEL_HINT_QUEUE
 

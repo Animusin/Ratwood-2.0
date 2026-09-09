@@ -77,12 +77,15 @@
 	set waitfor = FALSE
 	if(!H)
 		return FALSE
+	var/client/equipping_player = H.client
 
 	if(outfit)
 		H.equipOutfit(outfit, dummy)
 
 		if(dummy)	//This means we're doing a Char Sheet preview. We don't need to equip the dummy with anything else, the outfits are likely to runtime on their own.
 			return
+	if(QDELETED(H) || (equipping_player && equipping_player.mob != H))
+		return FALSE
 
 	post_equip(H)
 
@@ -182,16 +185,18 @@
 
 	if(length(allowed_patrons) && !(H.patron.type in allowed_patrons))
 		return FALSE
+	if(H.admin_antag_spawn && !vampcompat && H.mind?.has_antag_datum(/datum/antagonist/vampire))
+		return FALSE
 
-	if(maximum_possible_slots > -1)
+	if(!H.admin_antag_spawn && maximum_possible_slots > -1)
 		if(total_slots_occupied >= maximum_possible_slots)
 			return FALSE
 
-	if(minimum_chaos > 0)
+	if(!H.admin_antag_spawn && minimum_chaos > 0)
 		if(SSgamemode.level < minimum_chaos)
 			return FALSE
 
-	if(minimum_town_strength > 0)
+	if(!H.admin_antag_spawn && minimum_town_strength > 0)
 		if(SSgamemode.get_town_strength() < minimum_town_strength)
 			return FALSE
 
@@ -201,7 +206,7 @@
 				return FALSE
 
 	#ifdef USES_PQ
-	if(min_pq != -100) // If someone sets this we actually do the check.
+	if(!H.admin_antag_spawn && min_pq != -100) // Explicit admin admission already approved the player.
 		if(!(get_playerquality(H.client.ckey) >= min_pq))
 			return FALSE
 	#endif

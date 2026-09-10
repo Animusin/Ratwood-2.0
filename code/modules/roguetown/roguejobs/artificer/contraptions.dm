@@ -266,9 +266,11 @@
 	if(istype(O, /obj/structure/mineral_door/wood)) //This is to ensure the new door will retain its lock
 		var/obj/structure/mineral_door/wood/I = O
 		var/obj/structure/mineral_door/wood/new_door = new I.metalizer_result(get_turf(I))
+		// The replacement initializes its own lockhash, but the existing key matches the original one.
+		GLOB.lockhashes.Remove(new_door.lockhash)
 		new_door.locked = I.locked
-		if(I.lockid)
-			new_door.lockid = I.lockid
+		new_door.lockid = I.lockid
+		new_door.lockhash = I.lockhash
 		qdel(I)
 	else
 		var/newdir = O.dir

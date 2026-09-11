@@ -266,9 +266,11 @@
 	if(istype(O, /obj/structure/mineral_door/wood)) //This is to ensure the new door will retain its lock
 		var/obj/structure/mineral_door/wood/I = O
 		var/obj/structure/mineral_door/wood/new_door = new I.metalizer_result(get_turf(I))
+		// The replacement initializes its own lockhash, but the existing key matches the original one.
+		GLOB.lockhashes.Remove(new_door.lockhash)
 		new_door.locked = I.locked
-		if(I.lockid)
-			new_door.lockid = I.lockid
+		new_door.lockid = I.lockid
+		new_door.lockhash = I.lockhash
 		qdel(I)
 	else
 		var/newdir = O.dir
@@ -475,8 +477,8 @@
 	charge_per_source = 2
 	cog_accept = FALSE
 	var/list/allowed_locks = list(/obj/structure/mineral_door, /obj/structure/closet, /obj/structure/roguemachine/steward, /obj/structure/roguemachine/vendor, /obj/structure/roguemachine/goldface)
-	var/stored_lock_id = "artificer"
-	var/stored_lock_hash = 354
+	var/stored_lock_id
+	var/stored_lock_hash
 	var/mode = "Examiner"
 
 /obj/item/contraption/lock_imprinter/examine(mob/user)
@@ -490,28 +492,71 @@
 		if(skill >= 4)
 			if(stored_lock_id)
 				. += span_warning("The current stored Lock ID is [stored_lock_id].")
+			else if(stored_lock_hash)
+				. += span_warning("The current stored Lock ID is custom.")
 			else
 				. += span_warning("There is no stored Lock ID.")
 		else
 			. += span_warning("I cannot yet fully understand this contraption.")
 
+/obj/item/contraption/lock_imprinter/proc/set_stored_lock_data(lock_id, lock_hash)
+	stored_lock_id = lock_id
+	stored_lock_hash = lock_hash
+
+/obj/item/contraption/lock_imprinter/proc/store_lock_data(lock_id, lock_hash, mob/user, atom/source)
+	if(!lock_id && !lock_hash)
+		to_chat(user, span_warning("The [name] identifies an absense of a lock or lock ID."))
+		return
+	set_stored_lock_data(lock_id, lock_hash)
+	user.changeNext_move(CLICK_CD_FAST)
+	flick(off_icon, src)
+	playsound(user, 'sound/foley/doors/unlock.ogg', 100, TRUE)
+	var/datum/effect_system/spark_spread/S = new()
+	var/turf/front = get_turf(src)
+	S.set_up(1, 1, front)
+	S.start()
+	user.visible_message(span_notice("[user] scans \a [source] with the [name] and it starts ticking..."))
+	addtimer(CALLBACK(src, PROC_REF(play_clock_sound)), 5)
+
+/obj/item/contraption/lock_imprinter/proc/imprint_lock(obj/O, mob/living/user)
+	if(istype(O, /obj/structure/roguemachine/steward))
+		if(!stored_lock_id)
+			to_chat(user, span_warning("The [name] requires a stored Lock ID to imprint this lock."))
+			return FALSE
+		var/obj/structure/roguemachine/steward/steward = O
+		steward.keycontrol = stored_lock_id
+		return TRUE
+	if(istype(O, /obj/structure/roguemachine/vendor))
+		if(!stored_lock_id)
+			to_chat(user, span_warning("The [name] requires a stored Lock ID to imprint this lock."))
+			return FALSE
+		var/obj/structure/roguemachine/vendor/vendor = O
+		vendor.keycontrol = stored_lock_id
+		return TRUE
+	if(istype(O, /obj/structure/roguemachine/goldface))
+		if(!stored_lock_id)
+			to_chat(user, span_warning("The [name] requires a stored Lock ID to imprint this lock."))
+			return FALSE
+		O.lockid = stored_lock_id
+		return TRUE
+	if(!stored_lock_hash)
+		to_chat(user, span_warning("The [name] has no stored lock data to imprint."))
+		return FALSE
+	O.lockid = stored_lock_id
+	O.lockhash = stored_lock_hash
+	return TRUE
+
 /obj/item/contraption/lock_imprinter/attackby(obj/item/I, mob/user, params)
 	..()
-	if(istype(I, /obj/item/key))
-		var/obj/item/key/the_key = I
-		user.changeNext_move(CLICK_CD_FAST)
-		flick(off_icon, src)
-		playsound(user, 'sound/foley/doors/unlock.ogg', 100, TRUE)
-		var/datum/effect_system/spark_spread/S = new()
-		var/turf/front = get_turf(src)
-		S.set_up(1, 1, front)
-		S.start()
-		stored_lock_id = the_key.lockid
-		stored_lock_hash = the_key.lockhash
-		user.visible_message(span_notice("[user] inserts \a [the_key] into the [name] and it starts ticking..."))
-		addtimer(CALLBACK(src, PROC_REF(play_clock_sound)), 5)
+	if(istype(I, /obj/item/roguekey))
+		var/obj/item/roguekey/the_key = I
+		store_lock_data(the_key.lockid, the_key.lockhash, user, the_key)
 
 /obj/item/contraption/lock_imprinter/attack_obj(obj/O, mob/living/user)
+	if(istype(O, /obj/item/roguekey))
+		var/obj/item/roguekey/the_key = O
+		store_lock_data(the_key.lockid, the_key.lockhash, user, the_key)
+		return
 	..()
 	if(!current_charge)
 		return
@@ -521,16 +566,30 @@
 		if(istype(O, type))
 			valid_lock = TRUE
 			if(mode == "Examiner")
-				if(O.lockid)
-					to_chat(user, span_warning("The [name] identifies this lock's ID as [O.lockid]."))
+				var/lock_id = O.lockid
+				var/lock_hash = O.lockhash
+				if(istype(O, /obj/structure/roguemachine/steward))
+					var/obj/structure/roguemachine/steward/steward = O
+					lock_id = steward.keycontrol
+					lock_hash = null
+				else if(istype(O, /obj/structure/roguemachine/vendor))
+					var/obj/structure/roguemachine/vendor/vendor = O
+					lock_id = vendor.keycontrol
+					lock_hash = null
+				if(lock_id || lock_hash)
+					set_stored_lock_data(lock_id, lock_hash)
+					if(lock_id)
+						to_chat(user, span_warning("The [name] identifies this lock's ID as [lock_id]."))
+					else
+						to_chat(user, span_warning("The [name] identifies a custom lock."))
 				else
 					to_chat(user, span_warning("The [name] identifies an absense of a lock or lock ID."))
 				playsound(loc, 'sound/misc/beep.ogg', 50, TRUE)
 				flick(off_icon, src)
 				break
 			if(mode == "Imprinter")
-				O.lockid = stored_lock_id
-				O.lockhash = stored_lock_hash
+				if(!imprint_lock(O, user))
+					return
 				flick(on_icon, src)
 				shake_camera(user, 1, 1)
 				user.visible_message(span_notice("[user] holds the [name] up to the [O.name] causing sparks to fly!"))

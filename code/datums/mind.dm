@@ -483,7 +483,7 @@ GLOBAL_LIST_EMPTY(personal_objective_minds)
 			antag_obj_count++
 
 	if(window)
-		recipient << browse(output,"window=memory")
+		recipient << browse("<!DOCTYPE html><html><head><meta charset='UTF-8'></head><body>[output]</body></html>", "window=memory")
 	else if(all_objectives.len || memory || personal_objectives.len)
 		to_chat(recipient, "<i>[output]</i>")
 

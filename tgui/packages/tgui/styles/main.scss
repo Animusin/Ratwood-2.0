@@ -51,6 +51,8 @@
 @include meta.load-css('./interfaces/Uplink.scss');
 @include meta.load-css('./interfaces/DetectiveBoard.scss');
 
+@include meta.load-css('./interfaces/BuildMode.scss');
+
 // Layouts
 @include meta.load-css('./layouts/Layout.scss');
 @include meta.load-css('./layouts/NtosHeader.scss');

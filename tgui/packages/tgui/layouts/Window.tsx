@@ -36,6 +36,7 @@ type Props = Partial<{
   buttons: ReactNode;
   canClose: BooleanLike;
   height: number;
+  rememberSize: boolean;
   theme: string;
   title: string;
   width: number;
@@ -51,6 +52,7 @@ export const Window = (props: Props) => {
     buttons,
     width,
     height,
+    rememberSize = false,
   } = props;
 
   const { config, suspended } = useBackend();
@@ -74,6 +76,7 @@ export const Window = (props: Props) => {
         const options = {
           ...config.window,
           size: DEFAULT_SIZE,
+          rememberSize,
         };
 
         if (width && height) {
@@ -99,7 +102,7 @@ export const Window = (props: Props) => {
         logger.log('unmounting');
       };
     }
-  }, [isReadyToRender, width, height, scale]);
+  }, [isReadyToRender, width, height, scale, rememberSize]);
 
   const dispatch = globalStore.dispatch;
   const fancy = config.window?.fancy;
@@ -165,7 +168,6 @@ const WindowContent = (props: ContentProps) => {
     <Layout.Content
       className={classes(['Window__content', className])}
       {...rest}
-      
     >
       {(fitted && children) || (
         <div className="Window__contentPadding">{children}</div>

@@ -286,6 +286,62 @@
 	else
 		return ..()
 
+/obj/structure/closet/attack_right(mob/user)
+	var/obj/item/key_item = find_key_for_closet(user)
+	if(key_item)
+		trykeylock(key_item, user)
+		return
+	return ..()
+
+/obj/structure/closet/proc/find_key_for_closet(mob/user)
+	if(!user || !keylock)
+		return null
+
+	var/obj/item/W = user.get_active_held_item()
+	if(istype(W, /obj/item/roguekey))
+		var/obj/item/roguekey/K = W
+		if(K.lockhash == lockhash || istype(K, /obj/item/roguekey/lord))
+			return W
+	if(istype(W, /obj/item/storage/keyring) && keyring_has_matching_key(W))
+		return W
+
+	if(!ishuman(user))
+		return null
+
+	var/mob/living/carbon/human/H = user
+	var/list/belt_slots = list(
+		H.get_item_by_slot(SLOT_BELT),
+		H.get_item_by_slot(SLOT_BELT_L),
+		H.get_item_by_slot(SLOT_BELT_R)
+	)
+
+	for(var/obj/item/I in belt_slots)
+		if(!I)
+			continue
+
+		if(istype(I, /obj/item/roguekey))
+			var/obj/item/roguekey/K = I
+			if(K.lockhash == lockhash || istype(K, /obj/item/roguekey/lord))
+				return I
+		if(istype(I, /obj/item/storage/keyring) && keyring_has_matching_key(I))
+			return I
+
+		for(var/obj/item/contained_item in I.contents)
+			if(istype(contained_item, /obj/item/roguekey))
+				var/obj/item/roguekey/K = contained_item
+				if(K.lockhash == lockhash || istype(K, /obj/item/roguekey/lord))
+					return contained_item
+			if(istype(contained_item, /obj/item/storage/keyring) && keyring_has_matching_key(contained_item))
+				return contained_item
+
+	return null
+
+/obj/structure/closet/proc/keyring_has_matching_key(obj/item/storage/keyring/keyring)
+	for(var/obj/item/roguekey/K in keyring.contents)
+		if(K.lockhash == lockhash)
+			return TRUE
+	return FALSE
+
 /obj/structure/closet/proc/trykeylock(obj/item/I, mob/user)
 	if(opened)
 		return

@@ -88,6 +88,7 @@
 #include "admin_antags.dm"
 #include "anchored_mobs.dm"
 #include "baseturfs.dm"
+#include "buildmode_catalog.dm"
 #include "colorblind_hud_palette.dm"
 #include "component_tests.dm"
 #include "create_and_destroy.dm"

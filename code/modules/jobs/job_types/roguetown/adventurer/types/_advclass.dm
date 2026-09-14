@@ -151,7 +151,7 @@
 
 	if(isooze(H))
 		H.mind.AddSpell(new /obj/effect/proc_holder/spell/targeted/shapeshift/ooze)
-		H.mind.AddSpell(new /obj/effect/proc_holder/spell/invoked/mirror_transform)
+		H.mind.AddSpell(new /obj/effect/proc_holder/spell/invoked/mirror_transform/ooze)
 
 /*
 	Whoa! we are checking requirements here!

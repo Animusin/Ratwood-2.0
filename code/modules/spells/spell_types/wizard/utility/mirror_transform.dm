@@ -22,6 +22,9 @@
 	chargedloop = /datum/looping_sound/wind
 	overlay_state = "mirror"
 
+/obj/effect/proc_holder/spell/invoked/mirror_transform/ooze
+	human_req = TRUE
+
 /obj/effect/proc_holder/spell/invoked/mirror_transform/cast(list/targets, mob/user)  // Changed to match invoked spell pattern
 	if(!isliving(targets[1]))
 		return

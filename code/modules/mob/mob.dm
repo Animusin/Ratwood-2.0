@@ -886,7 +886,7 @@ GLOBAL_VAR_INIT(mobids, 1)
 			statpanel(listed_turf.name, null, listed_turf)
 			var/list/overrides = list()
 			for(var/image/I in client.images)
-				if(I.loc && I.loc.loc == listed_turf && I.override)
+				if(I.loc && I.loc.loc == listed_turf && I.override && I.loc != pulling)
 					overrides += I.loc
 			for(var/atom/A in listed_turf)
 				if(!A.mouse_opacity)

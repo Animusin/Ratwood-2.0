@@ -31,6 +31,12 @@
 	if(stat == DEAD)
 		return
 
+	if(SScity_assembly?.is_alderman(src))
+		var/departing_name = real_name
+		var/departing_job = job
+		SScity_assembly.demote_alderman("Alderman has died")
+		SScity_assembly.notify_alderman_lost_ref(departing_name, departing_job, "died")
+
 	var/area/A = get_area(src)
 	dna?.species?.stop_wagging_tail(src)
 
@@ -184,6 +190,9 @@
 		if(client || mind)
 			var/death_admin_message = "[key_name(src)] [loc_name(src)] [ADMIN_FLW(src)] has died (BRUTE: [src.getBruteLoss()], BURN: [src.getFireLoss()], TOX: [src.getToxLoss()], OXY: [src.getOxyLoss()], CLONE: [src.getCloneLoss()])"
 			message_admins(death_admin_message)
+			for(var/client/admin_client in GLOB.admins)
+				if(check_rights_for(admin_client, R_ADMIN) && (admin_client.prefs.toggles & SOUND_DEATH_ALARM))
+					SEND_SOUND(admin_client, sound('sound/misc/death_alarm.ogg'))
 			log_admin(death_admin_message)
 
 /mob/living/carbon/human/revive(full_heal, admin_revive)

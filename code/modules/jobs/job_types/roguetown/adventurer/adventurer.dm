@@ -8,6 +8,7 @@ GLOBAL_VAR_INIT(adventurer_hugbox_duration_still, 3 MINUTES)
 #define ADVENTURER_MAX_POSITIONS 20
 
 /datum/job/roguetown/adventurer
+	townie_contract_gate_exempt = TRUE
 	title = "Adventurer"
 	flag = ADVENTURER
 	department_flag = WANDERERS
@@ -75,6 +76,7 @@ GLOBAL_VAR_INIT(adventurer_hugbox_duration_still, 3 MINUTES)
 		/datum/advclass/foreigner/aavnik,
 		/datum/advclass/foreigner/bluthund,
 		/datum/advclass/foreigner/underdweller,
+		/datum/advclass/foreigner/bronzeclad,
 	)
 
 /datum/job/roguetown/adventurer/get_position_limit(latejoin = FALSE)

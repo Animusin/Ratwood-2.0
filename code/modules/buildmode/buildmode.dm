@@ -24,8 +24,10 @@
 	var/list/dirswitch_buttons = list()
 
 /datum/buildmode/New(client/c)
-	mode = new /datum/buildmode_mode/basic(src)
+	mode = new /datum/buildmode_mode/catalog(src)
 	holder = c
+	catalog_state = new
+	read_catalog_preferences()
 	buttons = list()
 	li_cb = CALLBACK(src, PROC_REF(post_login))
 	holder.player_details.post_login_callbacks += li_cb
@@ -33,25 +35,34 @@
 	holder.screen += buttons
 	holder.click_intercept = src
 	mode.enter_mode(src)
+	modebutton.update_icon()
+	ui_interact(holder.mob)
 
 /datum/buildmode/proc/quit()
-	mode.exit_mode(src)
-	holder.screen -= buttons
-	holder.click_intercept = null
 	qdel(src)
 
 /datum/buildmode/Destroy()
+	SStgui.close_uis(src)
+	mode?.exit_mode(src)
+	clear_spawn_preview()
 	close_switchstates()
-	holder.player_details.post_login_callbacks -= li_cb
-	holder = null
+	if(holder)
+		holder.player_details.post_login_callbacks -= li_cb
+		holder.screen -= buttons
+		if(holder.click_intercept == src)
+			holder.click_intercept = null
 	QDEL_NULL(mode)
+	QDEL_NULL(catalog_state)
+	QDEL_LIST(buttons)
 	QDEL_LIST(modeswitch_buttons)
 	QDEL_LIST(dirswitch_buttons)
+	holder = null
 	return ..()
 
 /datum/buildmode/proc/post_login()
 	// since these will get wiped upon login
 	holder.screen += buttons
+	refresh_spawn_preview()
 	// re-open the according switch mode
 	switch(switch_state)
 		if(BM_SWITCHSTATE_MODE)
@@ -68,9 +79,10 @@
 	dirbutton = new /atom/movable/screen/buildmode/bdir(src)
 	buttons += dirbutton
 	buttons += new /atom/movable/screen/buildmode/quit(src)
+	buttons += new /atom/movable/screen/buildmode/catalog(src)
 	// build the lists of switching buttons
 	build_options_grid(subtypesof(/datum/buildmode_mode), modeswitch_buttons, /atom/movable/screen/buildmode/modeswitch)
-	build_options_grid(list(SOUTH,EAST,WEST,NORTH,NORTHWEST), dirswitch_buttons, /atom/movable/screen/buildmode/dirswitch)
+	build_options_grid(GLOB.alldirs, dirswitch_buttons, /atom/movable/screen/buildmode/dirswitch)
 
 // this creates a nice offset grid for choosing between buildmode options,
 // because going "click click click ah hell" sucks.
@@ -123,20 +135,30 @@
 	holder.screen -= dirswitch_buttons
 
 /datum/buildmode/proc/change_mode(newmode)
+	if(!(newmode in subtypesof(/datum/buildmode_mode)))
+		return
 	mode.exit_mode(src)
 	QDEL_NULL(mode)
 	close_switchstates()
 	mode = new newmode(src)
 	mode.enter_mode(src)
 	modebutton.update_icon()
+	SStgui.update_uis(src)
 
 /datum/buildmode/proc/change_dir(newdir)
+	if(!(newdir in GLOB.alldirs))
+		return FALSE
 	build_dir = newdir
 	close_dirswitch()
 	dirbutton.update_icon()
+	refresh_spawn_preview()
+	SStgui.update_uis(src)
 	return 1
 
 /datum/buildmode/proc/InterceptClickOn(mob/user, params, atom/object)
+	if(!can_build(user?.client))
+		quit()
+		return TRUE
 	mode.handle_click(user.client, params, object)
 	return TRUE // no doing underlying actions
 

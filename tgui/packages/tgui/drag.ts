@@ -120,6 +120,7 @@ export const recallWindowGeometry = async (
     fancy?: BooleanLike;
     pos?: [number, number];
     size?: [number, number];
+    rememberSize?: boolean;
     locked?: BooleanLike;
     scale?: BooleanLike;
   } = {},
@@ -130,9 +131,10 @@ export const recallWindowGeometry = async (
   }
   // options.pos is assumed to already be in display-pixels
   let pos = geometry?.pos || options.pos;
-  let size = options.size;
-  // Convert size from css-pixels to display-pixels
-  if (options.scale && size) {
+  const storedSize = options.rememberSize && geometry?.size;
+  let size = storedSize || options.size;
+  // Saved dimensions are already in display-pixels; scale only the default size.
+  if (options.scale && size && !storedSize) {
     size = [size[0] * pixelRatio, size[1] * pixelRatio];
   }
 

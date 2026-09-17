@@ -22,6 +22,9 @@
 	chargedloop = /datum/looping_sound/wind
 	overlay_state = "mirror"
 
+/obj/effect/proc_holder/spell/invoked/mirror_transform/ooze
+	human_req = TRUE
+
 /obj/effect/proc_holder/spell/invoked/mirror_transform/cast(list/targets, mob/user)  // Changed to match invoked spell pattern
 	if(!isliving(targets[1]))
 		return
@@ -46,7 +49,9 @@
 		return
 	var/should_update = FALSE
 	var/force_bodypart_update = FALSE
-	var/list/choices = list("reset appearance", "hairstyle", "facial hairstyle", "accessory", "pubes", "pits", "face detail", "crest", "horns", "horn color", "ears", "ear color one", "ear color two", "tail", "tail color one", "tail color two", "tail feature", "tail feature color", "wings", "wing color one", "wing color two", "frills", "frill color", "antennas", "antenna color", "snout", "snout color", "head feature", "head feature color", "neck feature", "neck feature color", "back feature", "back feature color", "descriptors", "hair color", "facial hair color", "eye color", "skin color", "mutant color", "mutant color 2", "mutant color 3", "natural gradient", "natural gradient color", "dye gradient", "dye gradient color", "penis", "penis color", "penis color 2", "testicles", "testicles color", "breasts", "breasts color", "vagina", "vagina color", "breast size", "penis size", "testicle size")
+	var/list/choices = list("hairstyle", "facial hairstyle", "accessory", "pubes", "pits", "face detail", "crest", "horns", "horn color", "ears", "ear color one", "ear color two", "tail", "tail color one", "tail color two", "tail feature", "tail feature color", "wings", "wing color one", "wing color two", "frills", "frill color", "antennas", "antenna color", "snout", "snout color", "head feature", "head feature color", "neck feature", "neck feature color", "back feature", "back feature color", "descriptors", "hair color", "facial hair color", "eye color", "skin color", "mutant color", "mutant color 2", "mutant color 3", "natural gradient", "natural gradient color", "dye gradient", "dye gradient color", "penis", "penis color", "penis color 2", "testicles", "testicles color", "breasts", "breasts color", "vagina", "vagina color", "breast size", "penis size", "testicle size")
+	if(!isooze(H))
+		choices.Insert(1, "reset appearance")
 	var/chosen = input(H, "Change what?", "Appearance") as null|anything in choices
 
 	if(!chosen)

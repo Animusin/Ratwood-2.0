@@ -63,9 +63,10 @@
 		bundling_time = 2 //if legendary skill, the move_after is fast, 0.2 seconds
 	to_chat(user, span_warning("I start to collect [src]..."))
 	if(move_after(user, bundling_time, target = src))
-		var/fibercount = 0
+		var/list/fibers_to_bundle = list()
 		for(var/obj/item/natural/fibers/F in get_turf(src))
-			fibercount++
+			fibers_to_bundle += F
+		var/fibercount = fibers_to_bundle.len
 		while(fibercount > 0)
 			if(fibercount == 1)
 				new /obj/item/natural/fibers(get_turf(user))
@@ -76,7 +77,7 @@
 				B.update_bundle()
 				fibercount -= clamp(fibercount, 2, 6)
 				user.put_in_hands(B)
-		for(var/obj/item/natural/fibers/F in get_turf(src))
+		for(var/obj/item/natural/fibers/F in fibers_to_bundle)
 			qdel(F)
 
 /obj/item/natural/silk
@@ -102,9 +103,10 @@
 /obj/item/natural/silk/attack_right(mob/user)
 	to_chat(user, span_warning("I start to collect [src]..."))
 	if(move_after(user, bundling_time, target = src))
-		var/silkcount = 0
+		var/list/silk_to_bundle = list()
 		for(var/obj/item/natural/silk/F in get_turf(src))
-			silkcount++
+			silk_to_bundle += F
+		var/silkcount = silk_to_bundle.len
 		while(silkcount > 0)
 			if(silkcount == 1)
 				new /obj/item/natural/silk(get_turf(user))
@@ -114,7 +116,7 @@
 				B.amount = clamp(silkcount, 2, 6)
 				B.update_bundle()
 				silkcount -= clamp(silkcount, 2, 6)
-		for(var/obj/item/natural/silk/F in get_turf(src))
+		for(var/obj/item/natural/silk/F in silk_to_bundle)
 			qdel(F)
 
 #ifdef TESTSERVER
@@ -174,9 +176,10 @@
 		return
 	to_chat(user, span_warning("I start to collect [src]..."))
 	if(move_after(user, bundling_time, target = src))
-		var/clothcount = 0
+		var/list/cloth_to_bundle = list()
 		for(var/obj/item/natural/cloth/F in get_turf(src))
-			clothcount++
+			cloth_to_bundle += F
+		var/clothcount = cloth_to_bundle.len
 		while(clothcount > 0)
 			if(clothcount == 1)
 				new /obj/item/natural/cloth(get_turf(user))
@@ -187,7 +190,7 @@
 				B.update_bundle()
 				clothcount -= clamp(clothcount, 2, 10)
 				user.put_in_hands(B)
-		for(var/obj/item/natural/cloth/F in get_turf(src))
+		for(var/obj/item/natural/cloth/F in cloth_to_bundle)
 			playsound(user, "rustle", 70, FALSE, -4)
 			qdel(F)
 
@@ -610,5 +613,4 @@
 				user.put_in_hands(B)
 		for(var/obj/item/natural/worms/F in get_turf(src))
 			qdel(F)
-
 

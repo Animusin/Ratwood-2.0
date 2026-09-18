@@ -256,10 +256,9 @@
 			M.allmig_reward++//we also need to do this for RCP and endround triumphs- it's the closest thing Golems have to sleeping.
 			qdel(src)
 			return
-		else //if you click "cancel" in the dialog
-			user.visible_message(span_notice("[src] deactivates in [user]'s hand."), span_notice("[src] turns off. Perhaps [M] does not yet wish to improve?"))
-			disable()
-			return
+	user.visible_message(span_notice("[src] deactivates in [user]'s hand."), span_notice("[src] turns off. Perhaps [M] does not yet wish to improve?"))
+	disable()
+	return
 
 /obj/item/construct_skill_core/proc/disable() //reset it to inactive mode to be paired later on
 	in_use = FALSE

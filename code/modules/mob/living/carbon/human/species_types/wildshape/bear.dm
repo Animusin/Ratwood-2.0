@@ -85,6 +85,7 @@
 	H.icon = 'icons/roguetown/mob/monster/direbear.dmi'
 	H.base_intents = list(INTENT_HELP, INTENT_DISARM, INTENT_GRAB)
 	H.icon_state = "direbear"
+	H.pixel_x = -16
 	H.update_damage_overlays()
 	return TRUE
 

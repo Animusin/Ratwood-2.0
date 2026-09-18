@@ -80,6 +80,9 @@
 	if(istype(P, /obj/item/roguecoin/inqcoin))
 		return
 	if(istype(P, /obj/item/roguecoin))
+		if(!locked)
+			to_chat(user, span_warning("The Potion Seller is closed for purchases."))
+			return
 		budget += P.get_real_price()
 		qdel(P)
 		update_icon()

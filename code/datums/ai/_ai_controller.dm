@@ -265,7 +265,7 @@ have ways of interacting with a specific atom and control it. They posses a blac
 		GLOB.ai_controllers_by_zlevel[new_z] += src
 		var/new_level_clients = SSmobs.clients_by_zlevel[new_z].len
 		if(new_level_clients)
-			set_ai_status(AI_STATUS_IDLE)
+			set_ai_status(AI_STATUS_ON)
 
 ///Abstract proc for initializing the pawn to the new controller
 /datum/ai_controller/proc/TryPossessPawn(atom/new_pawn)

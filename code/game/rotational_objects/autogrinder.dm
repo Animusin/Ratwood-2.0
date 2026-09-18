@@ -46,7 +46,7 @@
 	var/empty_alert = FALSE
 
 	var/datum/looping_sound/autogrinder_work/soundloop
-	debris = list(/obj/item/roguegear = 2, /obj/item/natural/wood/plank = 2, /obj/item/natural/stone = 2)
+	debris = list(/obj/item/roguegear/bronze = 2, /obj/item/natural/wood/plank = 2, /obj/item/natural/stone = 2)
 
 /obj/structure/autogrinder/Initialize(mapload)
 	. = ..()
@@ -141,18 +141,37 @@
 /obj/structure/autogrinder/proc/is_grindable(obj/item/candidate)
 	if(QDELETED(candidate))
 		return FALSE
-	return candidate.mill_result || find_alch_recipe(candidate)
+	var/item_type = get_grindable_type(candidate)
+	if(!item_type)
+		return FALSE
+	var/mill_result = item_type == candidate.type ? candidate.mill_result : initial(item_type:mill_result)
+	return mill_result || find_alch_recipe_type(item_type)
+
+/// Returns the individual item type represented by a bundle, or the item's own type otherwise.
+/obj/structure/autogrinder/proc/get_grindable_type(obj/item/candidate)
+	if(istype(candidate, /obj/item/natural/bundle))
+		var/obj/item/natural/bundle/bundle = candidate
+		return bundle.stacktype
+	if(istype(candidate, /obj/item/construction/bundle))
+		var/obj/item/construction/bundle/bundle = candidate
+		return bundle.stacktype
+	return candidate.type
 
 //specifically check if its a valid alchemy grindable
 /obj/structure/autogrinder/proc/find_alch_recipe(obj/item/candidate)
 	if(!candidate)
 		return null
+	return find_alch_recipe_type(get_grindable_type(candidate))
+
+/obj/structure/autogrinder/proc/find_alch_recipe_type(item_type)
+	if(!item_type)
+		return null
 	for(var/datum/alch_grind_recipe/recipe in GLOB.alch_grind_recipes)
 		if(recipe.picky)
-			if(candidate.type == recipe.valid_input)
+			if(item_type == recipe.valid_input)
 				return recipe
 		else
-			if(istype(candidate, recipe.valid_input))
+			if(ispath(item_type, recipe.valid_input))
 				return recipe
 	return null
 
@@ -167,7 +186,8 @@
 		progress = 0
 		return
 	var/obj/item/ground = current_item
-	var/datum/alch_grind_recipe/recipe = find_alch_recipe(ground)
+	var/item_type = get_grindable_type(ground)
+	var/datum/alch_grind_recipe/recipe = find_alch_recipe_type(item_type)
 	if(recipe)
 		for(var/output_path in recipe.valid_outputs)
 			for(var/i in 1 to recipe.valid_outputs[output_path])
@@ -175,9 +195,10 @@
 		for(var/bonus_path in recipe.bonus_chance_outputs)
 			if(prob(recipe.bonus_chance_outputs[bonus_path]))
 				new bonus_path(get_turf(src))
-	else if(ground.mill_result)
-		new ground.mill_result(get_turf(src))
-	qdel(ground)
+	else if(item_type == ground.type ? ground.mill_result : initial(item_type:mill_result))
+		var/mill_result = item_type == ground.type ? ground.mill_result : initial(item_type:mill_result)
+		new mill_result(get_turf(src))
+	consume_grindable(ground)
 	current_item = null
 	progress = 0
 	playsound(src, 'sound/foley/stone_scrape.ogg', 80, TRUE, -1)
@@ -212,7 +233,27 @@
 	working = FALSE
 	current_item = null
 	progress = 0
+	update_stress_use()
 	update_working_visuals()
+
+/obj/structure/autogrinder/proc/update_stress_use()
+	set_stress_use(working ? 64 * (rotations_per_minute / 8) : 0)
+
+/obj/structure/autogrinder/proc/can_start_work()
+	if(!has_power_flow())
+		return FALSE
+	var/stress_required = 64 * (rotations_per_minute / 8)
+	return rotation_network.total_stress >= rotation_network.used_stress + stress_required
+
+/obj/structure/autogrinder/proc/consume_grindable(obj/item/ground)
+	if(istype(ground, /obj/item/natural/bundle))
+		var/obj/item/natural/bundle/bundle = ground
+		return bundle.use(1)
+	if(istype(ground, /obj/item/construction/bundle))
+		var/obj/item/construction/bundle/bundle = ground
+		return bundle.use(1)
+	qdel(ground)
+	return TRUE
 
 /// Switches the stone (and, through it, the hopper gears) between the idle and running animations.
 /obj/structure/autogrinder/proc/update_working_visuals()
@@ -237,7 +278,7 @@
 		return
 	if(!speed && working)
 		stop_work()
-	set_stress_use(64 * (speed / 8))
+	update_stress_use()
 
 /obj/structure/autogrinder/rotation_break()
 	if(working)
@@ -254,10 +295,9 @@
 /obj/structure/autogrinder/proc/toggle_machine(mob/living/user)
 	if(!istype(user) || !user.Adjacent(src))
 		return
-	if(!working)
-		if(!has_power_flow())
-			to_chat(user, span_warning("[src] has no rotational power to draw on."))
-			return
+	if(!working && !has_power_flow())
+		to_chat(user, span_warning("[src] has no rotational power to draw on."))
+		return
 
 	var/was_working = working
 	var/engineering_skill = user.get_skill_level(/datum/skill/craft/engineering)
@@ -275,7 +315,11 @@
 		stop_work()
 		to_chat(user, span_notice("You shut down [src]."))
 	else
+		if(!can_start_work())
+			to_chat(user, span_warning("[src] would overload the rotational network."))
+			return
 		working = TRUE
+		update_stress_use()
 		update_working_visuals()
 		to_chat(user, span_notice("You start up [src]."))
 

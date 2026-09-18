@@ -291,7 +291,7 @@
 		if(stored)
 			stored.forceMove(get_turf(src))
 			stored.notransform = FALSE
-			stored.death(TRUE, TRUE)
+			stored.dust(drop_items = TRUE)
 	return ..()
 
 /obj/shapeshift_holder/ooze_death/restore(death=FALSE, knockout=0)

@@ -150,6 +150,7 @@ SUBSYSTEM_DEF(treasury)
 	record_round_statistic(STATS_PLEDGE_GENERATED, burgher_pledge_fund.balance)
 	record_round_statistic(STATS_RUMOR_POINTS_GENERATED, rumor_points)
 	init_decrees()
+	ratwood_capture_base_wages() // Ratwood: preserve upstream roundstart wage defaults.
 
 	for(var/path in subtypesof(/datum/roguestock/stockpile))
 		var/datum/roguestock/D = new path
@@ -202,7 +203,7 @@ SUBSYSTEM_DEF(treasury)
 	total_rural_tax += rural_tax_amount
 
 /datum/controller/subsystem/treasury/proc/get_rural_tax_amount()
-	return RURAL_TAX
+	return ratwood_scaled_rural_tax(RURAL_TAX)
 
 // Mark the cached stewardry market / region / arbitrage
 // View as needing rebuild on next read.

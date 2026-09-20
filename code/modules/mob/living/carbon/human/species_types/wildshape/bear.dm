@@ -6,6 +6,7 @@
 	skin_armor = new /obj/item/clothing/suit/roguetown/armor/skin_armor/bear_skin
 	wildshape_icon = 'icons/roguetown/mob/monster/direbear.dmi'
 	wildshape_icon_state = "direbear"
+	pixel_x = -16
 	// Slow, tanky melee form that is purely focused on melee and some swimming
 
 //BUCKLING
@@ -85,7 +86,6 @@
 	H.icon = 'icons/roguetown/mob/monster/direbear.dmi'
 	H.base_intents = list(INTENT_HELP, INTENT_DISARM, INTENT_GRAB)
 	H.icon_state = "direbear"
-	H.pixel_x = -16
 	H.update_damage_overlays()
 	return TRUE
 

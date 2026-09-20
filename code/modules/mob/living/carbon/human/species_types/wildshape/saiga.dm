@@ -6,6 +6,7 @@
 	skin_armor = new /obj/item/clothing/suit/roguetown/armor/skin_armor/saiga_skin
 	wildshape_icon = 'icons/roguetown/mob/monster/saiga.dmi'
 	wildshape_icon_state = "saiga"
+	pixel_x = -8
 	// Someone else balance this, I am here for code, not numbers
 
 //BUCKLING
@@ -77,7 +78,6 @@
 	H.icon = 'icons/roguetown/mob/monster/saiga.dmi'
 	H.base_intents = list(INTENT_HELP, INTENT_DISARM, INTENT_GRAB)
 	H.icon_state = "saiga"
-	H.pixel_x = -8
 	H.update_damage_overlays()
 	return TRUE
 

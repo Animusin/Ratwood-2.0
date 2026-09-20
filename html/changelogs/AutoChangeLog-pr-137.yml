@@ -1,0 +1,4 @@
+author: "sigmaboy124124"
+delete-after: True
+changes:
+  - bugfix: "Fix rotational machine overloads, bundle handling, and large-network rebuilding."

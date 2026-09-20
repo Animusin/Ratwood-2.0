@@ -1,0 +1,6 @@
+author: "Animusin"
+delete-after: True
+changes:
+  - balance: "Ordinary Navigator markets recover 50% of their category capacity at each dawn."
+  - balance: "Daily rural treasury income now covers 75% of eligible standard wages, with a minimum of 100 mammons. Steward raises cannot increase the grant."
+  - config: "Added RATWOOD_MARKET_DAILY_RECOVERY (default 0.5) and RATWOOD_RURAL_WAGE_COVERAGE (default 0.75). Each accepts 0-1; set either to 0 to disable that adjustment independently."

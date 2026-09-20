@@ -17,7 +17,7 @@
 	var/knockout_on_death = 0 // we will apply this value (as deciseconds) to our host mob as a knockout effect when punted out of the form
 	var/convert_damage = TRUE //If you want to convert the caster's health to the shift, and vice versa.
 	/// Keep existing injuries and only add damage taken while shifted when restoring.
-	var/preserve_injuries = FALSE
+	var/preserve_injuries = TRUE
 	var/convert_damage_type = BRUTE //Since simplemobs don't have advanced damagetypes, what to convert damage back into.
 	var/do_gib = TRUE
 

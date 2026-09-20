@@ -107,10 +107,10 @@
 		stored.death()
 	else if(stored && source.convert_damage)
 		var/damage_percent = (shape.maxHealth - shape.health) / shape.maxHealth
-		if(source.preserve_injuries)
+		if(source.preserve_injuries && damage_bodypart?.owner == stored)
 			// Carbon health ignores brute wounds. Return damage to the same limb
 			// used on entry, so shifting again cannot provide a fresh health pool.
-			if(damage_bodypart?.owner == stored && damage_percent > initial_damage_percent)
+			if(damage_percent > initial_damage_percent)
 				var/new_damage = max(0, damage_percent * damage_bodypart.max_damage - damage_bodypart.brute_dam - damage_bodypart.burn_dam)
 				stored.apply_damage(new_damage, source.convert_damage_type, damage_bodypart, forced = TRUE)
 		else

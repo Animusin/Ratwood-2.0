@@ -24,9 +24,12 @@
 		playsound(owner.loc, 'sound/combat/shieldraise.ogg', 100)
 		if(ismob(target))
 			var/mob/living/victim = target
+			if(victim.checkmiss(owner) || victim.checkdefense(owner.a_intent, owner))
+				return
 			def_zone = pick(BODY_ZONE_L_LEG, BODY_ZONE_R_LEG, BODY_ZONE_CHEST, BODY_ZONE_HEAD, BODY_ZONE_L_ARM, BODY_ZONE_R_ARM)
-			victim.apply_damage(swipe_damage, BRUTE, def_zone, victim.run_armor_check(def_zone, "stab", damage = swipe_damage))
-			victim.apply_status_effect(/datum/status_effect/debuff/staggered)
+			var/hit = victim.apply_damage(swipe_damage, BRUTE, def_zone, victim.run_armor_check(def_zone, "stab", damage = swipe_damage))
+			if(hit)
+				victim.apply_status_effect(/datum/status_effect/debuff/staggered)
 			var/turf/target_turf = get_turf(target)
 			new /obj/effect/temp_visual/paw_swipe(target_turf)
 			to_chat(target, span_userdanger("You're hit by a powerful swipe!"))

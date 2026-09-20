@@ -22,6 +22,9 @@
 
 /atom/MouseEntered(location,control,params)
 	. = ..()
+	if(istype(usr?.client?.click_intercept, /datum/buildmode))
+		var/datum/buildmode/buildmode = usr.client.click_intercept
+		buildmode.update_spawn_preview(src)
 	if(!nomouseover && name && ismob(usr))
 		handle_mouseover(location, control, params)
 

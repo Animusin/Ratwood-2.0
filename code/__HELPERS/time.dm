@@ -71,6 +71,7 @@ GLOBAL_VAR_INIT(date_override_offset, 0)
 			SStreasury.tick_burgher_pledge() // Item 6 decrees: burghers' Golden Bull tribute
 			SStreasury.tick_poll_tax() // Taxation 2: collect per-class poll tax / pay subsidies
 			SStreasury.tick_rumor_points() // Quest 2: refill innkeeper rumor points for the day
+			SSmerchant_trade.ratwood_recover_market() // Ratwood: passive Navigator market relief.
 			if(SSeconomy)
 				SSeconomy.daily_tick()
 			SScity_assembly?.on_day_tick()

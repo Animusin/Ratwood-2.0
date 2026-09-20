@@ -50,7 +50,7 @@
 
 	var/list/pre_start_list = list(STEP_FIDDLE, STEP_BUTTON, STEP_LEVER)
 	var/list/post_start_list = list(STEP_BUTTON, STEP_LEVER, STEP_FIDDLE)
-	debris = list(/obj/item/roguegear = 2, /obj/item/natural/wood/plank = 2, /obj/item/ingot/steel = 1)
+	debris = list(/obj/item/roguegear/bronze = 2, /obj/item/natural/wood/plank = 2, /obj/item/ingot/steel = 1)
 
 /obj/structure/autosmither/Initialize(mapload)
 	. = ..()
@@ -164,8 +164,9 @@
 
 	if(hopper)
 		for(var/atom/movable/item in hopper.contents)
-			var/type_key = "[item.type]"
-			hopper_counts[type_key] = (hopper_counts[type_key] || 0) + 1
+			var/item_type = get_material_type(item)
+			var/type_key = "[item_type]"
+			hopper_counts[type_key] = (hopper_counts[type_key] || 0) + get_material_amount(item)
 
 	data["machine_on"] = working
 	data["machine_powered"] = has_power_flow()
@@ -216,6 +217,9 @@
 	if(!working)
 		return
 	if(!hopper || hopper.opened)
+		update_animation_effect()
+		return
+	if(!has_power_flow())
 		update_animation_effect()
 		return
 	if(!length(anvil_recipes_to_craft))
@@ -368,6 +372,7 @@
 /obj/structure/autosmither/proc/stop_work()
 	working = FALSE
 	step_list = list()
+	update_stress_use()
 	update_animation_effect()
 
 /obj/structure/autosmither/set_rotations_per_minute(speed)
@@ -376,7 +381,16 @@
 		return
 	if(!speed && working)
 		stop_work()
-	set_stress_use(128 * (speed / 8))
+	update_stress_use()
+
+/obj/structure/autosmither/proc/update_stress_use()
+	set_stress_use(working ? 128 * (rotations_per_minute / 8) : 0)
+
+/obj/structure/autosmither/proc/can_start_work()
+	if(!has_power_flow())
+		return FALSE
+	var/stress_required = 128 * (rotations_per_minute / 8)
+	return rotation_network.total_stress >= rotation_network.used_stress + stress_required
 
 /obj/structure/autosmither/rotation_break()
 	if(working)
@@ -423,7 +437,7 @@
 
 	for(var/atom/atom_path as anything in recipe.additional_items)
 		materials |= atom_path
-		materials[atom_path]++
+		materials[atom_path] += recipe.additional_items[atom_path] || 1
 
 	return materials
 
@@ -448,10 +462,11 @@
 
 	var/list/material_copy = materials.Copy()
 	for(var/atom/listed_atom in hopper.contents)
-		if(listed_atom.type in material_copy)
-			material_copy[listed_atom.type]--
-			if(material_copy[listed_atom.type] <= 0)
-				material_copy -= listed_atom.type
+		var/item_type = get_material_type(listed_atom)
+		if(item_type in material_copy)
+			material_copy[item_type] -= get_material_amount(listed_atom)
+			if(material_copy[item_type] <= 0)
+				material_copy -= item_type
 
 	return !length(material_copy)
 
@@ -498,15 +513,46 @@
 
 	var/list/material_copy = materials.Copy()
 	for(var/atom/listed_atom in hopper.contents)
-		if(!(listed_atom.type in material_copy))
+		var/item_type = get_material_type(listed_atom)
+		if(!(item_type in material_copy))
 			continue
-		material_copy[listed_atom.type]--
-		qdel(listed_atom)
-		if(material_copy[listed_atom.type] <= 0)
-			material_copy -= listed_atom.type
+		var/amount_to_consume = min(material_copy[item_type], get_material_amount(listed_atom))
+		consume_material(listed_atom, amount_to_consume)
+		material_copy[item_type] -= amount_to_consume
+		if(material_copy[item_type] <= 0)
+			material_copy -= item_type
 		if(!length(material_copy))
 			break
 
+	return TRUE
+
+/// Returns the individual item type represented by a bundle, or the item's own type otherwise.
+/obj/structure/autosmither/proc/get_material_type(atom/movable/item)
+	if(istype(item, /obj/item/natural/bundle))
+		var/obj/item/natural/bundle/bundle = item
+		return bundle.stacktype
+	if(istype(item, /obj/item/construction/bundle))
+		var/obj/item/construction/bundle/bundle = item
+		return bundle.stacktype
+	return item.type
+
+/obj/structure/autosmither/proc/get_material_amount(atom/movable/item)
+	if(istype(item, /obj/item/natural/bundle))
+		var/obj/item/natural/bundle/bundle = item
+		return bundle.amount
+	if(istype(item, /obj/item/construction/bundle))
+		var/obj/item/construction/bundle/bundle = item
+		return bundle.amount
+	return 1
+
+/obj/structure/autosmither/proc/consume_material(atom/movable/item, amount)
+	if(istype(item, /obj/item/natural/bundle))
+		var/obj/item/natural/bundle/bundle = item
+		return bundle.use(amount)
+	if(istype(item, /obj/item/construction/bundle))
+		var/obj/item/construction/bundle/bundle = item
+		return bundle.use(amount)
+	qdel(item)
 	return TRUE
 
 /obj/structure/autosmither/proc/create_current()
@@ -600,8 +646,13 @@
 				to_chat(user, span_warning("The anvil refuses to operate, for [hopper] is open."))
 				step_list = list()
 				return
+			if(!can_start_work())
+				to_chat(user, span_warning("[src] would overload the rotational network."))
+				step_list = list()
+				return
 			working = TRUE
 			step_list = list()
+			update_stress_use()
 			update_animation_effect()
 
 /obj/structure/closet/crate/chest/autosmither

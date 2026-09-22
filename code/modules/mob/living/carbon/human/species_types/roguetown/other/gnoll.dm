@@ -104,6 +104,7 @@
 	REMOVE_TRAIT(C, TRAIT_ADRENALINE_RUSH, INNATE_TRAIT)
 	RegisterSignal(C, COMSIG_MOB_SAY, PROC_REF(handle_speech))
 	RegisterSignal(C, COMSIG_MOVABLE_BARK, PROC_REF(cancel_default_bark))
+	RegisterSignal(C, COMSIG_ATOM_DIR_CHANGE, PROC_REF(align_north_sprite))
 	C.ambushable = FALSE
 	var/mob/living/carbon/human/H = C
 	H.reset_gnoll_sprite_scale()
@@ -111,15 +112,28 @@
 	if(H.client?.prefs?.gnoll_prefs)
 		pelt_type = H.client.prefs.gnoll_prefs.pelt_type || "firepelt"
 	C.icon_state = pelt_type
-	C.base_pixel_x = -8
-	C.pixel_x = -8
+	C.base_pixel_x = -8 - (C.dir == NORTH)
+	C.pixel_x = C.base_pixel_x
 	C.base_pixel_y = -4
 	C.pixel_y = -4
+
+/datum/species/gnoll/proc/align_north_sprite(mob/living/carbon/human/H, old_dir, new_dir)
+	SIGNAL_HANDLER
+	if(old_dir == new_dir)
+		return
+	var/offset = (old_dir == NORTH) - (new_dir == NORTH)
+	H.base_pixel_x += offset
+	H.pixel_x += offset
 
 /datum/species/gnoll/on_species_loss(mob/living/carbon/C)
 	. = ..()
 	UnregisterSignal(C, COMSIG_MOB_SAY)
 	UnregisterSignal(C, COMSIG_MOVABLE_BARK)
+	UnregisterSignal(C, COMSIG_ATOM_DIR_CHANGE)
+	C.base_pixel_x = 0
+	C.base_pixel_y = 0
+	C.pixel_x = C.get_standard_pixel_x_offset()
+	C.pixel_y = C.get_standard_pixel_y_offset()
 
 /datum/species/gnoll/update_damage_overlays(mob/living/carbon/human/H)
 	clear_extremity_overlays(H, FALSE)

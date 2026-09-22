@@ -1679,7 +1679,7 @@
 	return loc_temp
 
 /mob/living/proc/get_standard_pixel_x_offset(lying = 0)
-	var/_x = initial(pixel_x)
+	var/_x = initial(pixel_x) + base_pixel_x
 	for(var/o in mob_offsets)
 		if(mob_offsets[o])
 			if(mob_offsets[o]["x"])
@@ -1687,7 +1687,7 @@
 	return _x
 
 /mob/living/proc/get_standard_pixel_y_offset(lying = 0)
-	var/_y = initial(pixel_y)
+	var/_y = initial(pixel_y) + base_pixel_y
 	for(var/o in mob_offsets)
 		if(mob_offsets[o])
 			if(mob_offsets[o]["y"])

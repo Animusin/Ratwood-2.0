@@ -348,6 +348,8 @@
 					var/obj/item/IT = I
 					if(IT.is_important)
 						continue
+					if(IT.loadout_item)
+						continue
 					if(IT.atc_sealed)
 						continue
 					if(IT.unmintable && !accepts_unmintable)

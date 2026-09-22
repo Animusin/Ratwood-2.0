@@ -14,6 +14,7 @@
 /datum/trade_good/equipment/crafted/bronze_prosthetic
 	id = TRADE_GOOD_BRONZE_PROSTHETIC
 	name = "bronze prosthetic limb"
+	base_price = 30 // Artificer recipes are not covered by the derived pricing engine.
 	item_type = /obj/item/bodypart/l_arm/prosthetic/bronzeleft // representative limb; also drives derived pricing
 	alt_item_types = list(
 		/obj/item/bodypart/r_arm/prosthetic/bronzeright,
@@ -24,6 +25,7 @@
 /datum/trade_good/equipment/crafted/iron_prosthetic
 	id = TRADE_GOOD_IRON_PROSTHETIC
 	name = "wooden prosthetic limb"
+	base_price = 30 // Artificer recipes are not covered by the derived pricing engine.
 	item_type = /obj/item/bodypart/l_arm/prosthetic/woodleft // representative limb; also drives derived pricing
 	alt_item_types = list(
 		/obj/item/bodypart/r_arm/prosthetic/woodright,

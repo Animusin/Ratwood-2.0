@@ -4,6 +4,11 @@
 	anchored = TRUE
 	max_integrity = 0
 
+/obj/structure/roguemachine/proc/matches_lock_key(obj/item/roguekey/key, lock_id)
+	if(lock_id)
+		return key.lockid == lock_id
+	return lockhash && key.lockhash == lockhash
+
 /obj/structure/roguemachine/proc/budget2change(budget, mob/user, specify)
 	var/turf/T
 	if(!user || (!ismob(user)))

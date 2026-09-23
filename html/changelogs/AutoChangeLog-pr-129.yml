@@ -1,0 +1,4 @@
+author: "sigmaboy124124"
+delete-after: True
+changes:
+  - bugfix: "Prevented animal AI from idling after being dragged between Z-levels."

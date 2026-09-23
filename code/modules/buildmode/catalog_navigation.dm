@@ -23,7 +23,7 @@
 	catalog_results = list()
 	var/list/entries = buildmode_catalog_entries()
 	var/list/search_text = buildmode_catalog_index()["search_text"]
-	var/list/words = splittext(lowertext(trim(catalog_search)), " ")
+	var/list/words = splittext(LOWER_TEXT(trim(catalog_search)), " ")
 	for(var/path in catalog_candidates())
 		var/list/entry = entries[path]
 		if(catalog_subcategory != "all" && entry["subcategory"] != catalog_subcategory)

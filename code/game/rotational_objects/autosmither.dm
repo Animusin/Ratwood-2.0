@@ -63,6 +63,8 @@
 		for(var/datum/anvil_recipe/recipe_path as anything in subtypesof(/datum/anvil_recipe))
 			if(IS_ABSTRACT(recipe_path))
 				continue
+			if(!recipe_path::name)
+				continue
 			if(!((recipe_path.req_bar == /obj/item/ingot/copper)||(recipe_path.req_bar == /obj/item/ingot/bronze)||(recipe_path.req_bar == /obj/item/ingot/iron)||(recipe_path.req_bar == /obj/item/ingot/steel)||(recipe_path.req_bar == /obj/item/ingot/tin)||(recipe_path.req_bar == /obj/item/ingot/gold)||(recipe_path.req_bar == /obj/item/ingot/silver)))//it needs to be at least tin, copper, iron, bronze, or steel
 				continue
 			regular_recipes |= new recipe_path

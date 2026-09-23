@@ -519,28 +519,25 @@
 	addtimer(CALLBACK(src, PROC_REF(play_clock_sound)), 5)
 
 /obj/item/contraption/lock_imprinter/proc/imprint_lock(obj/O, mob/living/user)
+	if(!stored_lock_id && !stored_lock_hash)
+		to_chat(user, span_warning("The [name] has no stored lock data to imprint."))
+		return FALSE
 	if(istype(O, /obj/structure/roguemachine/steward))
-		if(!stored_lock_id)
-			to_chat(user, span_warning("The [name] requires a stored Lock ID to imprint this lock."))
-			return FALSE
 		var/obj/structure/roguemachine/steward/steward = O
 		steward.keycontrol = stored_lock_id
+		steward.lockhash = stored_lock_hash
 		return TRUE
 	if(istype(O, /obj/structure/roguemachine/vendor))
-		if(!stored_lock_id)
-			to_chat(user, span_warning("The [name] requires a stored Lock ID to imprint this lock."))
-			return FALSE
 		var/obj/structure/roguemachine/vendor/vendor = O
 		vendor.keycontrol = stored_lock_id
+		vendor.lockhash = stored_lock_hash
 		return TRUE
 	if(istype(O, /obj/structure/roguemachine/goldface))
-		if(!stored_lock_id)
-			to_chat(user, span_warning("The [name] requires a stored Lock ID to imprint this lock."))
-			return FALSE
 		O.lockid = stored_lock_id
+		O.lockhash = stored_lock_hash
 		return TRUE
 	if(!stored_lock_hash)
-		to_chat(user, span_warning("The [name] has no stored lock data to imprint."))
+		to_chat(user, span_warning("The [name] requires a stored lock hash to imprint this lock."))
 		return FALSE
 	O.lockid = stored_lock_id
 	O.lockhash = stored_lock_hash
@@ -571,11 +568,9 @@
 				if(istype(O, /obj/structure/roguemachine/steward))
 					var/obj/structure/roguemachine/steward/steward = O
 					lock_id = steward.keycontrol
-					lock_hash = null
 				else if(istype(O, /obj/structure/roguemachine/vendor))
 					var/obj/structure/roguemachine/vendor/vendor = O
 					lock_id = vendor.keycontrol
-					lock_hash = null
 				if(lock_id || lock_hash)
 					set_stored_lock_data(lock_id, lock_hash)
 					if(lock_id)

@@ -893,20 +893,9 @@ GLOBAL_LIST_INIT(spells, typesof(/obj/effect/proc_holder/spell)) //needed for th
 		return FALSE
 
 	if(user.client && user.buckled)
-		if(!issimple(user.buckled))
+		if(!issimple(user.buckled) && !istype(user.buckled, /obj/structure/chair))
 			return FALSE
-		if(ishuman(user))
-			var/mob/living/carbon/human/H = user
-			var/last_mount_move_time = H.vars["last_mount_move_time"]
-			if(!isnum(last_mount_move_time))
-				last_mount_move_time = 0
-			if(world.time < last_mount_move_time + 2 SECONDS)
-				return FALSE
-
-	if(user.client && user.buckled)
-		if(!issimple(user.buckled))
-			return FALSE
-		if(ishuman(user))
+		if(issimple(user.buckled) && ishuman(user))
 			var/mob/living/carbon/human/H = user
 			var/last_mount_move_time = H.vars["last_mount_move_time"]
 			if(!isnum(last_mount_move_time))

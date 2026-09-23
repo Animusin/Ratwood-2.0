@@ -320,8 +320,8 @@
 		icon_state = initial(icon_state)//no overlays found, we default back to initial icon.
 		return
 	for(var/image/I in standing)
-		I.pixel_x += px_x
-		I.pixel_y += px_y
+		I.pixel_x = px_x
+		I.pixel_y = px_y
 	add_overlay(standing)
 
 /obj/item/bodypart/head/dullahan/get_limb_icon(dropped, hideaux = FALSE)
@@ -329,6 +329,9 @@
 	var/list/standing = ..()
 
 	. = standing
+	if(!dropped)
+		return
+
 	var/hidden_slots = NONE
 	var/obj/item/head_item = head_items["[SLOT_HEAD]"]
 	if(head_item)

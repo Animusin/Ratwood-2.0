@@ -233,10 +233,22 @@
 	var/datum/preferences/preferences = new /datum/preferences/unit_test_admin_antag
 	allocated += preferences
 	var/mob/living/carbon/human/character = allocate(/mob/living/carbon/human/consistent)
-	var/datum/statpack/selected_statpack = preferences.statpack
+	TEST_ASSERT_NOTNULL(preferences.statpack, "The base slot must have a statpack to detect accidental copying.")
 	preferences.copy_to(character, skip_normal_prefs = TRUE)
 	TEST_ASSERT(is_species(character, /datum/species/gnoll), "Direct Gnoll entry must create a gnoll body.")
-	TEST_ASSERT_EQUAL(character.statpack, selected_statpack, "Gnoll creation must retain the loaded statpack without trying to read a null savefile.")
+	TEST_ASSERT_NULL(character.statpack, "The base slot's statpack must not leak into a gnoll; apply_gnoll_preferences applies the separate gnoll statpack later.")
+	TEST_ASSERT_EQUAL(character.real_name, "Gnoll", "Gnoll entry without separate preferences must use the fallback name without reading a savefile.")
+
+	preferences.gnoll_prefs = new
+	allocated += preferences.gnoll_prefs
+	preferences.gnoll_prefs.gnoll_name = "Unit Test Gnoll"
+	preferences.gnoll_prefs.gnoll_pronouns = THEY_THEM
+	var/mob/living/carbon/human/custom_gnoll = allocate(/mob/living/carbon/human/consistent)
+	preferences.copy_to(custom_gnoll, skip_normal_prefs = TRUE)
+	TEST_ASSERT(is_species(custom_gnoll, /datum/species/gnoll), "Separate gnoll preferences must still create a gnoll body.")
+	TEST_ASSERT_EQUAL(custom_gnoll.real_name, preferences.gnoll_prefs.gnoll_name, "Gnoll entry must use the separate gnoll name.")
+	TEST_ASSERT_EQUAL(custom_gnoll.pronouns, THEY_THEM, "Gnoll entry must use the separate gnoll pronouns.")
+	TEST_ASSERT_NULL(custom_gnoll.statpack, "Copying gnoll identity must not copy the base slot's statpack.")
 
 /datum/unit_test/admin_antag_phylactery_cleanup/Run()
 	var/datum/antagonist/lich/lich = new

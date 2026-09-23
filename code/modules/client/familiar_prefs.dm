@@ -105,7 +105,7 @@
 		if("familiar_headshot")
 			to_chat(user, "<span class='notice'>Please use a relatively SFW image of the head and shoulder area to maintain immersion level. <b>Do not use a real life photo or unserious images.</b></span>")
 			to_chat(user, "<span class='notice'>Ensure it's a direct image link. The photo will be resized to 325x325 pixels.</span>")
-			var/new_headshot_link = input(user, "Input the headshot link (https, hosts: gyazo, discord, lensdump, imgbox, catbox):", "Headshot", familiar_headshot_link) as text|null
+			var/new_headshot_link = input(user, "Input the headshot link (https, hosts: gyazo, yapx.ru, filegarden):", "Headshot", familiar_headshot_link) as text|null
 			if(new_headshot_link == null)
 				return
 			if(new_headshot_link == "")
@@ -154,7 +154,7 @@
 			log_game("[user] has set their Familiar OOC notes.")
 
 		if("familiar_ooc_extra")
-			to_chat(user, "<span class='notice'>Add a link to an mp3, mp4, or jpg/png (catbox, discord, etc).</span>")
+			to_chat(user, "<span class='notice'>Add a link to an mp3, mp4, or jpg/png (gyazo, yapx.ru, filegarden, etc).</span>")
 			to_chat(user, "<span class='notice'>Videos are resized to ~300x300. Abuse = ban.</span>")
 			to_chat(user, "<font color='#d6d6d6'>Leave a single space to delete it.</font>")
 			var/link = input(user, "Input the accessory link (https)", "Familiar OOC Extra", familiar_ooc_extra_link) as text|null

@@ -464,6 +464,8 @@
 			continue
 		if(TG.accept_subtypes ? istype(P, TG.item_type) : P.type == TG.item_type)
 			return id
+		if(length(TG.alt_item_types) && (P.type in TG.alt_item_types))
+			return id
 	return null
 
 /obj/structure/roguemachine/ship_fulfillment/proc/identify_potion_trade_good(obj/item/P)

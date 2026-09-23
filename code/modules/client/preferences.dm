@@ -3588,7 +3588,7 @@ Slots: [job.spawn_positions] [job.round_contrib_points ? "RCP: +[job.round_contr
 		reset_all_customizer_accessory_colors()
 
 /proc/valid_headshot_link(mob/user, value, silent = FALSE, list/valid_extensions = list("jpg", "png", "jpeg"))
-	var/static/link_regex = regex(@"i\.gyazo.com|files\file\.garden|yapx\.ru|i\.yapx\.ru") // Япикс.ру и ФайлГарден.ком работают. Восстановление Гиязо ожидается с 21.09.2026
+	var/static/link_regex = regex(@"i\.gyazo.com|file\.garden|yapx\.ru|i\.yapx\.ru") // Япикс.ру и ФайлГарден.ком работают. Восстановление Гиязо ожидается с 21.09.2026
 
 	if(!length(value))
 		return FALSE

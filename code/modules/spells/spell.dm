@@ -893,8 +893,11 @@ GLOBAL_LIST_INIT(spells, typesof(/obj/effect/proc_holder/spell)) //needed for th
 		return FALSE
 
 	if(user.client && user.buckled)
-		if(!issimple(user.buckled) && !istype(user.buckled, /obj/structure/chair))
-			return FALSE
+		if(!issimple(user.buckled))
+			if(!istype(user.buckled, /obj/structure/chair))
+				return FALSE
+			if(istype(user.buckled, /obj/structure/chair/arrestchair) || istype(user.buckled, /obj/structure/chair/freedomchair))
+				return FALSE
 		if(issimple(user.buckled) && ishuman(user))
 			var/mob/living/carbon/human/H = user
 			var/last_mount_move_time = H.vars["last_mount_move_time"]

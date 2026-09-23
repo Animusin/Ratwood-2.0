@@ -1,0 +1,4 @@
+author: "sigmaboy124124"
+delete-after: True
+changes:
+  - bugfix: "Spells and miracles can now be cast while seated in ordinary chairs."

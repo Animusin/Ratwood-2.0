@@ -1,0 +1,4 @@
+author: "sigmaboy124124"
+delete-after: True
+changes:
+  - bugfix: "Prevent cogs from increasing portable smelter and wood metalizer misfire chance."

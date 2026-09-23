@@ -1,0 +1,4 @@
+author: "sigmaboy124124"
+delete-after: True
+changes:
+  - bugfix: "Fixed horizontal alignment for direbear and saiga wildshape sprites."

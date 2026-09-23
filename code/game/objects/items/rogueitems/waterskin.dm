@@ -7,6 +7,7 @@
 	volume = 75 // 3 cups
 	dropshrink = 1
 	closed = FALSE
+	spillable = TRUE
 	slot_flags = ITEM_SLOT_HIP|ITEM_SLOT_NECK
 	obj_flags = CAN_BE_HIT
 	reagent_flags = OPENCONTAINER

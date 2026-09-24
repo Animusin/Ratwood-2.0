@@ -5,7 +5,6 @@
 	var/frustration=0
 	var/pathing_frustration=0
 	var/pickupTimer=0
-	var/list/enemies = list()
 	var/list/friends = list()
 	var/mob/living/target
 	var/obj/item/pickupTarget
@@ -1006,7 +1005,7 @@
 		target = L
 		if(pathfinding_target != target)
 			clear_path() // Cancel pathfinding so that we can pursue our new enemy.
-		enemies |= L
+		add_enemy(L)
 
 
 /mob/living/carbon/human/attackby(obj/item/W, mob/user, params)

@@ -28,12 +28,6 @@
 	slottoequip = SLOT_ARMOR
 	checkspot = "armor"
 
-/obj/effect/proc_holder/spell/self/conjure_armor/conjure_dragonhide/Destroy()
-	if(src.conjured_armor)
-		conjured_armor.visible_message(span_warning("The [conjured_armor]'s borders begin to shimmer and fade, before it vanishes entirely!"))
-		qdel(conjured_armor)
-	return ..()
-
 
 
 /obj/item/clothing/suit/roguetown/dragonhide
@@ -110,6 +104,3 @@
 	. = ..()
 	REMOVE_TRAIT(owner, TRAIT_NOFIRE, TRAIT_GENERIC)
 	owner.remove_filter(DRAGONHIDE_FILTER)
-
-
-

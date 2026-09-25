@@ -542,6 +542,12 @@
 	if(!stored_lock_hash)
 		to_chat(user, span_warning("The [name] requires a stored lock hash to imprint this lock."))
 		return FALSE
+	if(istype(O, /obj/structure/mineral_door))
+		var/obj/structure/mineral_door/door = O
+		if(door.door_opened || door.isSwitchingStates)
+			to_chat(user, span_warning("[door] must be fully closed before imprinting its lock."))
+			return FALSE
+		door.keylock = TRUE
 	O.lockid = stored_lock_id
 	O.lockhash = stored_lock_hash
 	return TRUE
@@ -604,6 +610,11 @@
 					misfire(O, user)
 				break
 			if(mode == "Unlocker")
+				if(!O.locked && istype(O, /obj/structure/mineral_door))
+					var/obj/structure/mineral_door/door = O
+					if(door.door_opened || door.isSwitchingStates)
+						to_chat(user, span_warning("[door] must be fully closed before it can be locked."))
+						return
 				var/turf/front = get_turf(O)
 				if(O.locked)
 					O.locked = FALSE

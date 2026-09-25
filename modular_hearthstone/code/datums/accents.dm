@@ -27,6 +27,14 @@ GLOBAL_LIST_INIT(character_accents, list("No accent",
 	"Low-Town accent",
 	"West Kazengun accent"))
 
+GLOBAL_LIST_INIT(character_mannerisms, list(
+	"No mannerism",
+	"Nervous Stutter",
+	"Stutter",
+	"Heavy Stutter",
+	"Lisp",
+	"Hesitant"))
+
 // Global mapping of accent names to their font span lists
 GLOBAL_LIST_INIT(accent_spans, list(
 	"Saut al-Atash accent" = list(SPAN_ELF, SPAN_SANDWAUK),
@@ -37,3 +45,4 @@ GLOBAL_LIST_INIT(accent_spans, list(
 
 /mob/living/carbon/human
 	var/char_accent = "No accent"
+	var/char_mannerism = "No mannerism"

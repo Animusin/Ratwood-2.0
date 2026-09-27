@@ -7,6 +7,7 @@
 	cmode_music = 'sound/music/combat_ancient.ogg'
 	class_select_category = CLASS_CAT_ACCURSED
 	category_tags = list(CTAG_WRETCH)
+	minimum_chaos = 3 // This class converts its wearer to Zizo.
 	maximum_possible_slots = 1 //Spellcaster in Luxarmour, with Master in swords. Zizo's top skeleton.
 	applies_post_equipment = TRUE
 	traits_applied = list(TRAIT_HEAVYARMOR, TRAIT_OVERTHERETIC, TRAIT_ARCYNE_T2)

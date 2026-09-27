@@ -196,6 +196,8 @@
 				continue
 			if(new_age_datum in possible_list) // In the offchance we got the datum in two cats, we don't want to cuck them by doubling up the chance to get it
 				continue
+			if(!class_cat_alloc_bypass_reqs && new_age_datum.minimum_chaos > SSgamemode.level)
+				continue
 			possible_list += new_age_datum
 
 	if(possible_list.len)

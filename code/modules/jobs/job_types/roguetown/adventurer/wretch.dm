@@ -59,6 +59,14 @@
 		/datum/advclass/wretch/ancientchampion,
 	)
 
+/datum/job/roguetown/wretch/is_patron_allowed(datum/patron/patron)
+	if(istype(patron, /datum/patron/inhumen/zizo) && SSgamemode.chaos_mode_name != "High Chaos")
+		return FALSE
+	return ..()
+
+/datum/job/roguetown/wretch/get_patron_requirement_message()
+	return "Последователи Зизо могут заходить за Wretch только при High Chaos."
+
 /datum/job/roguetown/wretch/New()
 	. = ..()
 	if(CONFIG_GET(string/round_modifier_policy) == "ratwood")

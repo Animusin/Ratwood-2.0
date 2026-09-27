@@ -7,6 +7,7 @@
 	cmode_music = 'sound/music/combatheraldprogress.ogg'
 	class_select_category = CLASS_CAT_CLERIC
 	category_tags = list(CTAG_WRETCH)
+	minimum_chaos = 3 // This class converts its wearer to Zizo.
 	traits_applied = list(TRAIT_DODGEEXPERT, TRAIT_DECEIVING_MEEKNESS, TRAIT_OVERTHERETIC)
 	maximum_possible_slots = 1 // only one frontman
 	subclass_skills = list(

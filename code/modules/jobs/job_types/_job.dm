@@ -188,6 +188,13 @@
 	///Whether or not a job should grant a player their preference virtues
 	var/no_virtue = FALSE
 
+/// Shared by roundstart allocation and latejoin; overrides may depend on the round's chaos mode.
+/datum/job/proc/is_patron_allowed(datum/patron/patron)
+	return !length(allowed_patrons) || (patron?.type in allowed_patrons)
+
+/datum/job/proc/get_patron_requirement_message()
+	return "[title] requires more faith."
+
 /datum/job/proc/special_job_check(mob/dead/new_player/player)
 	if(antag_job && SSjob && !SSjob.can_assign_antag_job(src))
 		return FALSE

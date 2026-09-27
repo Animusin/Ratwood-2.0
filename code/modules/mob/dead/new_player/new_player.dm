@@ -428,7 +428,8 @@ GLOBAL_LIST_INIT(roleplay_readme, world.file2list("strings/rt/rp_prompt.txt"))
 		if(JOB_UNAVAILABLE_AGE)
 			return "[jobtitle] is not meant for your age."
 		if(JOB_UNAVAILABLE_PATRON)
-			return "[jobtitle] requires more faith."
+			var/datum/job/job = SSjob.GetJob(jobtitle)
+			return job?.get_patron_requirement_message() || "[jobtitle] requires more faith."
 		if(JOB_UNAVAILABLE_LASTCLASS)
 			return "You have played [jobtitle] recently."
 		if(JOB_UNAVAILABLE_JOB_COOLDOWN)
@@ -514,7 +515,7 @@ GLOBAL_LIST_INIT(roleplay_readme, world.file2list("strings/rt/rp_prompt.txt"))
 		return JOB_UNAVAILABLE_SEX
 	if(length(job.allowed_ages) && !(client.prefs.age in job.allowed_ages))
 		return JOB_UNAVAILABLE_AGE
-	if(length(job.allowed_patrons) && !(client.prefs.selected_patron.type in job.allowed_patrons))
+	if(!job.is_patron_allowed(client.prefs.selected_patron))
 		return JOB_UNAVAILABLE_PATRON
 	if((client.prefs.lastclass == job.title) && !job.bypass_lastclass)
 		return JOB_UNAVAILABLE_LASTCLASS

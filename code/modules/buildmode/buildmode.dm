@@ -36,7 +36,8 @@
 	holder.click_intercept = src
 	mode.enter_mode(src)
 	modebutton.update_icon()
-	ui_interact(holder.mob)
+	if(holder.prefs?.buildmode_auto_open)
+		ui_interact(holder.mob)
 
 /datum/buildmode/proc/quit()
 	qdel(src)

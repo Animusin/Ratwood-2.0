@@ -65,7 +65,7 @@
 	return ..()
 
 /datum/job/roguetown/wretch/get_patron_requirement_message()
-	return "Последователи Зизо могут заходить за Wretch только при High Chaos."
+	return "Followers of Zizo can only join as a Wretch during High Chaos."
 
 /datum/job/roguetown/wretch/New()
 	. = ..()

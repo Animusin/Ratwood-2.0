@@ -26,6 +26,10 @@
 
 	//How many players can be this job
 	var/total_positions = 0
+	/// Explicit limit from Manage Job Slots, including zero and -1 (unlimited).
+	var/admin_position_limit = null
+	/// Preserve the configured total when temporarily overriding a job's limit.
+	var/admin_position_limit_backup = null
 
 	//How many players can spawn in as this job
 	var/spawn_positions = 0
@@ -354,7 +358,30 @@
 
 /// Returns the live slot cap used for availability, assignment, and display.
 /datum/job/proc/get_position_limit(latejoin = FALSE)
+	if(!isnull(admin_position_limit))
+		return admin_position_limit
+	return get_default_position_limit(latejoin)
+
+/// Automatic/configured limit before any administrator override.
+/datum/job/proc/get_default_position_limit(latejoin = FALSE)
 	return latejoin ? total_positions : spawn_positions
+
+/datum/job/proc/set_admin_position_limit(new_limit)
+	if(!isnum(new_limit))
+		return FALSE
+	if(isnull(admin_position_limit))
+		admin_position_limit_backup = total_positions
+	admin_position_limit = max(-1, FLOOR(new_limit, 1))
+	// Keep legacy readers in sync with the explicit limit.
+	total_positions = admin_position_limit
+	return TRUE
+
+/datum/job/proc/reset_admin_position_limit()
+	if(isnull(admin_position_limit))
+		return
+	total_positions = admin_position_limit_backup
+	admin_position_limit = null
+	admin_position_limit_backup = null
 
 /// Returns the population used to scale dynamic job slots.
 /// Roundstart uses players ready to spawn; latejoin uses players currently alive.

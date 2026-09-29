@@ -66,5 +66,5 @@
 		/datum/advclass/mercenary/newmoon,
 	)
 
-/datum/job/roguetown/mercenary/get_position_limit(latejoin = FALSE)
+/datum/job/roguetown/mercenary/get_default_position_limit(latejoin = FALSE)
 	return clamp(floor(get_slot_scaling_population(latejoin) * MERCENARY_POPULATION_RATIO), MERCENARY_MIN_POSITIONS, MERCENARY_MAX_POSITIONS)

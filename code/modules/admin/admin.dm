@@ -1296,22 +1296,26 @@
 		var/datum/job/job = j
 		count++
 		var/J_title = html_encode(job.title)
-		var/J_opPos = html_encode(job.total_positions - (job.total_positions - job.current_positions))
-		var/J_totPos = html_encode(job.total_positions)
-		dat += "<tr><td>[J_title]:</td> <td>[J_opPos]/[job.total_positions < 0 ? " (unlimited)" : J_totPos]"
+		var/position_limit = job.get_position_limit(TRUE)
+		var/J_opPos = html_encode(job.current_positions)
+		var/J_totPos = html_encode(position_limit)
+		dat += "<tr><td>[J_title]:</td> <td>[J_opPos]/[position_limit < 0 ? " (unlimited)" : J_totPos]"
 
 		dat += "</td>"
 		dat += "<td>"
-		if(job.total_positions >= 0)
+		if(position_limit >= 0)
 			dat += "<A href='?src=[REF(src)];[HrefToken()];customjobslot=[job.title]'>Custom</A> | "
 			dat += "<A href='?src=[REF(src)];[HrefToken()];addjobslot=[job.title]'>Add 1</A> | "
-			if(job.total_positions > job.current_positions)
+			if(position_limit > job.current_positions)
 				dat += "<A href='?src=[REF(src)];[HrefToken()];removejobslot=[job.title]'>Remove</A> | "
 			else
 				dat += "Remove | "
-			dat += "<A href='?src=[REF(src)];[HrefToken()];unlimitjobslot=[job.title]'>Unlimit</A></td>"
+			dat += "<A href='?src=[REF(src)];[HrefToken()];unlimitjobslot=[job.title]'>Unlimit</A>"
 		else
-			dat += "<A href='?src=[REF(src)];[HrefToken()];limitjobslot=[job.title]'>Limit</A></td>"
+			dat += "<A href='?src=[REF(src)];[HrefToken()];limitjobslot=[job.title]'>Limit</A>"
+		if(!isnull(job.admin_position_limit))
+			dat += " | <A href='?src=[REF(src)];[HrefToken()];resetjobslot=[job.title]'>Reset</A>"
+		dat += "</td></tr>"
 
 	browser.height = min(100 + count * 20, 650)
 	browser.set_content(dat.Join())

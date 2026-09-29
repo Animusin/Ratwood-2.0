@@ -54,7 +54,7 @@
 				r_hand = /obj/item/gun/ballistic/revolver/grenadelauncher/crossbow/slurbow/stalker/lesser//1:1 with regular slurbow, still good, just not as fancy
 				beltr =  /obj/item/quiver/bolts/
 			if("Escrimeuse \"Swordswoman\"")
-				H.adjust_skillrank_up_to(/datum/skill/combat/swords, SKILL_LEVEL_JOURNEYMAN, TRUE)
+				H.adjust_skillrank_up_to(/datum/skill/combat/swords, SKILL_LEVEL_EXPERT, TRUE)
 				var/swords = list("Falx", "Sabre", "Greatsabre", "Shotel", "Thrusting Longsword")
 				var/sword_choice = input(H, "Choose your weapon.", "TAKE UP ARMS") as anything in swords
 				switch(sword_choice)
@@ -74,7 +74,7 @@
 						beltr = /obj/item/rogueweapon/scabbard/sword
 						r_hand = /obj/item/rogueweapon/sword/long/stalker
 			if("Piqueuse \"Whipper\"")
-				H.adjust_skillrank_up_to(/datum/skill/combat/whipsflails, SKILL_LEVEL_JOURNEYMAN, TRUE)
+				H.adjust_skillrank_up_to(/datum/skill/combat/whipsflails, SKILL_LEVEL_EXPERT, TRUE)
 				var/whips = list("Whip - 10 STR MIN", "Urumi - 10 STR MIN", "Greatflail - 12 STR Min")
 				var/whip_choice = input(H, "Choose your weapon.", "TAKE UP ARMS") as anything in whips
 				switch(whip_choice)
@@ -126,8 +126,8 @@
 				shirt = /obj/item/clothing/suit/roguetown/armor/gambeson/heavy/shadowrobe
 				gloves = /obj/item/clothing/gloves/roguetown/plate/shadowgauntlets
 				wrists = /obj/item/clothing/wrists/roguetown/bracers/leather/heavy
-				mask = /obj/item/clothing/mask/rogue/facemask
-				neck = /obj/item/clothing/neck/roguetown/chaincoif/chainmantle
+				mask = /obj/item/clothing/mask/rogue/shepherd/shadowmask/delf
+				neck = /obj/item/clothing/neck/roguetown/gorget/steel
 				backr = /obj/item/rogueweapon/shield/tower
 		var/helmets = list("Full Chain Coif", "Smiling Bascinet", "Visored Sallet", "Kettle", "Elven Barbute", "Winged Elven Barbute")
 		var/helmet_choice = input(H, "How do you dress?", "Get dressed.") as anything in helmets

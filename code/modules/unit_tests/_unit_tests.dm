@@ -95,6 +95,7 @@
 #include "create_and_destroy.dm"
 #include "focus_only_tests.dm"
 #include "harddels.dm"
+#include "local_changelog.dm"
 #include "market_daily_recovery.dm"
 #include "migrant_config.dm"
 #include "ooze_forms.dm"

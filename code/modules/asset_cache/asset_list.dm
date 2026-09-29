@@ -143,26 +143,29 @@ GLOBAL_LIST_EMPTY(asset_datums)
 
 /datum/asset/changelog_item
 	_abstract = /datum/asset/changelog_item
-	var/item_filename
+	var/list/item_filenames = list()
 
 /datum/asset/changelog_item/New(date)
-	item_filename = SANITIZE_FILENAME("[date].yml")
-	SSassets.transport.register_asset(item_filename, file("html/changelogs/archive/" + item_filename))
+	var/list/sources = changelog_sources()
+	var/list/month_sources = sources[date]
+	for(var/filename in month_sources)
+		item_filenames += filename
+		SSassets.transport.register_asset(filename, file(month_sources[filename]))
 
 /datum/asset/changelog_item/send(client)
-	if (!item_filename)
+	if(!length(item_filenames))
 		return
-	. = SSassets.transport.send_assets(client, item_filename)
+	. = SSassets.transport.send_assets(client, item_filenames)
 
 /datum/asset/changelog_item/get_url_mappings()
-	if (!item_filename)
-		return
-	. = list("[item_filename]" = SSassets.transport.get_asset_url(item_filename))
+	var/list/mappings = list()
+	for(var/filename in item_filenames)
+		mappings[filename] = SSassets.transport.get_asset_url(filename)
+	return mappings
 
 /datum/asset/changelog_item/unregister()
-	if (!item_filename)
-		return
-	SSassets.transport.unregister_asset(item_filename)
+	for(var/filename in item_filenames)
+		SSassets.transport.unregister_asset(filename)
 
 //Generates assets based on iconstates of a single icon
 /datum/asset/simple/icon_states

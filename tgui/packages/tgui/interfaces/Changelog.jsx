@@ -15,6 +15,7 @@ import { classes } from 'tgui-core/react';
 import { resolveAsset } from '../assets';
 import { useBackend } from '../backend';
 import { Window } from '../layouts';
+import { mergeChangelog } from './Changelog/merge';
 
 const icons = {
   add: { icon: 'check-circle', color: 'green' },
@@ -68,31 +69,48 @@ export class Changelog extends Component {
   }
 
   getData = (date, attemptNumber = 1) => {
-    const { act } = useBackend();
-    const self = this;
+    const {
+      act,
+      data: { month_files = {} },
+    } = useBackend();
     const maxAttempts = 6;
+    this.requestedMonth = date;
 
     if (attemptNumber > maxAttempts) {
       return this.setData(`Failed to load data after ${maxAttempts} attempts`);
     }
 
     act('get_month', { date });
-
-    fetch(resolveAsset(`${date}.yml`)).then(async (changelogData) => {
-      const result = await changelogData.text();
-      const errorRegex = /^Cannot find/;
-
-      if (errorRegex.test(result)) {
-        const timeout = 50 + attemptNumber * 50;
-
-        self.setData(`Loading changelog data${'.'.repeat(attemptNumber + 3)}`);
-        setTimeout(() => {
-          self.getData(date, attemptNumber + 1);
-        }, timeout);
-      } else {
-        self.setData(yaml.load(result, { schema: yaml.CORE_SCHEMA }));
-      }
-    });
+    const filenames = month_files[date] || [`${date}.yml`];
+    return Promise.all(
+      filenames.map(async (filename) => {
+        const response = await fetch(resolveAsset(filename));
+        const result = await response.text();
+        if (/^Cannot find/.test(result)) {
+          throw new Error('Changelog asset is not ready');
+        }
+        return yaml.load(result, { schema: yaml.CORE_SCHEMA });
+      }),
+    )
+      .then((documents) => {
+        if (this.requestedMonth === date) {
+          this.setData(mergeChangelog(documents));
+        }
+      })
+      .catch(() => {
+        if (this.requestedMonth !== date) {
+          return;
+        }
+        this.setData(`Loading changelog data${'.'.repeat(attemptNumber + 3)}`);
+        setTimeout(
+          () => {
+            if (this.requestedMonth === date) {
+              this.getData(date, attemptNumber + 1);
+            }
+          },
+          50 + attemptNumber * 50,
+        );
+      });
   };
 
   componentDidMount() {
@@ -100,7 +118,7 @@ export class Changelog extends Component {
       data: { dates = [] },
     } = useBackend();
 
-    if (dates) {
+    if (dates.length) {
       dates.forEach((date) =>
         this.dateChoices.push(dateformat(date, 'mmmm yyyy', true)),
       );

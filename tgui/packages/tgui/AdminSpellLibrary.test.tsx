@@ -12,7 +12,7 @@ const fixture = () => ({
   target_key: 'testwizard',
   target_valid: true,
   mindless: false,
-  known_spells: { '/spell/heal': true },
+  known_spells: { '/spell/heal': true } as Record<string, boolean>,
   categories: [
     { id: 'attack', name: 'Атака' },
     { id: 'healing', name: 'Лечение' },
@@ -109,4 +109,61 @@ test('searches descriptions as well as names and paths', () => {
   });
   expect(container.querySelectorAll('article')).toHaveLength(1);
   expect(container.querySelector('article')?.textContent).toContain('Heal');
+});
+
+test('shows only owned spells and switches between opposite ownership filters', () => {
+  render();
+  click(button('Только имеющиеся'));
+  expect(container.querySelectorAll('article')).toHaveLength(1);
+  expect(container.querySelector('article')?.textContent).toContain('Heal');
+  click(button('Скрыть имеющиеся'));
+  expect(container.querySelectorAll('article')).toHaveLength(1);
+  expect(container.querySelector('article')?.textContent).toContain('Fireball');
+  expect(button('Забрать заклинание')).toBeUndefined();
+  click(button('Только имеющиеся'));
+  expect(container.querySelector('article')?.textContent).toContain('Heal');
+  click(button('Только имеющиеся'));
+  expect(container.querySelectorAll('article')).toHaveLength(2);
+});
+
+test('revokes the exact owned spell and refreshes the owned list after removal', () => {
+  render();
+  expect(
+    container.querySelectorAll('article .Button--color--bad'),
+  ).toHaveLength(1);
+  click(button('Только имеющиеся'));
+  click(button('Забрать заклинание'));
+  expect(act).toHaveBeenCalledWith('revoke', { path: '/spell/heal' });
+  data = { ...data, known_spells: {} };
+  flushSync(() => root.render(<AdminSpellLibrary />));
+  expect(container.querySelectorAll('article')).toHaveLength(0);
+  click(button('Только имеющиеся'));
+  expect(container.querySelectorAll('article')).toHaveLength(2);
+  expect(button('Забрать заклинание')).toBeUndefined();
+});
+
+test('disables revocation when the recipient is no longer valid', () => {
+  data.target_valid = false;
+  render();
+  click(button('Только имеющиеся'));
+  click(button('Забрать заклинание'));
+  expect(act).not.toHaveBeenCalled();
+});
+
+test('combines the owned filter with category and path search', () => {
+  render();
+  click(button('Только имеющиеся'));
+  click(button('Лечение (1)'));
+  const input = container.querySelector('input')!;
+  flushSync(() => {
+    Object.getOwnPropertyDescriptor(
+      HTMLInputElement.prototype,
+      'value',
+    )!.set!.call(input, '/spell/heal');
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+  });
+  expect(container.querySelectorAll('article')).toHaveLength(1);
+  expect(container.querySelector('article')?.textContent).toContain('Heal');
+  click(button('Атака (0)'));
+  expect(container.querySelectorAll('article')).toHaveLength(0);
 });

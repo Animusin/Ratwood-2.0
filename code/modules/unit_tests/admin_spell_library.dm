@@ -61,3 +61,65 @@
 	mind.current = target
 	qdel(target)
 	TEST_ASSERT_NULL(minded.get_target(), "A deleted recipient must not remain usable.")
+
+/datum/unit_test/admin_spell_library_revoke/Run()
+	var/mob/living/carbon/human/dummy/viewer = allocate(/mob/living/carbon/human/dummy)
+	var/mob/living/carbon/human/dummy/target = allocate(/mob/living/carbon/human/dummy)
+	var/datum/admin_spell_library/unit_test/library = new(null, target)
+	allocated += library
+	library.test_user = viewer
+	var/fireball_path = "/obj/effect/proc_holder/spell/invoked/projectile/fireball"
+	var/greater_path = "/obj/effect/proc_holder/spell/invoked/projectile/fireball/greater"
+	library.grant_spell(viewer, fireball_path)
+	library.grant_spell(viewer, greater_path)
+	var/obj/effect/proc_holder/spell/body_spell = target.mob_spell_list[1]
+	var/datum/action/body_action = body_spell.action
+	var/obj/effect/proc_holder/spell/duplicate = new /obj/effect/proc_holder/spell/invoked/projectile/fireball()
+	duplicate.name = "Renamed fireball"
+	target.AddSpell(duplicate)
+	var/datum/admin_spell_library/denied = new(null, target)
+	allocated += denied
+	TEST_ASSERT(!denied.revoke_spell(viewer, fireball_path), "Unauthorized clients cannot remove spells.")
+	TEST_ASSERT(!library.revoke_spell(target, fireball_path), "Other users cannot remove spells through this window.")
+	TEST_ASSERT(!library.revoke_spell(viewer, "/mob/living"), "Revocation rejects non-spell paths.")
+	TEST_ASSERT(!library.revoke_spell(viewer, list("bad")), "Revocation rejects non-text paths.")
+	TEST_ASSERT_EQUAL(length(target.mob_spell_list), 3, "Rejected requests must not change any spells.")
+	library.revoke_spell(viewer, fireball_path)
+	TEST_ASSERT_EQUAL(length(target.mob_spell_list), 1, "Remove all exact-type copies, leaving subtypes intact.")
+	TEST_ASSERT(QDELETED(body_spell) && QDELETED(duplicate), "Removed body spells must be deleted.")
+	TEST_ASSERT(QDELETED(body_action) && !(body_action in target.actions), "Removing a spell must also remove its action button.")
+	TEST_ASSERT(!library.known_spells(target)[fireball_path], "Removed spells must disappear from the known filter.")
+	TEST_ASSERT(library.known_spells(target)[greater_path], "Removing a base spell must not remove its stronger variant.")
+	library.revoke_spell(viewer, fireball_path)
+	TEST_ASSERT_EQUAL(length(target.mob_spell_list), 1, "Repeated removals must not affect another spell.")
+	library.grant_spell(viewer, fireball_path)
+	TEST_ASSERT(library.known_spells(target)[fireball_path], "Removed spells can be granted again.")
+
+	var/datum/mind/mind = new()
+	allocated += mind
+	target.mind = mind
+	mind.current = target
+	library.revoke_spell(viewer, fireball_path)
+	TEST_ASSERT(library.known_spells(target)[fireball_path], "A stale mindless window cannot remove spells after a mind is added.")
+	var/datum/admin_spell_library/unit_test/minded = new(null, target)
+	allocated += minded
+	minded.test_user = viewer
+	var/obj/effect/proc_holder/spell/mind_spell = new /obj/effect/proc_holder/spell/invoked/projectile/fireball()
+	mind.AddSpell(mind_spell)
+	var/datum/action/mind_action = mind_spell.action
+	minded.grant_spell(viewer, "/obj/effect/proc_holder/spell/invoked/blink")
+	var/used_points = mind.used_spell_points
+	minded.revoke_spell(viewer, fireball_path)
+	TEST_ASSERT(!minded.known_spells(target)[fireball_path], "Revocation must remove the type from both mind and body lists.")
+	TEST_ASSERT(QDELETED(mind_spell) && QDELETED(mind_action), "Mind spells and their action buttons must be deleted.")
+	TEST_ASSERT(mind.has_spell(/obj/effect/proc_holder/spell/invoked/blink, TRUE), "Other mind-owned spells must remain available.")
+	TEST_ASSERT(minded.known_spells(target)[greater_path], "Other body-owned spells must remain available.")
+	TEST_ASSERT_EQUAL(mind.used_spell_points, used_points, "Admin revocation must not refund learning points.")
+	mind.current = viewer
+	minded.revoke_spell(viewer, "/obj/effect/proc_holder/spell/invoked/blink")
+	TEST_ASSERT(mind.has_spell(/obj/effect/proc_holder/spell/invoked/blink, TRUE), "A moved mind invalidates revocation requests.")
+	mind.current = target
+	minded.revoke_spell(viewer, "/obj/effect/proc_holder/spell/invoked/blink")
+	TEST_ASSERT(!mind.has_spell(/obj/effect/proc_holder/spell/invoked/blink, TRUE), "Mind-only spells must be removable.")
+	qdel(target)
+	TEST_ASSERT(minded.revoke_spell(viewer, greater_path), "Deleted recipients should return a refreshed invalid-target status.")

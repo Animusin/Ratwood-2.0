@@ -51,7 +51,9 @@ export const AdminSpellLibrary = () => {
   } = data;
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState('all');
-  const [hideKnown, setHideKnown] = useState(false);
+  const [ownership, setOwnership] = useState<'all' | 'known' | 'unknown'>(
+    'all',
+  );
   const [page, setPage] = useState(1);
 
   const matched = useMemo(() => {
@@ -59,7 +61,10 @@ export const AdminSpellLibrary = () => {
     return spells
       .filter(
         (spell) =>
-          (!hideKnown || !known_spells[spell.path]) &&
+          (ownership === 'all' ||
+            (ownership === 'known'
+              ? !!known_spells[spell.path]
+              : !known_spells[spell.path])) &&
           (!query ||
             `${spell.name} ${spell.desc} ${spell.path}`
               .toLowerCase()
@@ -68,7 +73,7 @@ export const AdminSpellLibrary = () => {
       .sort(
         (a, b) => a.name.localeCompare(b.name) || a.path.localeCompare(b.path),
       );
-  }, [spells, search, hideKnown, known_spells]);
+  }, [spells, search, ownership, known_spells]);
   const filtered = matched.filter(
     (spell) => category === 'all' || spell.category === category,
   );
@@ -99,15 +104,32 @@ export const AdminSpellLibrary = () => {
                   </Box>
                 </Stack.Item>
                 <Stack.Item>
-                  <Button.Checkbox
-                    checked={hideKnown}
-                    onClick={() => {
-                      setHideKnown(!hideKnown);
-                      setPage(1);
-                    }}
-                  >
-                    Скрыть имеющиеся
-                  </Button.Checkbox>
+                  <Stack vertical>
+                    <Stack.Item>
+                      <Button.Checkbox
+                        checked={ownership === 'known'}
+                        onClick={() => {
+                          setOwnership(ownership === 'known' ? 'all' : 'known');
+                          setPage(1);
+                        }}
+                      >
+                        Только имеющиеся
+                      </Button.Checkbox>
+                    </Stack.Item>
+                    <Stack.Item>
+                      <Button.Checkbox
+                        checked={ownership === 'unknown'}
+                        onClick={() => {
+                          setOwnership(
+                            ownership === 'unknown' ? 'all' : 'unknown',
+                          );
+                          setPage(1);
+                        }}
+                      >
+                        Скрыть имеющиеся
+                      </Button.Checkbox>
+                    </Stack.Item>
+                  </Stack>
                 </Stack.Item>
               </Stack>
               {!!mindless && (
@@ -251,6 +273,20 @@ export const AdminSpellLibrary = () => {
                             >
                               {known ? 'Уже имеется' : 'Выдать'}
                             </Button>
+                            {known && (
+                              <Button
+                                fluid
+                                mt={0.5}
+                                icon="minus"
+                                color="bad"
+                                disabled={!target_valid}
+                                onClick={() =>
+                                  act('revoke', { path: spell.path })
+                                }
+                              >
+                                Забрать заклинание
+                              </Button>
+                            )}
                           </article>
                         );
                       })}

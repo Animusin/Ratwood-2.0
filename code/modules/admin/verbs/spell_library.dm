@@ -405,6 +405,8 @@
 		return
 	if(action == "grant")
 		return grant_spell(usr, params["path"])
+	if(action == "revoke")
+		return revoke_spell(usr, params["path"])
 
 /datum/admin_spell_library/proc/grant_spell(mob/user, path_text)
 	if(!can_access(user))
@@ -438,4 +440,36 @@
 	message_admins(span_adminnotice("[key_name_admin(user)] gave [key_name_admin(target)] the spell [spell_type]."))
 	SSblackbox.record_feedback("tally", "admin_verb", 1, "Give Spell")
 	status_message = "Выдано: [spell.name] → [target.name]."
+	return TRUE
+
+/datum/admin_spell_library/proc/revoke_spell(mob/user, path_text)
+	if(!can_access(user))
+		return FALSE
+	var/mob/target = get_target()
+	if(!target)
+		status_message = "Получатель изменился или был удалён. Откройте выдачу заново."
+		return TRUE
+	if(!istext(path_text))
+		return FALSE
+	var/spell_type = text2path(path_text)
+	if(!ispath(spell_type, /obj/effect/proc_holder/spell) || !(spell_type in GLOB.spells))
+		return FALSE
+	// Cards represent exact types; do not remove their subtypes or skip body-owned spells.
+	var/list/spells_to_remove = list()
+	for(var/obj/effect/proc_holder/spell/spell as anything in (target.mob_spell_list + target.mind?.spell_list))
+		if(!QDELETED(spell) && spell.type == spell_type)
+			spells_to_remove |= spell
+	if(!length(spells_to_remove))
+		status_message = "У получателя уже нет этого заклинания."
+		return TRUE
+	var/obj/effect/proc_holder/spell/first_spell = spells_to_remove[1]
+	var/spell_name = first_spell.name
+	for(var/obj/effect/proc_holder/spell/spell as anything in spells_to_remove)
+		target.mob_spell_list -= spell
+		target.mind?.spell_list -= spell
+		qdel(spell)
+	log_admin("[key_name(user)] removed the spell [spell_type] from [key_name(target)].")
+	message_admins(span_adminnotice("[key_name_admin(user)] removed the spell [spell_type] from [key_name_admin(target)]."))
+	SSblackbox.record_feedback("tally", "admin_verb", 1, "Remove Spell")
+	status_message = "Забрано: [spell_name] → [target.name]."
 	return TRUE

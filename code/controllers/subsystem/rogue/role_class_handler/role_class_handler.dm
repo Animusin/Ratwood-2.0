@@ -128,7 +128,11 @@ SUBSYSTEM_DEF(role_class_handler)
 
 /// A selector belongs to one character, never to the next body using the same client.
 /datum/controller/subsystem/role_class_handler/proc/cancel_class_handler(player_ckey)
+	if(!player_ckey)
+		return
 	var/datum/class_select_handler/handler = class_select_handlers[player_ckey]
+	if(!handler)
+		return
 	class_select_handlers -= player_ckey
 	qdel(handler)
 

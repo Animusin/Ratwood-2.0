@@ -104,6 +104,7 @@
 #include "rural_income.dm"
 #include "spawn_humans.dm"
 #include "species_whitelists.dm"
+#include "speech_mannerisms.dm"
 #include "subsystem_init.dm"
 #include "tgui_assets.dm"
 #include "timer_sanity.dm"

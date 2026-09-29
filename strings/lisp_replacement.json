@@ -5,7 +5,13 @@
     "multiword": {},
     "syllable": {
 		"ss": "th",
-        "s": "th"
+        "s": "th",
+        "с": "ш",
+        "з": "ж",
+        "ц": "ч"
     },
-    "middle": {}
+    "initial": [],
+    "middle": [],
+    "prefix": [],
+    "repeat": []
 }

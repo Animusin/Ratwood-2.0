@@ -3,9 +3,12 @@
     "start": {},
     "end": {},
     "multiword": {},
-    "syllable": {},
+    "syllable": {
+        "r": "w",
+        "р": "л"
+    },
     "initial": [],
     "middle": [],
-    "prefix": ["... "],
+    "prefix": [],
     "repeat": []
 }

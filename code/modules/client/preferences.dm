@@ -2838,6 +2838,7 @@ Slots: [job.spawn_positions] [job.round_contrib_points ? "RCP: +[job.round_contr
 					if(selected_mannerism)
 						char_mannerism = selected_mannerism
 						var/test_message = "Hello friend, yes this is good. My Lord rides through the Duchy with servants and soldiers; the captain and sergeant guard the church while archers and cavalry hold the north road. My sword and shield are sharp, the water flows refreshingly, and we thank the Duke before saying goodbye."
+						test_message += " Привет, друг! Рыжий рыцарь стоит у ворот. Здесь слышны голоса стражи, звон мечей и шелест листвы."
 						var/accent_preview = apply_accent_preview(char_accent, test_message)
 						var/preview_message = accent_preview ? "[accent_preview]" : test_message
 						var/preview_text = apply_mannerism_preview(selected_mannerism, preview_message)

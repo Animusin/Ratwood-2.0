@@ -266,27 +266,17 @@ export const AdminSpellLibrary = () => {
                             </details>
                             <Button
                               fluid
-                              icon={known ? 'check' : 'plus'}
-                              color={known ? 'default' : 'good'}
-                              disabled={known || !target_valid}
-                              onClick={() => act('grant', { path: spell.path })}
+                              icon={known ? 'minus' : 'plus'}
+                              color={known ? 'bad' : 'good'}
+                              disabled={!target_valid}
+                              onClick={() =>
+                                act(known ? 'revoke' : 'grant', {
+                                  path: spell.path,
+                                })
+                              }
                             >
-                              {known ? 'Уже имеется' : 'Выдать'}
+                              {known ? 'Забрать заклинание' : 'Выдать'}
                             </Button>
-                            {known && (
-                              <Button
-                                fluid
-                                mt={0.5}
-                                icon="minus"
-                                color="bad"
-                                disabled={!target_valid}
-                                onClick={() =>
-                                  act('revoke', { path: spell.path })
-                                }
-                              >
-                                Забрать заклинание
-                              </Button>
-                            )}
                           </article>
                         );
                       })}

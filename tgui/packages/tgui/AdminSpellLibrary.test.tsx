@@ -79,14 +79,32 @@ test('shows recipient, icons and descriptions, and grants the exact selected spe
   );
   click(button('Выдать'));
   expect(act).toHaveBeenCalledWith('grant', { path: '/spell/fireball' });
+  data = {
+    ...data,
+    known_spells: { ...data.known_spells, '/spell/fireball': true },
+  };
+  flushSync(() => root.render(<AdminSpellLibrary />));
+  const card = container.querySelector('article')!;
+  expect(card.querySelectorAll('.Button')).toHaveLength(1);
+  expect(card.textContent).toContain('Забрать заклинание');
+  click(card.querySelector<HTMLElement>('.Button')!);
+  expect(act).toHaveBeenLastCalledWith('revoke', { path: '/spell/fireball' });
+  data = { ...data, known_spells: { '/spell/heal': true } };
+  flushSync(() => root.render(<AdminSpellLibrary />));
+  expect(card.querySelectorAll('.Button')).toHaveLength(1);
+  expect(card.textContent).toContain('Выдать');
+  expect(card.textContent).not.toContain('Забрать заклинание');
 });
-test('filters by purpose and prevents giving an already known spell', () => {
+test('filters by purpose and offers a single removal button for an owned spell', () => {
   render();
   click(button('Лечение (1)'));
   expect(container.querySelectorAll('article')).toHaveLength(1);
   expect(container.querySelector('article')?.textContent).toContain('Heal');
-  click(button('Уже имеется'));
-  expect(act).not.toHaveBeenCalled();
+  expect(container.querySelectorAll('article .Button')).toHaveLength(1);
+  expect(container.textContent).not.toContain('Уже имеется');
+  expect(button('Выдать')).toBeUndefined();
+  click(button('Забрать заклинание'));
+  expect(act).toHaveBeenCalledWith('revoke', { path: '/spell/heal' });
 });
 test('hides known spells and disables grants when the recipient is gone', () => {
   data.target_valid = false;

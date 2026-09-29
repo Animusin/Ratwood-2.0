@@ -83,11 +83,14 @@ GLOBAL_LIST_INIT(huds, alist(
 	if(hudusers[M])
 		hudusers[M] = 1
 		remove_hud_from(M)
-	remove_from_hud(M)
 	next_time_allowed -= M
 	queued_to_see -= M
 	hud_exceptions -= M
 	UnregisterSignal(M, COMSIG_QDELETING)
+	// A viewer is not necessarily a HUD target. Removing a non-target from a
+	// basic alternate appearance deletes that appearance for every other viewer.
+	if(M in hudatoms)
+		remove_from_hud(M)
 
 /datum/atom_hud/proc/hide_single_atomhud_from(hud_user,hidden_atom)
 	if(hudusers[hud_user])

@@ -3,7 +3,7 @@ GLOBAL_LIST_EMPTY(billagerspawns)
 GLOBAL_VAR_INIT(adventurer_hugbox_duration, 40 SECONDS)
 GLOBAL_VAR_INIT(adventurer_hugbox_duration_still, 3 MINUTES)
 
-#define ADVENTURER_POPULATION_RATIO 0.2
+#define ADVENTURER_POPULATION_RATIO 0.18
 #define ADVENTURER_MIN_POSITIONS 4
 #define ADVENTURER_MAX_POSITIONS 20
 

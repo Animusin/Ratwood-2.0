@@ -74,3 +74,10 @@
 	req_bar = /obj/item/ingot/copper
 	additional_items = list(/obj/item/roguegear, /obj/item/roguegear)
 	craftdiff = 3
+
+/datum/anvil_recipe/engineering/tools/adv_skillcore
+	name = "Advanced Golem Skill Exhibitor (+2 bronze gears)" //slightly more expensive
+	created_item = /obj/item/construct_skill_core/Advanced
+	req_bar = /obj/item/ingot/bronze //slightly more expensive and match artificer craft
+	additional_items = list(/obj/item/roguegear/bronze, /obj/item/roguegear/bronze)
+	skill_level = 4 //cost of freedom I guess

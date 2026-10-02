@@ -80,4 +80,4 @@
 	created_item = /obj/item/construct_skill_core/Advanced
 	req_bar = /obj/item/ingot/bronze //slightly more expensive and match artificer craft
 	additional_items = list(/obj/item/roguegear/bronze, /obj/item/roguegear/bronze)
-	skill_level = 4 //cost of freedom I guess
+	craftdiff = 4 //cost of freedom I guess

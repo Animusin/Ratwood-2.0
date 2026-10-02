@@ -182,6 +182,11 @@
 	desc = "A series of gears joined around a copper rod. When inserted into a Golem's head, it will allow them to grow their skills beyond their original design. This one looks like it was purposefully altered to allow Golems to use it themselves."
 	self_usable = TRUE
 
+/obj/item/construct_skill_core/Advanced
+	name = "Advanced construct skill exhibitor"
+	desc = "A series of gears joined around a copper rod. When inserted into a Construct's head, it will allow them to grow their skills beyond their original design. This one have self use."
+	self_usable = TRUE
+
 /obj/item/construct_skill_core/examine(mob/user)
 	. = ..()
 	if(in_use)

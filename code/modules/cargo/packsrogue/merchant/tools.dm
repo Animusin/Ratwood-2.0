@@ -248,3 +248,8 @@
 	name = "Scissors, Iron"
 	cost = 30
 	contains = list(/obj/item/rogueweapon/huntingknife/scissors)
+
+/datum/supply_pack/rogue/tools/golem_upgrades_adv
+	name = "Advanced Golem Skill Exhibitor"
+	cost = 45 //more cost to engage engineer interaction
+	contains = list(/obj/item/construct_skill_core/Advanced)

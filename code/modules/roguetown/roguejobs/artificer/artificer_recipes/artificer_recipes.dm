@@ -169,6 +169,13 @@
 	hammers_per_item = 10
 	skill_level = 3
 
+/datum/artificer_recipe/bronze/tools/adv_skillcore
+	name = "Advanced Golem Skill Exhibitor (+2 bronze gears)" //slightly more expensive
+	created_item = /obj/item/construct_skill_core/Advanced
+	additional_items = list(/obj/item/roguegear/bronze, /obj/item/roguegear/bronze)
+	hammers_per_item = 10
+	skill_level = 4 //cost of freedom I guess
+
 /datum/artificer_recipe/bronze/tools/headhook
 	name = "Headhook (+2 Fibers)"
 	created_item = /obj/item/storage/hip/headhook/bronze

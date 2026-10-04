@@ -12,7 +12,7 @@
 	TEST_ASSERT_EQUAL(apply_mannerism_preview("Rhotacism", "рычит*Роза!"), "рычит*Лоза!", "Rhotacism must preserve a custom speech verb.")
 
 	// Check the actual speech signal path as well as the preferences preview.
-	var/mob/living/carbon/human/speaker = allocate(/mob/living/carbon/human)
+	var/mob/living/carbon/human/consistent/speaker = allocate(/mob/living/carbon/human/consistent)
 	speaker.char_accent = "No accent"
 	for(var/mannerism in list("Lisp", "Rhotacism"))
 		speaker.char_mannerism = mannerism

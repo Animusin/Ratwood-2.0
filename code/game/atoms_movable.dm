@@ -1167,12 +1167,12 @@ GLOBAL_VAR_INIT(pixel_diff_time, 1)
 	for(var/datum/language/langtype as anything in H.languages)
 		if(!ispath(langtype, /datum/language)) // guard against malformed (e.g. string) entries that slipped into the list
 			continue
-		if(!can_speak_in_language(langtype.type))
+		if(!can_speak_in_language(langtype))
 			continue
 
 		var/pri = initial(langtype.default_priority)
 		if(!highest_priority || (pri > highest_priority))
-			chosen_langtype = langtype.type
+			chosen_langtype = langtype
 			highest_priority = pri
 
 	H.selected_default_language = .

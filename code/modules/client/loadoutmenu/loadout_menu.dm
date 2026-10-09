@@ -10,6 +10,7 @@
 	. = ..()
 
 /datum/loadout_menu/ui_interact(mob/user, datum/tgui/ui)
+	user.client?.sync_donation_info()
 	ui = SStgui.try_update_ui(user, src, ui)
 	if(!ui)
 		ui = new(user, src, "LoadoutMenu", "Loadout Menu")
@@ -23,6 +24,7 @@
 
 /datum/loadout_menu/ui_data(mob/user)
 	var/list/data = ..()
+	data["cosmetics_available"] = !!user.client?.can_use_donation_cosmetics()
 	return data
 
 /datum/loadout_menu/ui_static_data(mob/user)
@@ -32,17 +34,13 @@
 
 	for(var/datum/loadout_item/item as anything in GLOB.loadout_items)
 		var/obj/item/I = item.path
-		var/donoritem_passed = TRUE // This isn't checking if it is a donor item.
 		var/noble_passed = item.nobility_check(user.client)
-		if(item.donoritem)
-			if(!item.donator_ckey_check(user.key)) // IF it is a donor item AND the ckey doesn't match the donor ckey list...
-				donoritem_passed = FALSE // True means it won't show up in the TGUI
 		UNTYPED_LIST_ADD(loadout_items, list(
 			"name" = item.name,
 			"desc" = initial(I.desc),
 			"triumph_cost" = item.desc, // Don't @ me... this is wack.
 			"nobility_check" = noble_passed, // True means they passed. Returns true on items that don't have the check as well.
-			"donoritem" = donoritem_passed,
+			"donoritem" = item.donoritem,
 			"ref" = ref(item),
 			"icon" = spritesheet.icon_class_name(sanitize_css_class_name("loadout_item_[REF(item)]"))
 		))
@@ -70,6 +68,9 @@
 			if(!istype(item))
 				ui.close()
 				prefs.open_vices_menu(user)
+				return TRUE
+			if(!item.is_available_to(user.client, TRUE))
+				to_chat(user, span_warning("Donator cosmetics require an active Scientist tier or higher."))
 				return TRUE
 			var/total_points = prefs.get_total_points()
 			var/spent_points = 0

@@ -12,7 +12,9 @@
 
 SUBSYSTEM_DEF(donations)
 	name = "Donations"
-	flags = SS_NO_FIRE
+	flags = SS_BACKGROUND
+	wait = 1 MINUTES
+	runlevels = RUNLEVEL_LOBBY | RUNLEVEL_SETUP | RUNLEVEL_GAME | RUNLEVEL_POSTGAME
 	init_order = INIT_ORDER_DONATIONS
 
 	var/const/FAILED_DONATION_DB_CONNECTION_CUTOFF = 5
@@ -20,6 +22,7 @@ SUBSYSTEM_DEF(donations)
 	var/failed_connections = 0
 	var/last_error
 	var/connection
+	var/list/currentrun = list()
 
 /datum/controller/subsystem/donations/Initialize()
 	if(!CONFIG_GET(flag/sql_enabled))
@@ -40,6 +43,18 @@ SUBSYSTEM_DEF(donations)
 
 /datum/controller/subsystem/donations/Shutdown()
 	Disconnect()
+
+/datum/controller/subsystem/donations/fire(resumed = FALSE)
+	if(!IsConfigured())
+		return
+	if(!resumed)
+		currentrun = GLOB.clients.Copy()
+	while(length(currentrun))
+		var/client/player = currentrun[currentrun.len]
+		currentrun.len--
+		update_client(player)
+		if(MC_TICK_CHECK)
+			return
 
 /datum/controller/subsystem/donations/Recover()
 	connection = SSdonations.connection
@@ -229,7 +244,12 @@ SUBSYSTEM_DEF(donations)
 /datum/controller/subsystem/donations/proc/update_client(client/player)
 	if(!player?.ckey)
 		return FALSE
-	if(!ensure_player(player.ckey))
+	var/player_ckey = player.ckey
+	var/player_exists = ensure_player(player_ckey)
+	if(!player)
+		return FALSE
+	if(!player_exists)
+		player.donation_info_loaded = FALSE
 		return FALSE
 
 	var/list/tier_result = query({"
@@ -238,7 +258,13 @@ SUBSYSTEM_DEF(donations)
 		LEFT JOIN patron_types ON players.patron_type = patron_types.id
 		WHERE players.ckey = :ckey
 		LIMIT 1
-	"}, list("ckey" = player.ckey))
+	"}, list("ckey" = player_ckey))
+
+	if(!player)
+		return FALSE
+	if(!tier_result)
+		player.donation_info_loaded = FALSE
+		return FALSE
 
 	var/tier = DONATION_TIER_NONE
 	var/list/tier_rows = tier_result?["rows"]
@@ -252,7 +278,12 @@ SUBSYSTEM_DEF(donations)
 		FROM points_transactions
 		JOIN players ON players.id = points_transactions.player
 		WHERE players.ckey = :ckey
-	"}, list("ckey" = player.ckey))
+	"}, list("ckey" = player_ckey))
+
+	if(!opyx_result || !player)
+		if(player)
+			player.donation_info_loaded = FALSE
+		return FALSE
 
 	var/opyxes = 0
 	var/list/opyx_rows = opyx_result?["rows"]
@@ -434,6 +465,12 @@ SUBSYSTEM_DEF(donations)
 	if(!SSdonations)
 		return FALSE
 	return SSdonations.update_client(src)
+
+// Refresh at every cosmetic action so a downgrade cannot reuse a cached grant.
+/client/proc/can_use_donation_cosmetics(refresh = FALSE)
+	if(refresh && !sync_donation_info())
+		return FALSE
+	return donation_info_loaded && donation_tier_to_patreon_level(donation_tier) >= donation_tier_to_patreon_level(DONATION_TIER_SCIENTIST)
 
 /client/proc/get_opyxes(refresh = FALSE)
 	if(refresh)

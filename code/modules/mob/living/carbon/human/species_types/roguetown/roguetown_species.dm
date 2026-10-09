@@ -9,8 +9,10 @@
 			return strings("dwarfcleaner_replacement.json", type, convert_HTML = TRUE)
 		if("Dwarf Gibberish accent")
 			return strings("dwarf_replacement.json", type, convert_HTML = TRUE)
-		if("Dark Elf accent")
+		if("Otavan accent")
 			return strings("french_replacement.json", type, convert_HTML = TRUE)
+		if("Otavan accent(light)")
+			return strings("french_light_replacement.json", type, convert_HTML = TRUE)
 		if("Elf accent")
 			return strings("russian_replacement.json", type, convert_HTML = TRUE)
 		if("Grenzelhoft accent")
@@ -68,6 +70,8 @@
 			return strings("heavy_stutter_replacement.json", type, convert_HTML = convert_HTML)
 		if("Lisp")
 			return strings("lisp_replacement.json", type, convert_HTML = convert_HTML)
+		if("Rhotacism")
+			return strings("rhotacism_replacement.json", type, convert_HTML = convert_HTML)
 		if("Hesitant")
 			return strings("hesitant_replacement.json", type, convert_HTML = convert_HTML)
 
@@ -294,18 +298,20 @@
 		if(prefix?.len && word != "" && prob(20))
 			words[index] = "[pick(prefix)][word]"
 			continue
-		if(repeat?.len && length(word) > 3 && prob(25))
-			var/initial_syllable = copytext(word, 1, 3)
+		// Speech is UTF-8: byte offsets can split a Cyrillic letter in half.
+		var/word_length = length_char(word)
+		if(repeat?.len && word_length > 3 && prob(25))
+			var/initial_syllable = copytext_char(word, 1, 3)
 			words[index] = "[initial_syllable][pick(repeat)][initial_syllable]-[word]"
 			continue
 		if(initial?.len && prob(25))
-			var/first_letter = copytext(word, 1, 2)
+			var/first_letter = copytext_char(word, 1, 2)
 			if(first_letter && first_letter != "<")
 				words[index] = "[first_letter][pick(initial)][word]"
 				continue
-		if(middle?.len && length(word) > 3 && prob(20))
-			var/insertion_point = rand(2, length(word) - 1)
-			words[index] = "[copytext(word, 1, insertion_point)][pick(middle)][copytext(word, insertion_point)]"
+		if(middle?.len && word_length > 3 && prob(20))
+			var/insertion_point = rand(2, word_length - 1)
+			words[index] = "[copytext_char(word, 1, insertion_point)][pick(middle)][copytext_char(word, insertion_point)]"
 	message = jointext(words, " ")
 	return action_prefix ? "[action_prefix]*[message]" : message
 

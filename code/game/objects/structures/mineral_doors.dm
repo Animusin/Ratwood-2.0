@@ -172,7 +172,7 @@
 		return FALSE
 	if(resident_role)
 		var/datum/job/job = SSjob.name_occupations[human.job]
-		if(job.type != resident_role)
+		if(job?.type != resident_role)
 			if(!HAS_TRAIT(human, TRAIT_RESIDENT))
 				return FALSE
 	if(resident_advclass)
@@ -1269,7 +1269,7 @@
 	lockid = "towner_cheesemaker"
 
 /obj/structure/mineral_door/wood/towner/miner
-	resident_advclass = list(/datum/advclass/miner)
+	resident_advclass = list(/datum/advclass/miner, /datum/advclass/minermaster)
 	lockid = "towner_miner"
 
 /obj/structure/mineral_door/wood/towner/seamstress

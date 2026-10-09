@@ -1530,6 +1530,11 @@ GLOBAL_LIST_EMPTY(cached_loadout_icons)
 			temp_loadout_selection = null
 			usr << browse(null, "window=loadout_select")
 			return
+		if(!selected.is_available_to(usr.client, TRUE))
+			to_chat(usr, span_warning("Donator cosmetics require an active Scientist tier or higher."))
+			temp_loadout_selection = null
+			usr << browse(null, "window=loadout_select")
+			return
 		
 		var/slot_var = (slot == 1) ? "loadout" : "loadout[slot]"
 		

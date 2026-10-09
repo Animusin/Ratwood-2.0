@@ -1,0 +1,6 @@
+author: "Animusin"
+delete-after: true
+changes:
+  - bugfix: "Speech mannerism stutters no longer corrupt Cyrillic letters, and Lisp now affects Russian speech."
+  - bugfix: "Speech mannerisms no longer report missing replacement lists while speaking or previewing preferences."
+  - rscadd: "Added Rhotacism as a speech mannerism and Russian text to the mannerism preview."

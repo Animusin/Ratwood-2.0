@@ -86,7 +86,7 @@
 
 // BEGIN_INCLUDE
 #include "admin_antags.dm"
-#include "admin_spell_library.dm"
+#include "admin_job_slots.dm"
 #include "anchored_mobs.dm"
 #include "baseturfs.dm"
 #include "buildmode_catalog.dm"
@@ -94,6 +94,7 @@
 #include "component_tests.dm"
 #include "create_and_destroy.dm"
 #include "focus_only_tests.dm"
+#include "ghost_protection.dm"
 #include "harddels.dm"
 #include "market_daily_recovery.dm"
 #include "migrant_config.dm"
@@ -103,7 +104,9 @@
 #include "rural_income.dm"
 #include "spawn_humans.dm"
 #include "species_whitelists.dm"
+#include "speech_mannerisms.dm"
 #include "subsystem_init.dm"
+#include "tgui_assets.dm"
 #include "timer_sanity.dm"
 #include "timers.dm"
 #include "unit_test.dm"

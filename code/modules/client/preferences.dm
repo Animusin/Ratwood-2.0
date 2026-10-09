@@ -60,6 +60,7 @@ GLOBAL_LIST_EMPTY(chosen_names)
 	var/tgui_theme = "azure_default"
 	var/parchment_skin = "leatherbound"
 	var/windowflashing = TRUE
+	var/buildmode_auto_open = FALSE
 	var/toggles = TOGGLES_DEFAULT
 	var/floating_text_toggles = TOGGLES_TEXT_DEFAULT
 	var/admin_chat_toggles = TOGGLES_DEFAULT_CHAT_ADMIN
@@ -2389,8 +2390,8 @@ Slots: [job.spawn_positions] [job.round_contrib_points ? "RCP: +[job.round_contr
 						rumour = null
 						ShowChoices(user)
 						return
-					if(length(new_rumour) > 400)
-						to_chat(user, span_warning("Rumours cannot exceed 400 characters."))
+					if(length(new_rumour) > 750)
+						to_chat(user, span_warning("Rumours cannot exceed 750 characters."))
 						ShowChoices(user)
 						return
 					rumour = new_rumour
@@ -2406,8 +2407,8 @@ Slots: [job.spawn_positions] [job.round_contrib_points ? "RCP: +[job.round_contr
 						noble_gossip = null
 						ShowChoices(user)
 						return
-					if(length(new_gossip) > 400)
-						to_chat(user, span_notice("Noble gossip cannot exceed 400 characters."))
+					if(length(new_gossip) > 750)
+						to_chat(user, span_notice("Noble gossip cannot exceed 750 characters."))
 						ShowChoices(user)
 						return
 					noble_gossip = new_gossip
@@ -2838,6 +2839,7 @@ Slots: [job.spawn_positions] [job.round_contrib_points ? "RCP: +[job.round_contr
 					if(selected_mannerism)
 						char_mannerism = selected_mannerism
 						var/test_message = "Hello friend, yes this is good. My Lord rides through the Duchy with servants and soldiers; the captain and sergeant guard the church while archers and cavalry hold the north road. My sword and shield are sharp, the water flows refreshingly, and we thank the Duke before saying goodbye."
+						test_message += " Привет, друг! Рыжий рыцарь стоит у ворот. Здесь слышны голоса стражи, звон мечей и шелест листвы."
 						var/accent_preview = apply_accent_preview(char_accent, test_message)
 						var/preview_message = accent_preview ? "[accent_preview]" : test_message
 						var/preview_text = apply_mannerism_preview(selected_mannerism, preview_message)

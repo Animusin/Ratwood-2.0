@@ -59,7 +59,8 @@
 		participant_index++
 		SSgamemode?.consume_planned_villain_reservation(control, participant_index)
 		var/datum/job/original_job = SSjob.GetJob(antag_mind.assigned_role)
-		antag_mind.current.unequip_everything()
+		if(antag_mind.current.client)
+			SSrole_class_handler.cancel_class_handler(antag_mind.current.client.ckey)
 		SSjob.AssignRole(antag_mind.current, "Assassin")
 		if(original_job)
 			if(original_job.total_positions == 1)

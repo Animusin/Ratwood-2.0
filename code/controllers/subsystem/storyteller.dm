@@ -577,7 +577,7 @@ SUBSYSTEM_DEF(gamemode)
 	garrison = 0
 	antag_cap_excluded_players = 0
 	for(var/mob/player_mob as anything in GLOB.player_list)
-		if(!player_mob.client)
+		if(!player_mob?.client)
 			continue
 		if(player_mob.stat) //If they're alive
 			continue

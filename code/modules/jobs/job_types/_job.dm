@@ -26,6 +26,10 @@
 
 	//How many players can be this job
 	var/total_positions = 0
+	/// Explicit limit from Manage Job Slots, including zero and -1 (unlimited).
+	var/admin_position_limit = null
+	/// Preserve the configured total when temporarily overriding a job's limit.
+	var/admin_position_limit_backup = null
 
 	//How many players can spawn in as this job
 	var/spawn_positions = 0
@@ -354,7 +358,30 @@
 
 /// Returns the live slot cap used for availability, assignment, and display.
 /datum/job/proc/get_position_limit(latejoin = FALSE)
+	if(!isnull(admin_position_limit))
+		return admin_position_limit
+	return get_default_position_limit(latejoin)
+
+/// Automatic/configured limit before any administrator override.
+/datum/job/proc/get_default_position_limit(latejoin = FALSE)
 	return latejoin ? total_positions : spawn_positions
+
+/datum/job/proc/set_admin_position_limit(new_limit)
+	if(!isnum(new_limit))
+		return FALSE
+	if(isnull(admin_position_limit))
+		admin_position_limit_backup = total_positions
+	admin_position_limit = max(-1, FLOOR(new_limit, 1))
+	// Keep legacy readers in sync with the explicit limit.
+	total_positions = admin_position_limit
+	return TRUE
+
+/datum/job/proc/reset_admin_position_limit()
+	if(isnull(admin_position_limit))
+		return
+	total_positions = admin_position_limit_backup
+	admin_position_limit = null
+	admin_position_limit_backup = null
 
 /// Returns the population used to scale dynamic job slots.
 /// Roundstart uses players ready to spawn; latejoin uses players currently alive.
@@ -649,12 +676,68 @@
 		popup.open(FALSE)
 		if(winexists(usr, "classhelp"))
 			winset(usr, "classhelp", "focus=true")
+	if(href_list["jobsubclassinfo"])
+		var/list/dat = list()
+		for(var/adv in get_all_subclass_types())
+			var/datum/advclass/advpath = adv
+			var/datum/advclass/subclass = SSrole_class_handler.get_advclass_by_name(initial(advpath.name))
+			if(subclass.maximum_possible_slots != -1)
+				dat += "[subclass.name] — <b>"
+				if(subclass.total_slots_occupied >= subclass.maximum_possible_slots)
+					dat += "FULL!"
+				else
+					dat += "[subclass.total_slots_occupied] / [subclass.maximum_possible_slots]"
+				dat += "</b><br>"
+		var/datum/browser/popup = new(usr, "subclassslots", "<div style='text-align: center'>[title]</div>", nwidth = 200, nheight = 300)
+		popup.set_content(dat.Join())
+		popup.open(FALSE)
+		if(winexists(usr, "subclassslots"))
+			winset(usr, "subclassslots", "focus=true")
+	if(href_list["jobadvincomp"])
+		var/mob/dead/D = usr
+		if(!isdead(D) || !D.client)
+			return
+		var/list/dat = list()
+		var/list/blocked = get_blocked_subclasses(D.client)
+		for(var/subname in blocked)
+			dat += "<font color = '#e4e1e1'><b>[subname]</b></font><br>"
+			for(var/pick in blocked[subname])
+				dat += "[pick]<br>"
+		var/datum/browser/popup = new(usr, "subclassslots", "<div style='text-align: center'>Subclass Incompatibilities</div>", nwidth = 200, nheight = 300)
+		popup.set_content(dat.Join())
+		popup.open(FALSE)
+		if(winexists(usr, "subclassslots"))
+			winset(usr, "subclassslots", "focus=true")
 	. = ..()
 
+/datum/job/proc/get_blocked_subclasses(client/player)
+	. = list()
+	var/datum/preferences/prefs = player?.prefs
+	if(!prefs)
+		return
+	var/list/picks = list(prefs.virtue, prefs.virtuetwo)
+	for(var/adv in get_all_subclass_types())
+		var/datum/advclass/subclass = SSrole_class_handler.classes_by_type[adv]
+		if(!length(subclass?.virtue_restrictions))
+			continue
+		var/list/hits = list()
+		for(var/datum/virtue/virtue as anything in picks)
+			for(var/restricted in subclass.virtue_restrictions)
+				if(istype(virtue, restricted))
+					hits |= virtue.name
+		if(length(hits))
+			.[subclass.name] = hits
+
+/datum/job/proc/get_all_subclass_types()
+	if(length(job_subclasses))
+		return job_subclasses
+	. = list()
+	for(var/ctag in advclass_cat_rolls)
+		for(var/datum/advclass/ctag_class as anything in SSrole_class_handler.sorted_class_categories[ctag])
+			. += ctag_class.type
+
 /datum/job/proc/has_limited_subclasses()
-	if(length(job_subclasses) <= 0)
-		return FALSE
-	for(var/adv in job_subclasses)
+	for(var/adv in get_all_subclass_types())
 		var/datum/advclass/subclass = adv
 		if(initial(subclass.maximum_possible_slots) != -1)
 			return TRUE

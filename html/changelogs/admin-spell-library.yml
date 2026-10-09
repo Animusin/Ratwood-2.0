@@ -1,0 +1,4 @@
+author: "VasiliUnknown"
+delete-after: true
+changes:
+  - admin: "Меню выдачи и снятия заклинаний получило каталог с иконками, поиском и фильтрами."

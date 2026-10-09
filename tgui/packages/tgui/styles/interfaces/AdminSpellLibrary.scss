@@ -1,0 +1,85 @@
+.AdminSpellLibrary {
+  padding: 8px;
+
+  &__body {
+    min-width: 0;
+    min-height: 0;
+  }
+  &__results {
+    min-height: 0;
+    overflow-y: auto;
+    padding-right: 5px;
+  }
+  &__grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(235px, 1fr));
+    gap: 10px;
+    align-items: stretch;
+  }
+  &__card {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    padding: 12px;
+    border: 1px solid #2e7d32;
+    border-radius: 4px;
+    background: rgba(20, 32, 22, 0.95);
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+  }
+  &__card--known {
+    border-color: #4caf50;
+    background: rgba(27, 38, 27, 0.96);
+  }
+  &__spell-heading {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
+  }
+  &__icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 46px;
+    height: 46px;
+    flex-shrink: 0;
+    border: 1px solid #444;
+    background: #000;
+    image-rendering: pixelated;
+    overflow: hidden;
+  }
+  &__name {
+    color: #fff;
+    font-size: 14px;
+    font-weight: bold;
+    overflow-wrap: anywhere;
+  }
+  &__description {
+    flex-grow: 1;
+    color: #c2c6cf;
+    font-size: 12px;
+    line-height: 1.4;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    margin-bottom: 12px;
+  }
+  &__stats {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 12px;
+    color: #9ba7bb;
+    font-size: 11px;
+    padding-top: 6px;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+  }
+  &__path {
+    margin: 8px 0;
+    color: #9ba7bb;
+    font-size: 10px;
+    overflow-wrap: anywhere;
+  }
+  &__path summary {
+    cursor: pointer;
+    font-size: 11px;
+  }
+}

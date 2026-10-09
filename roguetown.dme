@@ -1482,6 +1482,7 @@
 #include "code\modules\admin\verbs\schizohelp.dm"
 #include "code\modules\admin\verbs\set_date.dm"
 #include "code\modules\admin\verbs\severed_heads.dm"
+#include "code\modules\admin\verbs\spell_library.dm"
 #include "code\modules\admin\verbs\SDQL2\SDQL_2.dm"
 #include "code\modules\admin\verbs\SDQL2\SDQL_2_parser.dm"
 #include "code\modules\admin\verbs\SDQL2\SDQL_2_wrappers.dm"

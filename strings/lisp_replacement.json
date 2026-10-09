@@ -4,8 +4,14 @@
     "end": {},
     "multiword": {},
     "syllable": {
-		"ss": "th",
-        "s": "th"
+        "ss": "th",
+        "s": "th",
+        "с": "ш",
+        "з": "ж",
+        "ц": "ч"
     },
-    "middle": {}
+    "initial": [],
+    "middle": [],
+    "prefix": [],
+    "repeat": []
 }

@@ -4,6 +4,8 @@
     "end": {},
     "multiword": {},
     "syllable": {},
-    "middle": {},
-    "prefix": ["... "]
+    "initial": [],
+    "middle": [],
+    "prefix": ["... "],
+    "repeat": []
 }

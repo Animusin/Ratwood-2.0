@@ -4,22 +4,18 @@ GLOBAL_LIST_INIT(loadout_items, init_subtypes(/datum/loadout_item))
 	var/name = "Parent loadout datum"
 	var/desc
 	var/path
-	var/donoritem			//autoset on new if null
-	var/list/ckeywhitelist
+	var/donoritem = FALSE
 	var/triumph_cost
 	var/keep_loadout_stats = FALSE	// If TRUE, item keeps default values (not nerfed)
 
 /datum/loadout_item/New()
-	if(isnull(donoritem))
-		if(ckeywhitelist)
-			donoritem = TRUE
+	if(ispath(path, /obj/item/enchantingkit))
+		donoritem = TRUE
 	if (triumph_cost)
 		desc += "Costs [triumph_cost] Points."
 
-/datum/loadout_item/proc/donator_ckey_check(key)
-	if(ckeywhitelist && ckeywhitelist.Find(key))
-		return TRUE
-	return
+/datum/loadout_item/proc/is_available_to(client/player, refresh = FALSE)
+	return !donoritem || player?.can_use_donation_cosmetics(refresh)
 
 /datum/loadout_item/proc/nobility_check(client/C)
 	// Override this in subtypes that require nobility
@@ -1825,6 +1821,16 @@ GLOBAL_LIST_INIT(loadout_items, init_subtypes(/datum/loadout_item))
 	path = /obj/item/clothing/suit/roguetown/shirt/freifechter
 	triumph_cost = 3
 
+/datum/loadout_item/tri_fencing_shirt_shepherd
+	name = "Shepherd's Shirt (Padded)"
+	path = /obj/item/clothing/suit/roguetown/shirt/freifechter/shepherd
+	triumph_cost = 3
+
+/datum/loadout_item/tri_fencing_vest_shepherd
+	name = "Shepherd's Vest (Padded)"
+	path = /obj/item/clothing/suit/roguetown/armor/leather/heavy/shepherd
+	triumph_cost = 3
+
 /datum/loadout_item/tri_gambeson
 	name = "Gambeson"
 	path = /obj/item/clothing/suit/roguetown/armor/gambeson
@@ -2198,47 +2204,62 @@ GLOBAL_LIST_INIT(loadout_items, init_subtypes(/datum/loadout_item))
 /datum/loadout_item/donator_plex
 	name = "Donator Kit - Rapier di Aliseo"
 	path = /obj/item/enchantingkit/plexiant
-	ckeywhitelist = list("plexiant")
 
 /datum/loadout_item/donator_sru
 	name = "Donator Kit - Emerald Dress"
 	path = /obj/item/enchantingkit/srusu
-	ckeywhitelist = list("cheekycrenando")
 
 /datum/loadout_item/donator_strudel
 	name = "Donator Kit - Grenzelhoftian Mage Vest"
 	path = /obj/item/enchantingkit/strudle
-	ckeywhitelist = list("toasterstrudes")
 
 /datum/loadout_item/donator_bat
 	name = "Donator Kit - Handcarved Harp"
 	path = /obj/item/enchantingkit/bat
-	ckeywhitelist = list("kitchifox")
 
 /datum/loadout_item/donator_mansa
 	name = "Donator Kit - Wortträger"
 	path = /obj/item/enchantingkit/ryebread
-	ckeywhitelist = list("pepperoniplayboy")	//Byond maybe doesn't like spaces. If a name has a space, do it as one continious name.
 
 /datum/loadout_item/donator_rebel
 	name = "Donator Kit - Gilded Sallet"
 	path = /obj/item/enchantingkit/rebel
-	ckeywhitelist = list("rebel0")
 
 /datum/loadout_item/donator_bigfoot
 	name = "Donator Kit - Gilded Knight Helm"
 	path = /obj/item/enchantingkit/bigfoot
-	ckeywhitelist = list("bigfoot02")
 
 /datum/loadout_item/donator_bigfoot_axe
 	name = "Donator kit - Gilded Greataxe"
 	path = /obj/item/enchantingkit/bigfoot_axe
-	ckeywhitelist = list("bigfoot02")
 
 /datum/loadout_item/donator_zydras
 	name = "Donator Kit - Padded silky dress"
 	path = /obj/item/enchantingkit/zydras
-	ckeywhitelist = list("1ceres")
+
+/datum/loadout_item/donator_eiren
+	name = "Donator Kit - Regret"
+	path = /obj/item/enchantingkit/eiren
+
+/datum/loadout_item/donator_eirensabre
+	name = "Donator Kit - Lunae"
+	path = /obj/item/enchantingkit/eirensabre
+
+/datum/loadout_item/donator_eirensabre2
+	name = "Donator Kit - Cinis"
+	path = /obj/item/enchantingkit/eirensabre2
+
+/datum/loadout_item/donator_waff
+	name = "Donator Kit - Weeper's Lathe"
+	path = /obj/item/enchantingkit/waff
+
+/datum/loadout_item/donator_inverserun
+	name = "Donator Kit - Votive Thorns"
+	path = /obj/item/enchantingkit/inverserun
+
+/datum/loadout_item/donator_zoe
+	name = "Donator Kit - Shroud of the Undermaiden"
+	path = /obj/item/enchantingkit/zoe
 
 /datum/loadout_item/leather_collar
 	name = "Leather Collar"

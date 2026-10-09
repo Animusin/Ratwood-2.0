@@ -759,6 +759,7 @@ GLOBAL_LIST_INIT(roleplay_readme, world.file2list("strings/rt/rp_prompt.txt"))
 			for(var/job in available_jobs)
 				var/datum/job/job_datum = SSjob.name_occupations[job]
 				var/do_elaborate = job_datum.has_limited_subclasses()
+				var/incompatible_href = length(job_datum.get_blocked_subclasses(client)) ? "<a href='?src=[REF(job_datum)];jobadvincomp=1'><b><font color = '#df1919'>(!!)</font></b></a>" : ""
 				if(job_datum)
 					var/command_bold = FALSE
 					if(job in GLOB.noble_positions)
@@ -775,9 +776,9 @@ GLOBAL_LIST_INIT(roleplay_readme, world.file2list("strings/rt/rp_prompt.txt"))
 						var/job_label = "[command_bold ? "<b>" : ""][used_name] ([job_datum.current_positions]/[display_position_limit])[command_bold ? "</b>" : ""]"
 						if(position_full)
 							var/full_reason = job_datum.antag_job && job_datum.antag_cap_weight > 0 ? "Antagonist capacity or job slots are full" : "Job slots are full"
-							dat += "<font size=3 color='#777777'>[subclass_info]<span title='[full_reason]'>[job_label]</span></font>"
+							dat += "<font size=3 color='#777777'>[incompatible_href][subclass_info]<span title='[full_reason]'>[job_label]</span></font>"
 						else
-							dat += "<font size=3>[subclass_info]<a href='byond://?src=[REF(src)];SelectedJob=[job_datum.title]'>[job_label]</a></font>"
+							dat += "<font size=3>[incompatible_href][subclass_info]<a href='byond://?src=[REF(src)];SelectedJob=[job_datum.title]'>[job_label]</a></font>"
 						dat += "<br>"
 
 			dat += "</fieldset><br>"

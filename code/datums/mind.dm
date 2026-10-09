@@ -1002,6 +1002,13 @@ GLOBAL_LIST_EMPTY(personal_objective_minds)
 				if(user.Adjacent(host_object))
 					if(user.mind.special_items[item])
 						var/path2item = user.mind.special_items[item]
+						if(ispath(path2item, /obj/item/enchantingkit))
+							if(!user.client?.can_use_donation_cosmetics(TRUE))
+								to_chat(user, span_warning("Donator cosmetics require an active Scientist tier or higher."))
+								return
+							// The database check yields; revalidate the stash before consuming it.
+							if(!user.Adjacent(host_object) || user.mind?.special_items[item] != path2item)
+								return
 						user.mind.special_items -= item
 						var/obj/item/I = new path2item(user.loc)
 

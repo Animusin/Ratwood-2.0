@@ -237,7 +237,7 @@
 	w_class = WEIGHT_CLASS_BULKY
 	misfire_chance = 0
 	cog_accept = FALSE
-	charge_per_source = 5
+	charge_per_source = 10
 
 /obj
 	/// This is the result when the wood metalizer artifact is used on this item
@@ -309,7 +309,7 @@
 	accepted_power_source = /obj/item/rogueore/coal
 	misfire_chance = 0
 	cog_accept = FALSE
-	charge_per_source = 6
+	charge_per_source = 12
 
 /obj/item/contraption/smelter/misfire_result()
 	misfiring = TRUE
@@ -421,7 +421,7 @@
 	off_icon = "shears"
 	w_class = WEIGHT_CLASS_BULKY
 	smeltresult = /obj/item/ingot/bronze
-	charge_per_source = 4
+	charge_per_source = 8
 
 /obj/item/contraption/shears/hammer_action(obj/item/I, mob/user)
 	return
@@ -476,8 +476,8 @@
 	w_class = WEIGHT_CLASS_BULKY
 	accepted_power_source = /obj/item/customlock
 	misfire_chance = 0
-	sneaky_misfire_chance = 20
-	charge_per_source = 2
+	sneaky_misfire_chance = 0
+	charge_per_source = 4
 	cog_accept = FALSE
 	var/list/allowed_locks = list(/obj/structure/mineral_door, /obj/structure/closet, /obj/structure/roguemachine/steward, /obj/structure/roguemachine/vendor, /obj/structure/roguemachine/goldface)
 	var/stored_lock_id
@@ -542,6 +542,12 @@
 	if(!stored_lock_hash)
 		to_chat(user, span_warning("The [name] requires a stored lock hash to imprint this lock."))
 		return FALSE
+	if(istype(O, /obj/structure/mineral_door))
+		var/obj/structure/mineral_door/door = O
+		if(door.door_opened || door.isSwitchingStates)
+			to_chat(user, span_warning("[door] must be fully closed before imprinting its lock."))
+			return FALSE
+		door.keylock = TRUE
 	O.lockid = stored_lock_id
 	O.lockhash = stored_lock_hash
 	return TRUE
@@ -604,6 +610,11 @@
 					misfire(O, user)
 				break
 			if(mode == "Unlocker")
+				if(!O.locked && istype(O, /obj/structure/mineral_door))
+					var/obj/structure/mineral_door/door = O
+					if(door.door_opened || door.isSwitchingStates)
+						to_chat(user, span_warning("[door] must be fully closed before it can be locked."))
+						return
 				var/turf/front = get_turf(O)
 				if(O.locked)
 					O.locked = FALSE

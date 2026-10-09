@@ -1,7 +1,8 @@
 GLOBAL_LIST_INIT(character_accents, list("No accent",
 	"Dwarf accent",
 	"Dwarf Gibberish accent",
-	"Dark Elf accent",
+	"Otavan accent",
+	"Otavan accent(light)",
 	"Elf accent",
 	"Grenzelhoft accent",
 	"North Etruscan accent",
@@ -33,6 +34,7 @@ GLOBAL_LIST_INIT(character_mannerisms, list(
 	"Stutter",
 	"Heavy Stutter",
 	"Lisp",
+	"Rhotacism",
 	"Hesitant"))
 
 // Global mapping of accent names to their font span lists

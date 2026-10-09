@@ -11,6 +11,12 @@
 
 /obj/item/enchantingkit/pre_attack(obj/item/I, mob/user)
 	if(is_type_in_list(I, target_items))
+		if(!user.client?.can_use_donation_cosmetics(TRUE))
+			to_chat(user, span_warning("Donator cosmetics require an active Scientist tier or higher."))
+			return TRUE
+		// Recheck after the database query in case either item moved or was consumed.
+		if(QDELETED(src) || QDELETED(I) || user.get_active_held_item() != src || !user.Adjacent(I))
+			return TRUE
 		var/obj/item/R = new result_item(get_turf(user))
 		to_chat(user, span_notice("You apply the [src] to [I], using the enchanting dust and tools to turn it into [R]."))
 		R.name += " <font size = 1>([I.name])</font>"

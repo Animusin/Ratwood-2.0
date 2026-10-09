@@ -1,5 +1,14 @@
 /datum/job/roguetown
 	display_order = JOB_DISPLAY_ORDER_CAPTAIN
+	/// Patron to assign when this role is equipped, regardless of the character's saved preference.
+	var/datum/patron/forced_patron
+
+/datum/job/roguetown/equip(mob/living/carbon/human/H, visualsOnly = FALSE, announce = TRUE, latejoin = FALSE, datum/outfit/outfit_override = null, client/preference_source)
+	if(!H)
+		return FALSE
+	if(!visualsOnly && forced_patron && H.patron?.type != forced_patron)
+		H.set_patron(forced_patron)
+	return ..()
 
 /datum/job/roguetown/New()
 	. = ..()

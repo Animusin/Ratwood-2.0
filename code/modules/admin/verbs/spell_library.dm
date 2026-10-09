@@ -122,7 +122,6 @@
 		/obj/effect/proc_holder/spell/invoked/pomegranate = "protection",
 		/obj/effect/proc_holder/spell/invoked/primordialmark = "buff",
 		/obj/effect/proc_holder/spell/invoked/projectile = "attack",
-		/obj/effect/proc_holder/spell/invoked/projectile/blood_net = "control",
 		/obj/effect/proc_holder/spell/invoked/projectile/blowingdust = "control",
 		/obj/effect/proc_holder/spell/invoked/projectile/fetch = "movement",
 		/obj/effect/proc_holder/spell/invoked/projectile/repel = "control",
@@ -238,6 +237,7 @@
 		/obj/effect/proc_holder/spell/targeted/forcewall = "protection",
 		/obj/effect/proc_holder/spell/targeted/lesser_dryad_special = "buff",
 		/obj/effect/proc_holder/spell/targeted/pioneer/plant_bogtrap_delayed = "control",
+		/obj/effect/proc_holder/spell/self/blood_net = "control",
 		/obj/effect/proc_holder/spell/targeted/projectile = "attack",
 		/obj/effect/proc_holder/spell/targeted/ravox_challenge = "control",
 		/obj/effect/proc_holder/spell/targeted/skirmisher_trap = "control",
@@ -420,6 +420,8 @@
 	var/spell_type = text2path(path_text)
 	if(!ispath(spell_type, /obj/effect/proc_holder/spell) || !(spell_type in GLOB.spells))
 		return FALSE
+	// Compare canonical paths, not alternative textual representations from clients.
+	path_text = "[spell_type]"
 	if(known_spells(target)[path_text])
 		status_message = "У получателя уже есть это заклинание."
 		return TRUE
@@ -428,7 +430,7 @@
 	if(!can_access(user) || get_target() != target || known_spells(target)[path_text])
 		qdel(spell)
 		return TRUE
-	if(!spell.action)
+	if(QDELETED(spell) || !spell.action)
 		qdel(spell)
 		status_message = "Этот тип не создаёт доступную для выдачи способность."
 		return TRUE

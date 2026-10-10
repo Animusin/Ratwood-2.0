@@ -110,6 +110,8 @@
 /// Returns the total bleed rate on this bodypart
 /obj/item/bodypart/proc/get_bleed_rate()
 	var/bleed_rate = bleeding
+	if(istype(bandage, /obj/item/natural/cloth/tourniquet))
+		return 0 // a tourniquet chokes off all flow through the limb, severed arteries included
 	if(bandage && !HAS_BLOOD_DNA(bandage))
 		process_bandage(bleed_rate)
 		var/obj/item/natural/cloth/cloth = bandage
@@ -139,6 +141,8 @@
 /// Returns the bleed amount that matters for HUD visuals without mutating bandages.
 /obj/item/bodypart/proc/get_hud_bleed_rate()
 	var/hud_bleed_rate = bleeding
+	if(istype(bandage, /obj/item/natural/cloth/tourniquet))
+		return 0
 	if(bandage && !HAS_BLOOD_DNA(bandage))
 		var/obj/item/natural/cloth/cloth = bandage
 		if(istype(cloth))
@@ -626,12 +630,17 @@
 		return FALSE
 	bandage = new_bandage
 	new_bandage.forceMove(src)
+	if(istype(new_bandage, /obj/item/natural/cloth))
+		var/obj/item/natural/cloth/cloth = new_bandage
+		cloth.on_bandaged(owner, src)
 	owner?.mark_zone_selector_hud_dirty()
 	return TRUE
 
 /obj/item/bodypart/proc/process_bandage(bleed_rate)
 	if(!bandage)
 		return FALSE
+	if(istype(bandage, /obj/item/natural/cloth/tourniquet))
+		return FALSE // tourniquets are never soiled by blood; they stop the flow instead
 	var/obj/item/natural/cloth/cloth
 	if(istype(bandage, /obj/item/natural/cloth))
 		cloth = bandage
@@ -662,6 +671,8 @@
 		return FALSE
 	if(!bandage)
 		return FALSE
+	if(istype(bandage, /obj/item/natural/cloth/tourniquet))
+		return FALSE
 	if(owner.stat != DEAD)
 		owner.visible_message(span_warning("Blood soaks through the bandage on [owner]'s [name]."), span_warning("Blood soaks through the bandage on my [name]."), vision_distance = 3)
 	owner.mark_zone_selector_hud_dirty()
@@ -670,6 +681,9 @@
 /obj/item/bodypart/proc/remove_bandage()
 	if(!bandage)
 		return FALSE
+	if(istype(bandage, /obj/item/natural/cloth))
+		var/obj/item/natural/cloth/cloth = bandage
+		cloth.on_unbandaged(owner, src)
 	var/drop_location = owner?.drop_location() || drop_location()
 	if(drop_location)
 		bandage.forceMove(drop_location)

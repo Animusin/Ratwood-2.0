@@ -85,3 +85,59 @@
 	TEST_ASSERT(!(chest.body_zone in tourniquet.bandage_zones), "A tourniquet must not list the chest as a valid zone")
 	TEST_ASSERT(!(BODY_ZONE_PRECISE_L_HAND in tourniquet.bandage_zones), "Zones are matched on body_zone, not precise zone")
 	TEST_ASSERT(tourniquet.bandage_zones.len == 4, "A tourniquet should target exactly the four limbs")
+
+/// Measures real blood loss through handle_blood(): an untreated wound must drain
+/// blood, a tourniquet must stop the drain, and removing it must resume the drain.
+/datum/unit_test/tourniquet_blood_loss/Run()
+	var/mob/living/carbon/human/victim = allocate(/mob/living/carbon/human/consistent)
+	TEST_ASSERT_NOTNULL(victim, "Could not allocate a human to test on")
+	TEST_ASSERT(victim.blood_volume > 0, "The test human starts with no blood")
+
+	var/obj/item/bodypart/arm = victim.get_bodypart(BODY_ZONE_L_ARM)
+	TEST_ASSERT_NOTNULL(arm, "The human has no left arm")
+
+	// Baseline: no wound, no blood loss at all.
+	var/start_volume = victim.blood_volume
+	for(var/i in 1 to 5)
+		victim.handle_blood()
+	TEST_ASSERT_EQUAL(victim.blood_volume, start_volume, "An unhurt human must not lose blood")
+
+	// An untreated artery must actually drain blood over time.
+	arm.add_wound(/datum/wound/artery, silent = TRUE)
+	TEST_ASSERT(arm.get_bleed_rate() > 0, "An untreated artery should be bleeding")
+	var/untreated_volume = victim.blood_volume
+	for(var/i in 1 to 5)
+		victim.handle_blood()
+	TEST_ASSERT(victim.blood_volume < untreated_volume, "An untreated artery must drain blood volume")
+
+	// A tourniquet must pin the drain shut without removing the wound.
+	// Note: this codebase regenerates +0.5 blood per tick whenever the mob is below
+	// BLOOD_VOLUME_NORMAL, so a pinned limb may very slightly GAIN blood. What matters
+	// is that it never loses any.
+	var/obj/item/natural/cloth/tourniquet/tourniquet = allocate(/obj/item/natural/cloth/tourniquet)
+	arm.try_bandage(tourniquet)
+	TEST_ASSERT_EQUAL(arm.get_bleed_rate(), 0, "A tourniquet must stop the artery")
+	var/pinned_volume = victim.blood_volume
+	for(var/i in 1 to 5)
+		victim.handle_blood()
+	TEST_ASSERT(victim.blood_volume >= pinned_volume, "A tourniquet must stop blood loss entirely")
+
+	// Non-arterial wounds must keep draining blood past the tourniquet. The bleed rate
+	// is the reliable signal here: a slash only loses 0.4/tick, which the +0.5/tick
+	// regeneration fully cancels out, so blood_volume alone cannot show the drain.
+	var/obj/item/bodypart/leg = victim.get_bodypart(BODY_ZONE_L_LEG)
+	leg.add_wound(/datum/wound/slash, silent = TRUE)
+	var/slash_bleed = leg.get_bleed_rate()
+	TEST_ASSERT(slash_bleed > 0, "A slash should bleed")
+	leg.try_bandage(allocate(/obj/item/natural/cloth/tourniquet))
+	TEST_ASSERT_EQUAL(leg.get_bleed_rate(), slash_bleed, "A slash must keep bleeding at full rate under a tourniquet")
+	TEST_ASSERT_EQUAL(leg.get_arterial_bleed_rate(), 0, "A slash is not arterial, so there is nothing to pinch off")
+
+	// Removing the tourniquet from a pinned artery must bring the drain back.
+	arm.remove_bandage()
+	TEST_ASSERT_NULL(arm.bandage, "The tourniquet should be off the arm")
+	TEST_ASSERT(arm.get_bleed_rate() > 0, "The artery should bleed again with the tourniquet off")
+	var/released_volume = victim.blood_volume
+	for(var/i in 1 to 5)
+		victim.handle_blood()
+	TEST_ASSERT(victim.blood_volume < released_volume, "Bleeding must resume once the tourniquet is removed")

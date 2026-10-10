@@ -26,6 +26,29 @@
 	TEST_ASSERT_EQUAL(arm.bandage, tourniquet, "The tourniquet is not on the arm")
 	TEST_ASSERT_EQUAL(arm.get_bleed_rate(), 0, "A tourniquet must stop arterial bleeding entirely")
 	TEST_ASSERT_EQUAL(arm.get_hud_bleed_rate(), 0, "A tourniquet must stop the bleed HUD too")
+	TEST_ASSERT_EQUAL(arm.get_arterial_bleed_rate(), ARTERY_LIMB_BLEEDRATE, "The arterial contribution should be the whole bleed")
+
+	// A tourniquet pinches off arteries ONLY - a plain slash must keep bleeding past it.
+	var/obj/item/bodypart/other_arm = victim.get_bodypart(BODY_ZONE_R_ARM)
+	other_arm.add_wound(/datum/wound/slash, silent = TRUE)
+	var/slash_bleed = other_arm.get_bleed_rate()
+	TEST_ASSERT(slash_bleed > 0, "A slash should bleed")
+	var/obj/item/natural/cloth/tourniquet/slash_tourniquet = allocate(/obj/item/natural/cloth/tourniquet)
+	other_arm.try_bandage(slash_tourniquet)
+	TEST_ASSERT(other_arm.get_bleed_rate() > 0, "A tourniquet must NOT stop a non-arterial wound")
+	TEST_ASSERT_EQUAL(other_arm.get_bleed_rate(), slash_bleed, "A slash bleed rate must be untouched by the tourniquet")
+
+	// A pinned artery must not clot or heal away, or the bleeding would be lost forever.
+	var/datum/wound/artery = arm.has_wound(/datum/wound/artery)
+	TEST_ASSERT_NOTNULL(artery, "The artery wound went missing")
+	artery.bleed_rate = ARTERY_LIMB_BLEEDRATE
+	artery.clotting_rate = 10
+	artery.clotting_threshold = 0
+	artery.passive_healing = 50
+	for(var/i in 1 to 10)
+		artery.on_life()
+	TEST_ASSERT_EQUAL(artery.bleed_rate, ARTERY_LIMB_BLEEDRATE, "A pinned artery must not clot shut")
+	TEST_ASSERT_NOTNULL(arm.has_wound(/datum/wound/artery), "A pinned artery must not heal away")
 
 	// The tourniquet is immune to blood-soaking: process_bandage must not drain it.
 	var/initial_health = tourniquet.bandage_health

@@ -107,12 +107,23 @@
 		return FALSE
 	return TRUE
 
+/// Sums the bleed rate contributed by severed arteries on this bodypart.
+/// A tourniquet pinches off exactly this much flow, and nothing else.
+/obj/item/bodypart/proc/get_arterial_bleed_rate()
+	var/arterial_rate = 0
+	for(var/datum/wound/wound as anything in wounds)
+		if(isnull(wound) || !istype(wound, /datum/wound/artery))
+			continue
+		arterial_rate += wound.bleed_rate
+	return arterial_rate
+
 /// Returns the total bleed rate on this bodypart
 /obj/item/bodypart/proc/get_bleed_rate()
 	var/bleed_rate = bleeding
-	if(istype(bandage, /obj/item/natural/cloth/tourniquet))
-		return 0 // a tourniquet chokes off all flow through the limb, severed arteries included
-	if(bandage && !HAS_BLOOD_DNA(bandage))
+	var/is_tourniquet = istype(bandage, /obj/item/natural/cloth/tourniquet)
+	if(is_tourniquet)
+		bleed_rate = max(bleed_rate - get_arterial_bleed_rate(), 0)
+	if(bandage && !is_tourniquet && !HAS_BLOOD_DNA(bandage))
 		process_bandage(bleed_rate)
 		var/obj/item/natural/cloth/cloth = bandage
 		bleed_rate *= cloth.bandage_effectiveness
@@ -141,9 +152,10 @@
 /// Returns the bleed amount that matters for HUD visuals without mutating bandages.
 /obj/item/bodypart/proc/get_hud_bleed_rate()
 	var/hud_bleed_rate = bleeding
-	if(istype(bandage, /obj/item/natural/cloth/tourniquet))
-		return 0
-	if(bandage && !HAS_BLOOD_DNA(bandage))
+	var/is_tourniquet = istype(bandage, /obj/item/natural/cloth/tourniquet)
+	if(is_tourniquet)
+		hud_bleed_rate = max(hud_bleed_rate - get_arterial_bleed_rate(), 0)
+	if(bandage && !is_tourniquet && !HAS_BLOOD_DNA(bandage))
 		var/obj/item/natural/cloth/cloth = bandage
 		if(istype(cloth))
 			hud_bleed_rate *= cloth.bandage_effectiveness

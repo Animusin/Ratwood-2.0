@@ -7,11 +7,13 @@
 
 /obj/item/natural/cloth/tourniquet
 	name = "tourniquet"
-	icon = 'icons/roguetown/items/surgery.dmi'
-	icon_state = "bandageroll"
+	icon = 'icons/roguetown/items/tourniquet.dmi'
+	icon_state = "tourniquet"
 	desc = "A strip of tough cloth and cord, meant to be cinched tight around a limb until the bleeding stops. It will choke off even a severed artery, or a wound deep enough to be lethal - but blood carries life, and a limb left bound for too long will first grow cold and numb, then dead."
 	force = 0
 	throwforce = 0
+	bundletype = null // never merges itself into a cloth bundle
+	bundleable = FALSE // and never gets swept up when other cloth is bundled
 	bandage_effectiveness = 0
 	bandage_speed = 5 SECONDS
 	bandage_zones = list(BODY_ZONE_L_ARM, BODY_ZONE_R_ARM, BODY_ZONE_L_LEG, BODY_ZONE_R_LEG)

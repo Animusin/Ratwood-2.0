@@ -172,6 +172,8 @@
 	var/medicine_amount = 0
 	/// If set, restricts which body zones this cloth may be tied onto as a bandage (e.g. arms and legs for a tourniquet).
 	var/list/bandage_zones
+	/// If FALSE, this cloth is left alone when cloth is swept up into a bundle on the floor.
+	var/bundleable = TRUE
 
 /obj/item/natural/cloth/attack_right(mob/user)
 	if(user.get_active_held_item())
@@ -180,7 +182,8 @@
 	if(move_after(user, bundling_time, target = src))
 		var/list/cloth_to_bundle = list()
 		for(var/obj/item/natural/cloth/F in get_turf(src))
-			cloth_to_bundle += F
+			if(F.bundleable)
+				cloth_to_bundle += F
 		var/clothcount = cloth_to_bundle.len
 		while(clothcount > 0)
 			if(clothcount == 1)

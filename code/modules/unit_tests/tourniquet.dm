@@ -107,6 +107,11 @@
 	TEST_ASSERT(!(BODY_ZONE_PRECISE_L_HAND in tourniquet.bandage_zones), "Zones are matched on body_zone, not precise zone")
 	TEST_ASSERT(tourniquet.bandage_zones.len == 4, "A tourniquet should target exactly the four limbs")
 
+	// It must survive cloth bundling: a tourniquet is a cloth subtype, so the base
+	// bundling sweeps up everything on the floor, and attackby merges matching bundletypes.
+	TEST_ASSERT_EQUAL(tourniquet.bundleable, FALSE, "A tourniquet must never be swept up when cloth is bundled")
+	TEST_ASSERT_NULL(tourniquet.bundletype, "A tourniquet must never merge itself into a cloth bundle")
+
 /// Measures real blood loss through handle_blood(): an untreated wound must drain
 /// blood, a tourniquet must stop the drain, and removing it must resume the drain.
 /datum/unit_test/tourniquet_blood_loss/Run()

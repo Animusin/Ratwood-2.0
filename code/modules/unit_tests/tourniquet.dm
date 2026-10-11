@@ -59,7 +59,7 @@
 	tourniquet.tied_time -= TOURNIQUET_NUMB_TIME
 	tourniquet.process()
 	TEST_ASSERT(tourniquet.numbed, "The tourniquet never numbed the limb")
-	TEST_ASSERT(HAS_TRAIT(victim, TRAIT_PARALYSIS_L_ARM), "The limb should feel numb")
+	TEST_ASSERT(HAS_TRAIT_FROM(arm, TRAIT_PARALYSIS, TRAIT_TOURNIQUET), "The limb should feel numb")
 	TEST_ASSERT_EQUAL(arm.disabled, BODYPART_DISABLED_PARALYSIS, "A numb arm should be paralysed")
 	// Numbness must not kill the limb yet.
 	TEST_ASSERT_EQUAL(arm.rotted, FALSE, "The limb should not necrose from numbness alone")
@@ -74,7 +74,7 @@
 	// Removing the tourniquet must clear the numbness but NOT undo the necrosis.
 	arm.remove_bandage()
 	TEST_ASSERT_NULL(arm.bandage, "The tourniquet did not come off")
-	TEST_ASSERT(!HAS_TRAIT(victim, TRAIT_PARALYSIS_L_ARM), "Removing the tourniquet should undo the numbness")
+	TEST_ASSERT(!HAS_TRAIT_FROM(arm, TRAIT_PARALYSIS, TRAIT_TOURNIQUET), "Removing the tourniquet should undo the numbness")
 	TEST_ASSERT_EQUAL(arm.rotted, TRUE, "Necrosis must be permanent even after removal")
 	TEST_ASSERT(arm.get_bleed_rate() > 0, "The artery should bleed again once the tourniquet is off")
 

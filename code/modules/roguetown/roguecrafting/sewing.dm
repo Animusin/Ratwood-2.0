@@ -372,12 +372,6 @@
 	reqs = list(/obj/item/natural/silk = 2,
 				/obj/item/natural/cloth = 1)
 
-/datum/crafting_recipe/roguetown/sewing/tourniquet
-	name = "tourniquet"
-	result = list(/obj/item/natural/cloth/tourniquet)
-	reqs = list(/obj/item/natural/cloth = 2,
-				/obj/item/natural/fibers = 1)
-	craftdiff = 3
 
 /datum/crafting_recipe/roguetown/sewing/gweightedbandages
 	name = "weighted bandages, gloved"

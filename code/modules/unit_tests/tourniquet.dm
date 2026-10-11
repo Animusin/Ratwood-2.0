@@ -26,7 +26,7 @@
 	TEST_ASSERT_EQUAL(arm.bandage, tourniquet, "The tourniquet is not on the arm")
 	TEST_ASSERT_EQUAL(arm.get_bleed_rate(), 0, "A tourniquet must stop arterial bleeding entirely")
 	TEST_ASSERT_EQUAL(arm.get_hud_bleed_rate(), 0, "A tourniquet must stop the bleed HUD too")
-	TEST_ASSERT_EQUAL(arm.get_arterial_bleed_rate(), ARTERY_LIMB_BLEEDRATE, "The arterial contribution should be the whole bleed")
+	TEST_ASSERT_EQUAL(arm.get_lethal_bleed_rate(), ARTERY_LIMB_BLEEDRATE, "The lethal contribution should be the whole bleed")
 
 	// A tourniquet pinches off arteries ONLY - a plain slash must keep bleeding past it.
 	var/obj/item/bodypart/other_arm = victim.get_bodypart(BODY_ZONE_R_ARM)
@@ -77,6 +77,17 @@
 	TEST_ASSERT(!HAS_TRAIT_FROM(arm, TRAIT_PARALYSIS, TRAIT_TOURNIQUET), "Removing the tourniquet should undo the numbness")
 	TEST_ASSERT_EQUAL(arm.rotted, TRUE, "Necrosis must be permanent even after removal")
 	TEST_ASSERT(arm.get_bleed_rate() > 0, "The artery should bleed again once the tourniquet is off")
+
+	// A slash that escalated to artery-level bleeding is "lethal" and must be pinched
+	// off just like an artery, even though its type is not /datum/wound/artery.
+	var/obj/item/bodypart/lethal_arm = victim.get_bodypart(BODY_ZONE_L_LEG)
+	var/datum/wound/dynamic/slash/deep_cut = lethal_arm.add_wound(/datum/wound/dynamic/slash, silent = TRUE)
+	TEST_ASSERT_NOTNULL(deep_cut, "Could not apply a dynamic slash")
+	deep_cut.set_bleed_rate(ARTERY_LIMB_BLEEDRATE)
+	TEST_ASSERT_EQUAL(lethal_arm.get_lethal_bleed_rate(), ARTERY_LIMB_BLEEDRATE, "An artery-level slash counts as lethal")
+	TEST_ASSERT_EQUAL(lethal_arm.get_bleed_rate(), ARTERY_LIMB_BLEEDRATE, "The lethal slash should bleed before the tourniquet")
+	lethal_arm.try_bandage(allocate(/obj/item/natural/cloth/tourniquet))
+	TEST_ASSERT_EQUAL(lethal_arm.get_bleed_rate(), 0, "A tourniquet must stop a lethal slash too")
 
 	// A tourniquet must refuse non-limb zones and non-organic limbs.
 	var/obj/item/bodypart/chest = victim.get_bodypart(BODY_ZONE_CHEST)
@@ -131,7 +142,7 @@
 	TEST_ASSERT(slash_bleed > 0, "A slash should bleed")
 	leg.try_bandage(allocate(/obj/item/natural/cloth/tourniquet))
 	TEST_ASSERT_EQUAL(leg.get_bleed_rate(), slash_bleed, "A slash must keep bleeding at full rate under a tourniquet")
-	TEST_ASSERT_EQUAL(leg.get_arterial_bleed_rate(), 0, "A slash is not arterial, so there is nothing to pinch off")
+	TEST_ASSERT_EQUAL(leg.get_lethal_bleed_rate(), 0, "A shallow slash is not lethal, so there is nothing to pinch off")
 
 	// Removing the tourniquet from a pinned artery must bring the drain back.
 	arm.remove_bandage()

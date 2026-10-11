@@ -107,22 +107,25 @@
 		return FALSE
 	return TRUE
 
-/// Sums the bleed rate contributed by severed arteries on this bodypart.
+/// Sums the bleed rate contributed by the limb's critical wounds: severed arteries,
+/// mortal wounds, anything rated CRITICAL or worse, and any wound bleeding at
+/// artery level or above (which is what a fully upgraded "lethal" slash reaches).
 /// A tourniquet pinches off exactly this much flow, and nothing else.
-/obj/item/bodypart/proc/get_arterial_bleed_rate()
-	var/arterial_rate = 0
+/obj/item/bodypart/proc/get_lethal_bleed_rate()
+	var/lethal_rate = 0
 	for(var/datum/wound/wound as anything in wounds)
-		if(isnull(wound) || !istype(wound, /datum/wound/artery))
+		if(isnull(wound) || !istype(wound, /datum/wound))
 			continue
-		arterial_rate += wound.bleed_rate
-	return arterial_rate
+		if(wound.critical || wound.mortal || wound.severity >= WOUND_SEVERITY_CRITICAL || wound.bleed_rate >= ARTERY_LIMB_BLEEDRATE)
+			lethal_rate += wound.bleed_rate
+	return lethal_rate
 
 /// Returns the total bleed rate on this bodypart
 /obj/item/bodypart/proc/get_bleed_rate()
 	var/bleed_rate = bleeding
 	var/is_tourniquet = istype(bandage, /obj/item/natural/cloth/tourniquet)
 	if(is_tourniquet)
-		bleed_rate = max(bleed_rate - get_arterial_bleed_rate(), 0)
+		bleed_rate = max(bleed_rate - get_lethal_bleed_rate(), 0)
 	if(bandage && !is_tourniquet && !HAS_BLOOD_DNA(bandage))
 		process_bandage(bleed_rate)
 		var/obj/item/natural/cloth/cloth = bandage
@@ -154,7 +157,7 @@
 	var/hud_bleed_rate = bleeding
 	var/is_tourniquet = istype(bandage, /obj/item/natural/cloth/tourniquet)
 	if(is_tourniquet)
-		hud_bleed_rate = max(hud_bleed_rate - get_arterial_bleed_rate(), 0)
+		hud_bleed_rate = max(hud_bleed_rate - get_lethal_bleed_rate(), 0)
 	if(bandage && !is_tourniquet && !HAS_BLOOD_DNA(bandage))
 		var/obj/item/natural/cloth/cloth = bandage
 		if(istype(cloth))

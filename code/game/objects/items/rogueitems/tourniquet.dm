@@ -9,7 +9,7 @@
 	name = "tourniquet"
 	icon = 'icons/roguetown/items/surgery.dmi'
 	icon_state = "bandageroll"
-	desc = "A strip of tough cloth and cord, meant to be cinched tight around a limb until the bleeding stops. It will choke off even a severed artery - but blood carries life, and a limb left bound for too long will first grow cold and numb, then dead."
+	desc = "A strip of tough cloth and cord, meant to be cinched tight around a limb until the bleeding stops. It will choke off even a severed artery, or a wound deep enough to be lethal - but blood carries life, and a limb left bound for too long will first grow cold and numb, then dead."
 	force = 0
 	throwforce = 0
 	bandage_effectiveness = 0

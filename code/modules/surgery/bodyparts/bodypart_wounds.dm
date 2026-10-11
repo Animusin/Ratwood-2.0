@@ -107,16 +107,17 @@
 		return FALSE
 	return TRUE
 
-/// Sums the bleed rate contributed by the limb's critical wounds: severed arteries,
-/// mortal wounds, anything rated CRITICAL or worse, and any wound bleeding at
-/// artery level or above (which is what a fully upgraded "lethal" slash reaches).
-/// A tourniquet pinches off exactly this much flow, and nothing else.
+/// Sums the bleed rate a tourniquet can pinch off: mortal wounds, anything rated
+/// CRITICAL or worse, and any wound bleeding at artery level or above (which is what
+/// a fully upgraded "lethal" slash reaches). Bone injuries such as fractures are
+/// deliberately excluded - they rate only SEVERE and bleed far below artery level,
+/// and a tourniquet has nothing to do with setting a broken bone.
 /obj/item/bodypart/proc/get_lethal_bleed_rate()
 	var/lethal_rate = 0
 	for(var/datum/wound/wound as anything in wounds)
 		if(isnull(wound) || !istype(wound, /datum/wound))
 			continue
-		if(wound.critical || wound.mortal || wound.severity >= WOUND_SEVERITY_CRITICAL || wound.bleed_rate >= ARTERY_LIMB_BLEEDRATE)
+		if(wound.mortal || wound.severity >= WOUND_SEVERITY_CRITICAL || wound.bleed_rate >= ARTERY_LIMB_BLEEDRATE)
 			lethal_rate += wound.bleed_rate
 	return lethal_rate
 

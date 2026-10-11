@@ -89,6 +89,16 @@
 	lethal_arm.try_bandage(allocate(/obj/item/natural/cloth/tourniquet))
 	TEST_ASSERT_EQUAL(lethal_arm.get_bleed_rate(), 0, "A tourniquet must stop a lethal slash too")
 
+	// A fracture is critical but rates only SEVERE and bleeds well under artery
+	// level, so a tourniquet must leave its bleeding alone.
+	var/obj/item/bodypart/broken_arm = victim.get_bodypart(BODY_ZONE_R_LEG)
+	var/datum/wound/fracture/breakage = broken_arm.add_wound(/datum/wound/fracture, silent = TRUE)
+	TEST_ASSERT_NOTNULL(breakage, "Could not fracture a leg")
+	TEST_ASSERT_EQUAL(breakage.critical, TRUE, "A fracture is flagged critical in this codebase")
+	TEST_ASSERT_EQUAL(broken_arm.get_lethal_bleed_rate(), 0, "A fracture must not count as pinnable bleeding")
+	broken_arm.try_bandage(allocate(/obj/item/natural/cloth/tourniquet))
+	TEST_ASSERT_EQUAL(broken_arm.get_bleed_rate(), breakage.bleed_rate, "A tourniquet must not stop a fracture's bleeding")
+
 	// A tourniquet must refuse non-limb zones and non-organic limbs.
 	var/obj/item/bodypart/chest = victim.get_bodypart(BODY_ZONE_CHEST)
 	TEST_ASSERT_NOTNULL(chest, "The human has no chest")

@@ -37,11 +37,6 @@
 	cost = 25
 	contains = list(/obj/item/natural/bundle/cloth/bandage/full)
 
-/datum/supply_pack/rogue/medicine/tourniquet
-	name = "Tourniquet"
-	cost = 40
-	contains = list(/obj/item/natural/cloth/tourniquet)
-
 /datum/supply_pack/rogue/medicine/needles
 	name = "Needle"
 	cost = 8

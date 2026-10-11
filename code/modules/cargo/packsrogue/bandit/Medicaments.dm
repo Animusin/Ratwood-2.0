@@ -13,11 +13,6 @@
 	cost = 10
 	contains = list(/obj/item/natural/bundle/cloth/bandage/full)
 
-/datum/supply_pack/rogue/Medicaments/tourniquet
-	name = "Tourniquet"
-	cost = 20
-	contains = list(/obj/item/natural/cloth/tourniquet)
-
 /////////////
 // POTIONS //
 /////////////

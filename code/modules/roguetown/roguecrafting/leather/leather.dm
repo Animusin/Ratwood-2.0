@@ -246,12 +246,3 @@
 	reqs = list(/obj/item/natural/hide/cured = 1, /obj/item/natural/bone = 1)
 	craftdiff = 2
 	display_category = ITEM_CAT_CLOTH_MASK
-
-// Inherits tools (needle), structurecraft (tanning rack) and skillcraft (tanning) from the leather base.
-/datum/crafting_recipe/roguetown/leather/tourniquet
-	name = "tourniquet"
-	result = list(/obj/item/natural/cloth/tourniquet)
-	reqs = list(/obj/item/natural/hide/cured = 1,
-				/obj/item/natural/fibers = 2)
-	craftdiff = SKILL_LEVEL_EXPERT
-	display_category = ITEM_CAT_TOOLS_SUNDRIES

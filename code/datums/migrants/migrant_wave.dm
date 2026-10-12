@@ -45,7 +45,7 @@
 	/// Total triumph invested in this wave
 	var/triumph_total = 0
 	/// Threshold at which this wave is guaranteed to be next
-	var/triumph_threshold = 25
+	var/triumph_threshold = MIGRANT_TRIUMPH_THRESHOLD
 	/// Whether triumph contributions reset after wave spawns
 	var/reset_contributions_on_spawn = TRUE
 
@@ -82,7 +82,6 @@
 	name = "Pilgrimage"
 	track = MIGRANT_TRACK_REGULAR
 	weight = 100 // It is a "default" wave
-	triumph_threshold = 10
 	required_roles = list(
 		/datum/migrant_role/pilgrim = 1,
 	)
@@ -95,7 +94,6 @@
 	name = "Adventure Party"
 	track = MIGRANT_TRACK_REGULAR
 	weight = 100 // Adventurers is the default spillover role and instead of just setting adventurers slots up high at roundstart we'll let people join in gradually through the round
-	triumph_threshold = 15
 	required_roles = list(
 		/datum/migrant_role/adventurer = 1,
 	)

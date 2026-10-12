@@ -1,5 +1,6 @@
 /datum/job/roguetown/adventurer/courtagent
 	title = "Court Agent"
+	triumph_entry_cost = 0
 	flag = COURTAGENT
 	display_order = JDO_COURTAGENT
 	allowed_races = RACES_ALL_KINDS

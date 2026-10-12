@@ -135,6 +135,8 @@ SUBSYSTEM_DEF(job)
 				return FALSE
 		else
 			position_limit = job.get_position_limit(FALSE)
+		if(job.triumph_entry_cost && SStriumphs.get_triumphs(player.ckey) < job.triumph_entry_cost)
+			return FALSE
 		JobDebug("Player: [player] is now Rank: [rank], JCP:[job.current_positions], JPL:[position_limit]")
 		if(player.mind.assigned_role)
 			var/datum/job/old_job = SSjob.GetJob(player.mind.assigned_role)
@@ -162,6 +164,20 @@ SUBSYSTEM_DEF(job)
 	JobDebug("AR has failed, Player: [player], Rank: [rank]")
 	return FALSE
 
+
+/// Return a reserved slot when character creation cannot complete.
+/datum/controller/subsystem/job/proc/release_failed_spawn(mob/dead/new_player/player)
+	if(QDELETED(player) || !player.mind)
+		return
+	var/datum/job/job = GetJob(player.mind.assigned_role)
+	if(job)
+		job.current_positions = max(0, job.current_positions - 1)
+		if(player.mind.admin_slot_antag_type == job.admin_slot_antag_type && job.admin_slot_antag_type)
+			job.admin_antag_slots++
+			player.mind.admin_slot_antag_type = null
+	player.mind.assigned_role = null
+	player.ready = PLAYER_NOT_READY
+	player.spawning = FALSE
 
 /// Reserve before character creation, so even antagonist datums added by outfits see the exemption.
 /datum/controller/subsystem/job/proc/claim_admin_antag_slot(datum/job/job, datum/mind/player)
@@ -222,6 +238,8 @@ SUBSYSTEM_DEF(job)
 			continue
 		if((player.client.prefs.lastclass == job.title) && !job.bypass_lastclass)
 			JobDebug("FOC incompatible with lastclass, Player: [player], Job: [job.title]")
+			continue
+		if(job.triumph_entry_cost && SStriumphs.get_triumphs(player.ckey) < job.triumph_entry_cost)
 			continue
 		if(!job.special_job_check(player))
 			JobDebug("FOC player did not pass special check, Player: [player], Job:[job.title]")
@@ -632,9 +650,8 @@ SUBSYSTEM_DEF(job)
 					var/position_limit = job.get_position_limit(FALSE)
 					if((job.current_positions < position_limit) || position_limit == -1)
 						testing("DO pass, Player: [player], Level:[level], Job:[job.title]")
-						AssignRole(player, job.title)
-						unassigned -= player
-						break
+						if(AssignRole(player, job.title))
+							break
 
 
 	JobDebug("DO, Handling unassigned.")
@@ -722,9 +739,8 @@ SUBSYSTEM_DEF(job)
 
 				// We only need 1 person for the required job, the rest can use the normal system
 				if((job.current_positions < 1))
-					AssignRole(player, job.title)
-					unassigned -= player
-					amt_picked++
+					if(AssignRole(player, job.title))
+						amt_picked++
 	return amt_picked
 
 /datum/controller/subsystem/job/proc/validate_required_jobs(list/required_jobs)

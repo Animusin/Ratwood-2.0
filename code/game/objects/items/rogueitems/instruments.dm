@@ -398,7 +398,7 @@ GLOBAL_LIST_EMPTY(instrument_band_lobbies)
 			var/choice
 			while(TRUE)
 				var/list/options = song_list.Copy()
-				if(user.mind && user.get_skill_level(/datum/skill/misc/music) >= 4 && user.can_upload_custom_music())
+				if(user.mind && user.get_skill_level(/datum/skill/misc/music) >= 4)
 					options[" "] = " "
 					options["Upload New Song"] = "upload"
 				choice = input(user, "Which song?", "Music", name) as null|anything in options
@@ -412,39 +412,21 @@ GLOBAL_LIST_EMPTY(instrument_band_lobbies)
 				return
 				
 			if(choice == "Upload New Song" || choice == "upload")
-				if(!user.can_upload_custom_music())
-					to_chat(user, span_warning("Custom music uploads require Scientist patron tier or higher, or an active admin account."))
-					return
-				if(lastfilechange && world.time < lastfilechange + 3 MINUTES)
-					say("NOT YET!")
+				if(!can_accept_custom_music_upload(user))
 					return
 				playsound(loc, 'sound/misc/beep.ogg', 100, FALSE, -1)
-				var/infile = input(user, "CHOOSE A NEW SONG", src) as null|file
-
+				var/infile = input(user, "CHOOSE A NEW SONG ([CUSTOM_MUSIC_UPLOAD_COST] Triumphs per successful upload; free for Scientist+ and admins)", src) as null|file
 				if(!infile)
 					return
-				if(!user.can_upload_custom_music())
-					to_chat(user, span_warning("Custom music uploads require Scientist patron tier or higher, or an active admin account."))
+				var/songname = stripped_input(user, "Name your song (cancel to abort without spending Triumphs):", "Song Name", max_length = 60)
+				if(!length(trim(songname)))
 					return
-				if(playing || !(src in user.held_items) && !(not_held) || user.get_inactive_held_item() && !can_play_with_occupied_offhand)
+				var/uploaded_file = store_custom_music_upload(user, infile)
+				if(!uploaded_file)
 					return
-
-				var/filename = "[infile]"
-				var/file_ext = LOWER_TEXT(copytext(filename, -4))
-				var/file_size = length(infile)
-				message_admins("[ADMIN_LOOKUPFLW(user)] uploaded a song [filename] of size [file_size / 1000000] (~MB).")
-				if(file_ext != ".ogg")
-					to_chat(user, span_warning("SONG MUST BE AN OGG."))
-					return
-				if(file_size > 6485760)
-					to_chat(user, span_warning("TOO BIG. 6 MEGS OR LESS."))
-					return
+				curfile = uploaded_file
+				song_list[songname] = uploaded_file
 				lastfilechange = world.time
-				fcopy(infile,"data/jukeboxuploads/[user.ckey]/[filename]")
-				curfile = file("data/jukeboxuploads/[user.ckey]/[filename]")
-				var/songname = input(user, "Name your song:", "Song Name") as text|null
-				if(songname)
-					song_list[songname] = curfile
 				return
 			curfile = song_list[choice]
 			last_played = choice
@@ -497,6 +479,13 @@ GLOBAL_LIST_EMPTY(instrument_band_lobbies)
 				user.remove_status_effect(/datum/status_effect/buff/playing_music)
 		if(groupplaying)
 			open_band_lobby_menu(user, stressevent, note_color)
+
+/obj/item/rogue/instrument/can_accept_custom_music_upload(mob/user)
+	var/can_play_with_occupied_offhand = FALSE
+	if(ishuman(user))
+		var/mob/living/carbon/human/bard = user
+		can_play_with_occupied_offhand = bard.inspiration?.level >= BARD_T2
+	return !QDELETED(user) && user.client && user.mind && user.get_skill_level(/datum/skill/misc/music) >= 4 && !playing && ((src in user.held_items) || not_held) && (!user.get_inactive_held_item() || can_play_with_occupied_offhand) && (!lastfilechange || world.time >= lastfilechange + 3 MINUTES)
 
 /obj/item/rogue/instrument/proc/open_band_lobby_menu(mob/living/user, stressevent, note_color)
 	var/choice = input(user, "Band Lobby", "Band Lobby") as null|anything in list("Register My Band", "Search Bands", "Start My Band", "Leave Band")

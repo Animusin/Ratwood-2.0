@@ -2,6 +2,7 @@
 	abstract_type = /datum/migrant_role
 	/// Name of the role
 	var/name = "MIGRANT ROLE"
+	var/triumph_entry_cost = 0
 	/// Umbrella category used by systems that group roles (e.g. talkstatue lists every "Adventurer" role together)
 	var/role_category = ""
 	/// Restricts species if the list is not null
@@ -47,6 +48,7 @@
 
 /datum/migrant_role/adventurer
 	name = "Adventurer"
+	triumph_entry_cost = ADVENTURER_MERCENARY_ENTRY_COST
 	advclass_cat_rolls = list(CTAG_ADVENTURER = 20)
 	role_category = "Adventurer"
 

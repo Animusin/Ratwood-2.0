@@ -239,12 +239,19 @@ GLOBAL_LIST_EMPTY(temporary_donators)
 		patreonlevel = check_patreon_lvl(ckey)
 		return patreonlevel
 
-#define CUSTOM_MUSIC_MINIMUM_PATREON_LEVEL 3 // Scientist
-
 /mob/proc/can_upload_custom_music()
-	return client && (client.holder || client.patreonlevel() >= CUSTOM_MUSIC_MINIMUM_PATREON_LEVEL)
+	if(!client)
+		return FALSE
+	var/cost = client.custom_music_upload_cost()
+	return !isnull(cost) && (!cost || SStriumphs.get_triumphs(client.ckey) >= cost)
 
-#undef CUSTOM_MUSIC_MINIMUM_PATREON_LEVEL
+/// null means subscription refresh failed; do not accidentally charge a subscriber.
+/client/proc/custom_music_upload_cost(refresh = FALSE)
+	if(holder)
+		return 0
+	if(refresh && SSdonations?.IsConfigured() && !sync_donation_info())
+		return null
+	return has_scientist_subscription() ? 0 : CUSTOM_MUSIC_UPLOAD_COST
 
 /proc/patemail2ckey(input)
 	if(!input)

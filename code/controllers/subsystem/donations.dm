@@ -23,6 +23,8 @@ SUBSYSTEM_DEF(donations)
 	var/last_error
 	var/connection
 	var/list/currentrun = list()
+	/// Account-wide daily quotas, stored separately from importable character preferences.
+	var/list/migrant_call_usage = list()
 
 /datum/controller/subsystem/donations/Initialize()
 	if(!CONFIG_GET(flag/sql_enabled))
@@ -470,7 +472,58 @@ SUBSYSTEM_DEF(donations)
 /client/proc/can_use_donation_cosmetics(refresh = FALSE)
 	if(refresh && !sync_donation_info())
 		return FALSE
+	return has_scientist_subscription()
+
+/client/proc/has_scientist_subscription(refresh = FALSE)
+	if(refresh && !sync_donation_info())
+		return FALSE
 	return donation_info_loaded && donation_tier_to_patreon_level(donation_tier) >= donation_tier_to_patreon_level(DONATION_TIER_SCIENTIST)
+
+/datum/controller/subsystem/donations/proc/get_migrant_call_usage(target_ckey)
+	target_ckey = ckey(target_ckey)
+	if(!target_ckey)
+		return null
+	if(target_ckey in migrant_call_usage)
+		return migrant_call_usage[target_ckey]
+	var/path = "data/player_saves/[target_ckey[1]]/[target_ckey]/supporter_migrant_calls.json"
+	var/list/usage = list("day" = "", "used" = 0)
+	if(fexists(path))
+		try
+			usage = json_decode(file2text(path))
+		catch(var/exception/error)
+			log_game("Invalid supporter migrant quota for [target_ckey]: [error]")
+			return null
+	if(!islist(usage) || !istext(usage["day"]) || !isnum(usage["used"]) || usage["used"] < 0 || round(usage["used"]) != usage["used"])
+		return null
+	migrant_call_usage[target_ckey] = usage
+	return usage
+
+/// Calendar days are UTC, independent of round time and the host's local timezone.
+/datum/controller/subsystem/donations/proc/get_migrant_calls_remaining(target_ckey)
+	var/list/usage = get_migrant_call_usage(target_ckey)
+	if(!usage)
+		return 0
+	var/today = time2text(world.realtime, "YYYY-MM-DD", 0)
+	return usage["day"] == today ? max(0, SUPPORTER_MIGRANT_DAILY_LIMIT - usage["used"]) : SUPPORTER_MIGRANT_DAILY_LIMIT
+
+/// No yielding between quota validation, persistence and starting the wave.
+/datum/controller/subsystem/donations/proc/consume_migrant_call(target_ckey)
+	target_ckey = ckey(target_ckey)
+	var/remaining = get_migrant_calls_remaining(target_ckey)
+	if(remaining <= 0)
+		return FALSE
+	var/list/usage = list("day" = time2text(world.realtime, "YYYY-MM-DD", 0), "used" = SUPPORTER_MIGRANT_DAILY_LIMIT - remaining + 1)
+	var/path = "data/player_saves/[target_ckey[1]]/[target_ckey]/supporter_migrant_calls.json"
+	var/temporary_path = "[path].tmp"
+	if(fexists(temporary_path))
+		fdel(temporary_path)
+	WRITE_FILE(file(temporary_path), json_encode(usage))
+	if(!fcopy(temporary_path, path))
+		log_game("Failed to persist supporter migrant quota for [target_ckey].")
+		return FALSE
+	fdel(temporary_path)
+	migrant_call_usage[target_ckey] = usage
+	return TRUE
 
 /client/proc/get_opyxes(refresh = FALSE)
 	if(refresh)

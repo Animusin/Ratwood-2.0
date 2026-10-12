@@ -106,6 +106,8 @@
 	var/list/peopleknowme = list()
 
 	var/plevel_req = 0
+	/// Paid once when a character is created, not when preferences or slots are selected.
+	var/triumph_entry_cost = 0
 	var/min_pq = 0
 	var/max_pq = 0
 	var/round_contrib_points = 0 //Each 10 contributor points counts as 1 PQ, up to 10 PQ.

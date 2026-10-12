@@ -485,8 +485,12 @@ SUBSYSTEM_DEF(ticker)
 			message_admins("THERES A MIND LACKING PLAYER IN THE NEW_PLAYER_LIST, REPORT IT TO RATWOOD DEVELOPMENT STAFF NOW!")
 			continue
 		if(player.ready == PLAYER_READY_TO_PLAY)
-			GLOB.joined_player_list += player.ckey
-			player.create_character(FALSE)
+			if(player.create_character(FALSE))
+				GLOB.joined_player_list += player.ckey
+			else
+				SSjob.release_failed_spawn(player)
+				if(!QDELETED(player))
+					player.new_player_panel()
 		else
 			player.new_player_panel()
 		CHECK_TICK

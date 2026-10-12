@@ -1249,6 +1249,11 @@ GLOBAL_LIST_EMPTY(chosen_names)
 			var/used_name = job.display_title || job.title
 			if((pronouns == SHE_HER || pronouns == THEY_THEM_F) && job.f_title)
 				used_name = "[job.f_title]"
+			if(job.triumph_entry_cost)
+				used_name += " ([job.triumph_entry_cost] Triumphs)"
+				if(SStriumphs.get_triumphs(user.ckey) < job.triumph_entry_cost)
+					HTML += "[used_name]</td><td><font color=red>Not enough Triumphs</font></td></tr>"
+					continue
 			lastJob = job
 			if(is_banned_from(user.ckey, rank))
 				HTML += "[used_name]</td> <td><a href='?_src_=prefs;bancheck=[rank]'> BANNED</a></td></tr>"
@@ -1622,7 +1627,7 @@ Slots: [job.spawn_positions] [job.round_contrib_points ? "RCP: +[job.round_contr
 		if(donation_font_size)
 			dat += "<b>Tier Font Size:</b> [donation_font_size]%<br>"
 		dat += "<b>Opyxes:</b> [player_client.opyxes]<hr>"
-		dat += "<b>1 Opyx</b> -> <b>2 Triumphs</b><br>"
+		dat += "<b>1 Opyx</b> -> <b>[TRIUMPHS_PER_OPYX] Triumphs</b><br>"
 		if(player_client.opyxes >= 1)
 			dat += "<a href='?_src_=prefs;preference=donation_store;task=buy_triumphs'>Exchange</a>"
 		else
@@ -1649,14 +1654,22 @@ Slots: [job.spawn_positions] [job.round_contrib_points ? "RCP: +[job.round_contr
 		ShowChoices(user)
 		return
 
-	if(!player_client.spend_opyxes(1, "Ratwood triumph exchange: 1 opyx for 2 triumphs"))
+	var/buyer_ckey = player_client.ckey
+	// Load the persistent balance before the donation query can yield or disconnect the buyer.
+	SStriumphs.get_triumphs(buyer_ckey)
+	if(!player_client.spend_opyxes(1, "Ratwood triumph exchange: 1 opyx for [TRIUMPHS_PER_OPYX] triumphs"))
 		to_chat(user, span_warning("Unable to exchange Opyxes right now."))
 		ShowDonationStore(user)
 		ShowChoices(user)
 		return
 
-	player_client.adjust_triumphs(2)
-	to_chat(user, span_notice("Exchanged 1 Opyx for 2 Triumphs."))
+	if(player_client)
+		player_client.adjust_triumphs(TRIUMPHS_PER_OPYX)
+	else
+		SStriumphs.triumph_adjust(TRIUMPHS_PER_OPYX, buyer_ckey)
+	if(QDELETED(user) || !user.client)
+		return
+	to_chat(user, span_notice("Exchanged 1 Opyx for [TRIUMPHS_PER_OPYX] Triumphs."))
 	ShowDonationStore(user)
 	ShowChoices(user)
 

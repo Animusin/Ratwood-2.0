@@ -242,6 +242,16 @@ SUBSYSTEM_DEF(triumphs)
 
 
 
+/// Non-yielding check and debit: parallel purchases must not clamp an overdraft to zero.
+/datum/controller/subsystem/triumphs/proc/try_spend_triumphs(target_ckey, amount)
+	if(!target_ckey || !isnum(amount) || amount < 0 || round(amount) != amount)
+		return FALSE
+	if(get_triumphs(target_ckey) < amount)
+		return FALSE
+	if(amount)
+		triumph_adjust(-amount, target_ckey)
+	return TRUE
+
 // Adjust triumphs
 /datum/controller/subsystem/triumphs/proc/triumph_adjust(amt, target_ckey)
 	if(target_ckey in triumph_amount_cache)

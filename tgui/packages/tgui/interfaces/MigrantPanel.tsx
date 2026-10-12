@@ -28,6 +28,7 @@ type Role = {
   ref: string;
   name: string;
   amount: number;
+  entry_cost: number;
   kind: 'required' | 'optional';
   stars: number;
   queued: BooleanLike;
@@ -46,13 +47,17 @@ type WaveInfo = {
   track: string;
   weight: number;
   roll_chance: number;
+  auto_roll: BooleanLike;
   triumph_total: number;
   triumph_threshold: number;
+  supporter_callable: BooleanLike;
   my_contribution: number;
   maxed: BooleanLike;
   locked_until: number;
   queued: BooleanLike;
   min_optional_fills: number;
+  minimum_players: number;
+  maximum_players: number;
   roles: Role[];
 };
 
@@ -63,6 +68,8 @@ type FormingWave = {
   arrival_at: number;
   queued: BooleanLike;
   min_optional_fills: number;
+  minimum_players: number;
+  maximum_players: number;
   roles: Role[];
 };
 
@@ -70,6 +77,9 @@ type Data = {
   server_time: number;
   wave_number: number;
   player_triumph: number;
+  supporter_can_call: BooleanLike;
+  admin_can_call: BooleanLike;
+  supporter_calls_remaining: number;
   active_migrants: number;
   round_time: number;
   queued_wave: string | null;
@@ -122,7 +132,10 @@ const QueueRoleRow = (props: {
         type="button"
         title={roleTooltip(role)}
         style={{
-          ...inkButtonStyle({ disabled: !role.can_be, color: claimed ? SEAL_GREEN : INK }),
+          ...inkButtonStyle({
+            disabled: !role.can_be,
+            color: claimed ? SEAL_GREEN : INK,
+          }),
           flex: 1,
           textAlign: 'left',
           fontWeight: claimed ? 'bold' : 'normal',
@@ -132,6 +145,12 @@ const QueueRoleRow = (props: {
       >
         {claimed ? '✓ ' : ''}
         {role.name} <span style={{ color: INK_SOFT }}>x{role.amount}</span>
+        {role.entry_cost > 0 && (
+          <span style={{ color: INK_SOFT }}>
+            {' '}
+            · {role.entry_cost} Triumphs to join
+          </span>
+        )}
       </button>
       {role.stars > 0 && (
         <span style={{ color: SEAL_AMBER, fontSize: '11px' }}>
@@ -146,17 +165,27 @@ const StaticRoleLine = (props: { roles: Role[] }) => {
   const { roles } = props;
   return (
     <div style={{ fontSize: '11px', color: INK_SOFT, lineHeight: 1.4 }}>
-      {roles.map((r, i) => (
-        <span
-          key={r.ref}
-          title={roleTooltip(r)}
-          style={{ cursor: r.desc ? 'help' : 'default' }}
-        >
-          {i > 0 && ', '}
-          <span style={{ color: kindColor(r.kind) }}>{r.name}</span>
-          {r.amount > 1 ? ` x${r.amount}` : ''}
-        </span>
-      ))}
+      {(['required', 'optional'] as const).map((kind) => {
+        const group = roles.filter((r) => r.kind === kind);
+        return group.length > 0 ? (
+          <div key={kind}>
+            <strong style={{ color: kindColor(kind) }}>
+              {kind === 'required' ? 'Required: ' : 'Optional: '}
+            </strong>
+            {group.map((r, i) => (
+              <span
+                key={r.ref}
+                title={roleTooltip(r)}
+                style={{ cursor: r.desc ? 'help' : 'default' }}
+              >
+                {i > 0 && ', '}
+                {r.name} x{r.amount}
+                {r.entry_cost > 0 ? ` (${r.entry_cost} Triumphs to join)` : ''}
+              </span>
+            ))}
+          </div>
+        ) : null;
+      })}
     </div>
   );
 };
@@ -201,10 +230,16 @@ const FormingRoster = (props: {
       <div style={{ color: SEAL_GREEN, fontSize: '12px', marginBottom: '3px' }}>
         Arrives in {fmtClock(forming.arrival_at - now)}
       </div>
+      <div style={noteStyle}>
+        Minimum: {forming.minimum_players} players · Maximum:{' '}
+        {forming.maximum_players}
+      </div>
       {required.length > 0 && (
         <>
           <div style={sectionLabelStyle(SEAL_AMBER)}>Required</div>
-          <div style={noteStyle}>Must be filled or the wave will not arrive.</div>
+          <div style={noteStyle}>
+            Must be filled or the wave will not arrive.
+          </div>
           {required.map(rowFor)}
         </>
       )}
@@ -280,54 +315,115 @@ const ProgressBar = (props: { value: number; max: number; color: string }) => {
       }}
     >
       <div
-        style={{ background: color, width: `${pct}%`, height: '100%', borderRadius: '2px' }}
+        style={{
+          background: color,
+          width: `${pct}%`,
+          height: '100%',
+          borderRadius: '2px',
+        }}
       />
     </div>
   );
 };
 
-const PurchaseCard = (props: { wave: WaveInfo; now: number; act: ActFn }) => {
-  const { wave, now, act } = props;
+const PurchaseCard = (props: {
+  wave: WaveInfo;
+  now: number;
+  act: ActFn;
+  supporterCanCall: boolean;
+  adminCanCall: boolean;
+}) => {
+  const { wave, now, act, supporterCanCall, adminCanCall } = props;
   const ready = wave.triumph_total >= wave.triumph_threshold;
   const locked = wave.locked_until > now;
   const pledged = wave.triumph_total > 0;
   return (
     <div style={{ ...cardStyle, marginBottom: '8px', padding: '6px 8px' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-        <span style={{ fontWeight: 'bold', color: ready ? SEAL_AMBER : INK, fontSize: '13px' }}>
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'baseline',
+        }}
+      >
+        <span
+          style={{
+            fontWeight: 'bold',
+            color: ready ? SEAL_AMBER : INK,
+            fontSize: '13px',
+          }}
+        >
           {wave.name}
           {!!wave.maxed && <span style={{ color: INK_FAINT }}> (maxed)</span>}
-          {ready && !wave.maxed && <span style={{ color: SEAL_AMBER }}> (ready!)</span>}
+          {ready && !wave.maxed && (
+            <span style={{ color: SEAL_AMBER }}> (ready!)</span>
+          )}
         </span>
         <span style={{ fontSize: '11px', color: INK_SOFT }}>
-          {locked ? `locked ${fmtClock(wave.locked_until - now)}` : `${wave.roll_chance}%`}
+          {locked
+            ? `locked ${fmtClock(wave.locked_until - now)}`
+            : wave.auto_roll
+              ? `${wave.roll_chance}%`
+              : 'Manual calls only'}
         </span>
       </div>
       <div style={{ minHeight: '32px' }}>
         <StaticRoleLine roles={wave.roles} />
+        <div style={noteStyle}>
+          Minimum: {wave.minimum_players} players · Maximum:{' '}
+          {wave.maximum_players}. All required roles must be filled.
+          {wave.min_optional_fills > 0
+            ? ` At least ${wave.min_optional_fills} optional slots must also join.`
+            : ''}
+        </div>
       </div>
       <ProgressBar
         value={wave.triumph_total}
         max={wave.triumph_threshold}
         color={ready ? SEAL_AMBER : SEAL_BLUE}
       />
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+        }}
+      >
         <span style={{ fontSize: '11px', color: INK_SOFT }}>
           {wave.triumph_total}/{wave.triumph_threshold}
           {wave.my_contribution > 0 ? ` (you: ${wave.my_contribution})` : ''}
-          {wave.min_optional_fills > 0
-            ? ` · Min. Optionals: ${wave.min_optional_fills}`
-            : ''}
         </span>
         <button
           type="button"
-          style={{ ...inkButtonStyle({ disabled: !!wave.maxed }), padding: '1px 8px', fontSize: '11px' }}
+          style={{
+            ...inkButtonStyle({ disabled: !!wave.maxed }),
+            padding: '1px 8px',
+            fontSize: '11px',
+          }}
           disabled={!!wave.maxed}
           onClick={() => act('buy_wave', { wave: wave.ref })}
         >
           Pledge
         </button>
       </div>
+      {(supporterCanCall || adminCanCall) && (
+        <button
+          type="button"
+          style={{
+            ...inkButtonStyle({
+              disabled: !wave.supporter_callable,
+              color: SEAL_GREEN,
+            }),
+            marginTop: '4px',
+          }}
+          disabled={!wave.supporter_callable}
+          onClick={() => act('supporter_wave', { wave: wave.ref })}
+        >
+          {adminCanCall
+            ? 'Call wave (admin, free)'
+            : 'Call wave (subscription)'}
+        </button>
+      )}
     </div>
   );
 };
@@ -389,13 +485,22 @@ export const MigrantPanel = () => {
                 Pick a role on a forming wave to queue
               </span>
             )}
-            <span style={{ color: INK_SOFT }}>Queued: {data.active_migrants}</span>
+            <span style={{ color: INK_SOFT }}>
+              Queued: {data.active_migrants}
+            </span>
           </div>
 
           <div style={rulerStyle} />
 
           <div style={sectionHeaderStyle}>Active Tracks - Queue Here</div>
-          <div style={{ display: 'flex', gap: '8px', marginBottom: '10px', alignItems: 'flex-start' }}>
+          <div
+            style={{
+              display: 'flex',
+              gap: '8px',
+              marginBottom: '10px',
+              alignItems: 'flex-start',
+            }}
+          >
             <FormingCard
               label="Regular"
               color={SEAL_BLUE}
@@ -435,10 +540,16 @@ export const MigrantPanel = () => {
           <div style={rulerStyle} />
 
           <div style={tabBarStyle}>
-            <div style={tabStyle(tab === 'regular')} onClick={() => setTab('regular')}>
+            <div
+              style={tabStyle(tab === 'regular')}
+              onClick={() => setTab('regular')}
+            >
               Regular Migrants
             </div>
-            <div style={tabStyle(tab === 'special')} onClick={() => setTab('special')}>
+            <div
+              style={tabStyle(tab === 'special')}
+              onClick={() => setTab('special')}
+            >
               Special Arrivals
             </div>
           </div>
@@ -446,6 +557,18 @@ export const MigrantPanel = () => {
           <div style={subtitleStyle}>
             Pledge triumph to weight or guarantee a wave&apos;s arrival.
           </div>
+          {data.admin_can_call ? (
+            <div style={subtitleStyle}>
+              Admin: free wave calls with no daily limit. Normal wave
+              requirements still apply.
+            </div>
+          ) : data.supporter_can_call ? (
+            <div style={subtitleStyle}>
+              Scientist+: {data.supporter_calls_remaining}/2 free wave calls
+              left today. Resets at midnight UTC. Calls are used when formation
+              begins.
+            </div>
+          ) : null}
           {tabWaves.length === 0 ? (
             <div style={{ ...cardStyle, color: INK_SOFT, textAlign: 'center' }}>
               None available.
@@ -459,7 +582,17 @@ export const MigrantPanel = () => {
               }}
             >
               {tabWaves.map((w) => (
-                <PurchaseCard key={w.ref} wave={w} now={now} act={act} />
+                <PurchaseCard
+                  key={w.ref}
+                  wave={w}
+                  now={now}
+                  act={act}
+                  supporterCanCall={
+                    !!data.supporter_can_call &&
+                    data.supporter_calls_remaining > 0
+                  }
+                  adminCanCall={!!data.admin_can_call}
+                />
               ))}
             </div>
           )}

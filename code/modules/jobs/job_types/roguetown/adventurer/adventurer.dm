@@ -10,6 +10,7 @@ GLOBAL_VAR_INIT(adventurer_hugbox_duration_still, 3 MINUTES)
 /datum/job/roguetown/adventurer
 	townie_contract_gate_exempt = TRUE
 	title = "Adventurer"
+	triumph_entry_cost = ADVENTURER_MERCENARY_ENTRY_COST
 	flag = ADVENTURER
 	department_flag = WANDERERS
 	faction = "Station"

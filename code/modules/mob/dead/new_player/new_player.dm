@@ -4,6 +4,7 @@ GLOBAL_LIST_INIT(roleplay_readme, world.file2list("strings/rt/rp_prompt.txt"))
 /mob/dead/new_player
 	var/ready = 0
 	var/spawning = 0//Referenced when you want to delete the new_player later on in the code.
+	var/join_attempt_in_progress = FALSE
 	var/topjob = "Hero!"
 	flags_1 = NONE
 
@@ -446,6 +447,9 @@ GLOBAL_LIST_INIT(roleplay_readme, world.file2list("strings/rt/rp_prompt.txt"))
 				var/player_pq = get_playerquality(usr?.ckey)
 				return "You exceed the Player Quality requirement for [jobtitle]. (Maximum: [job.max_pq], Your PQ: [player_pq])"
 			return "You do not meet the Player Quality requirement for [jobtitle]."
+		if(JOB_UNAVAILABLE_TRIUMPHS)
+			var/datum/job/job = SSjob.GetJob(jobtitle)
+			return "Joining as [jobtitle] costs [job.triumph_entry_cost] Triumphs. You do not have enough."
 	return "Error: Unknown job availability."
 
 //used for latejoining
@@ -473,6 +477,8 @@ GLOBAL_LIST_INIT(roleplay_readme, world.file2list("strings/rt/rp_prompt.txt"))
 	var/datum/job/job = SSjob.GetJob(rank)
 	if(!job)
 		return JOB_UNAVAILABLE_GENERIC
+	if(job.triumph_entry_cost && SStriumphs.get_triumphs(ckey) < job.triumph_entry_cost)
+		return JOB_UNAVAILABLE_TRIUMPHS
 	if(CONFIG_GET(flag/usewhitelist))
 		if(job.whitelist_req && !client.has_whitelist_access())
 			return JOB_UNAVAILABLE_GENERIC
@@ -548,6 +554,14 @@ GLOBAL_LIST_INIT(roleplay_readme, world.file2list("strings/rt/rp_prompt.txt"))
 	return JOB_AVAILABLE
 
 /mob/dead/new_player/proc/AttemptLateSpawn(rank)
+	if(spawning || join_attempt_in_progress)
+		return FALSE
+	join_attempt_in_progress = TRUE
+	. = attempt_late_spawn(rank)
+	if(!QDELETED(src))
+		join_attempt_in_progress = FALSE
+
+/mob/dead/new_player/proc/attempt_late_spawn(rank)
 	if(!check_respawn_cooldown())
 		return FALSE
 
@@ -590,6 +604,11 @@ GLOBAL_LIST_INIT(roleplay_readme, world.file2list("strings/rt/rp_prompt.txt"))
 
 	testing("basedtest 2")
 	var/mob/living/character = create_character(TRUE)	//creates the human and transfers vars and mind
+	if(!character)
+		SSjob.release_failed_spawn(src)
+		if(!QDELETED(src))
+			new_player_panel()
+		return FALSE
 	testing("basedtest 3")
 	character.islatejoin = TRUE
 	var/equip = SSjob.EquipRank(character, rank, TRUE)
@@ -769,6 +788,8 @@ GLOBAL_LIST_INIT(roleplay_readme, world.file2list("strings/rt/rp_prompt.txt"))
 					var/used_name = job_datum.display_title || job_datum.title
 					if(client.prefs.pronouns == SHE_HER && job_datum.f_title)
 						used_name = job_datum.f_title
+					if(job_datum.triumph_entry_cost)
+						used_name += " - [job_datum.triumph_entry_cost] Triumphs"
 					if(job_datum in SSjob.prioritized_jobs && !job_datum.antag_job && !position_full)
 						dat += "<a class='job[command_bold]' href='byond://?src=[REF(src)];SelectedJob=[job_datum.title]'><span class='priority'>[used_name] ([job_datum.current_positions]/[display_position_limit])</span></a>"
 					else
@@ -792,18 +813,27 @@ GLOBAL_LIST_INIT(roleplay_readme, world.file2list("strings/rt/rp_prompt.txt"))
 	popup.set_content(jointext(dat, ""))
 	popup.open(FALSE) // 0 is passed to open so that it doesn't use the onclose() proc
 
-/mob/dead/new_player/proc/create_character(transfer_after)
-	spawning = 1
-	close_spawn_windows()
-
-	var/mob/living/carbon/human/H = new(loc)
-	H.admin_antag_setup_pending = TRUE
-
+/mob/dead/new_player/proc/create_character(transfer_after, entry_cost = null)
+	spawning = TRUE
 	var/frn = CONFIG_GET(flag/force_random_names)
 	if(!frn)
 		frn = is_banned_from(ckey, "Appearance")
 		if(QDELETED(src))
 			return
+	// Ban/database checks above may yield. Debit only after them and before creating a body.
+	var/datum/job/entry_job = SSjob.GetJob(mind?.assigned_role)
+	if(isnull(entry_cost))
+		entry_cost = entry_job?.triumph_entry_cost || 0
+	if(entry_cost && !SStriumphs.try_spend_triumphs(ckey, entry_cost))
+		spawning = FALSE
+		to_chat(src, span_warning("Joining costs [entry_cost] Triumphs. Your balance is too low."))
+		return
+	if(entry_cost)
+		log_game("TRIUMPH: [ckey] paid [entry_cost] to join as [mind?.assigned_role].")
+	close_spawn_windows()
+	var/mob/living/carbon/human/H = new(loc)
+	H.admin_antag_setup_pending = TRUE
+
 	if(frn)
 		client.prefs.random_character()
 

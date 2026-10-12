@@ -20,6 +20,7 @@
 	/// Auto-fail timer that fires if the bearer never reaches the landmark. Without this, a writ
 	/// stashed in a drawer or handed to someone who never travels keeps the blockade slot locked
 	/// until round-end.
+	var/arm_timer_id
 	/// world.time at which the writ was issued. Used by the Steward's ledger to gate recall
 	/// within BLOCKADE_RECALL_WINDOW_DS.
 	var/issued_at = 0
@@ -111,6 +112,24 @@
 	armed = TRUE
 	return TRUE
 
+/// Start at issue time, not claim time: unopened and publicly posted writs must expire too.
+/// Posting or claiming the same writ must not reset its arrival deadline.
+/datum/quest/kill/blockade_defense/proc/start_arrival_timeout()
+	if(arm_timer_id || failed || complete || current_wave > 0)
+		return
+	arm_timer_id = addtimer(CALLBACK(src, PROC_REF(on_arrival_timeout)), BLOCKADE_ARM_TIMEOUT_DS, TIMER_STOPPABLE)
+
+/datum/quest/kill/blockade_defense/proc/on_arrival_timeout()
+	arm_timer_id = null
+	if(failed || complete || current_wave > 0)
+		return
+	fail_quest("arrival_timeout")
+
+/datum/quest/kill/blockade_defense/proc/clear_arrival_timer()
+	if(arm_timer_id)
+		deltimer(arm_timer_id)
+		arm_timer_id = null
+
 /// Called from the scroll's process tick. Tests bearer proximity; fires wave 1 on arrival.
 /datum/quest/kill/blockade_defense/proc/check_arrival(mob/bearer)
 	if(!armed || failed || complete)
@@ -129,6 +148,7 @@
 	if(get_dist(bearer_turf, landmark_turf) > 7)
 		return
 	armed = FALSE
+	clear_arrival_timer()
 	announce_to_bearer("<b>You have reached the blockade.</b> Ready yourselves.")
 	spawn_wave(1)
 
@@ -202,6 +222,7 @@
 /// clear_wave_timers covers the wave + both warn timers; arm_timer_id lives outside it, so an
 /// unsanctioned qdel mid-wave (or while still armed) would otherwise leak a stale callback.
 /datum/quest/kill/blockade_defense/Destroy()
+	clear_arrival_timer()
 	clear_wave_timers()
 	return ..()
 
@@ -242,6 +263,8 @@
 	if(failed || complete)
 		return
 	failed = TRUE
+	armed = FALSE
+	clear_arrival_timer()
 	clear_wave_timers()
 	announce_to_bearer("<b>The blockade holds.</b> The scroll smolders and crumbles in your grip.")
 	record_round_statistic(STATS_BLOCKADE_CONTRACTS_FAILED, 1)
@@ -254,6 +277,10 @@
 	var/obj/item/quest_writ/S = quest_scroll
 	if(S && !QDELETED(S))
 		qdel(S)
+	else
+		// Public posting removes the physical writ; do not leave a failed listing behind.
+		SSquestpool.pool -= src
+		qdel(src)
 
 /// Reason the writ cannot be recalled right now, or null if it can. Single source of truth
 /// for both the DM recall handler and the Steward's TGUI flavor copy. Recall policy:

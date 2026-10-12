@@ -1,5 +1,5 @@
 #define MERCENARY_POPULATION_RATIO 0.05
-#define MERCENARY_MIN_POSITIONS 1
+#define MERCENARY_MIN_POSITIONS 2
 #define MERCENARY_MAX_POSITIONS 5
 
 /datum/job/roguetown/mercenary

@@ -4,7 +4,7 @@ GLOBAL_VAR_INIT(adventurer_hugbox_duration, 40 SECONDS)
 GLOBAL_VAR_INIT(adventurer_hugbox_duration_still, 3 MINUTES)
 
 #define ADVENTURER_POPULATION_RATIO 0.10
-#define ADVENTURER_MIN_POSITIONS 2
+#define ADVENTURER_MIN_POSITIONS 4
 #define ADVENTURER_MAX_POSITIONS 10
 
 /datum/job/roguetown/adventurer

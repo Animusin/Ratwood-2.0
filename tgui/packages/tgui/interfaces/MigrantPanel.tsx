@@ -47,6 +47,7 @@ type WaveInfo = {
   track: string;
   weight: number;
   roll_chance: number;
+  auto_roll: BooleanLike;
   triumph_total: number;
   triumph_threshold: number;
   supporter_callable: BooleanLike;
@@ -55,6 +56,8 @@ type WaveInfo = {
   locked_until: number;
   queued: BooleanLike;
   min_optional_fills: number;
+  minimum_players: number;
+  maximum_players: number;
   roles: Role[];
 };
 
@@ -65,6 +68,8 @@ type FormingWave = {
   arrival_at: number;
   queued: BooleanLike;
   min_optional_fills: number;
+  minimum_players: number;
+  maximum_players: number;
   roles: Role[];
 };
 
@@ -73,6 +78,7 @@ type Data = {
   wave_number: number;
   player_triumph: number;
   supporter_can_call: BooleanLike;
+  admin_can_call: BooleanLike;
   supporter_calls_remaining: number;
   active_migrants: number;
   round_time: number;
@@ -159,18 +165,27 @@ const StaticRoleLine = (props: { roles: Role[] }) => {
   const { roles } = props;
   return (
     <div style={{ fontSize: '11px', color: INK_SOFT, lineHeight: 1.4 }}>
-      {roles.map((r, i) => (
-        <span
-          key={r.ref}
-          title={roleTooltip(r)}
-          style={{ cursor: r.desc ? 'help' : 'default' }}
-        >
-          {i > 0 && ', '}
-          <span style={{ color: kindColor(r.kind) }}>{r.name}</span>
-          {r.amount > 1 ? ` x${r.amount}` : ''}
-          {r.entry_cost > 0 ? ` (${r.entry_cost} Triumphs to join)` : ''}
-        </span>
-      ))}
+      {(['required', 'optional'] as const).map((kind) => {
+        const group = roles.filter((r) => r.kind === kind);
+        return group.length > 0 ? (
+          <div key={kind}>
+            <strong style={{ color: kindColor(kind) }}>
+              {kind === 'required' ? 'Required: ' : 'Optional: '}
+            </strong>
+            {group.map((r, i) => (
+              <span
+                key={r.ref}
+                title={roleTooltip(r)}
+                style={{ cursor: r.desc ? 'help' : 'default' }}
+              >
+                {i > 0 && ', '}
+                {r.name} x{r.amount}
+                {r.entry_cost > 0 ? ` (${r.entry_cost} Triumphs to join)` : ''}
+              </span>
+            ))}
+          </div>
+        ) : null;
+      })}
     </div>
   );
 };
@@ -214,6 +229,10 @@ const FormingRoster = (props: {
       </div>
       <div style={{ color: SEAL_GREEN, fontSize: '12px', marginBottom: '3px' }}>
         Arrives in {fmtClock(forming.arrival_at - now)}
+      </div>
+      <div style={noteStyle}>
+        Minimum: {forming.minimum_players} players · Maximum:{' '}
+        {forming.maximum_players}
       </div>
       {required.length > 0 && (
         <>
@@ -312,8 +331,9 @@ const PurchaseCard = (props: {
   now: number;
   act: ActFn;
   supporterCanCall: boolean;
+  adminCanCall: boolean;
 }) => {
-  const { wave, now, act, supporterCanCall } = props;
+  const { wave, now, act, supporterCanCall, adminCanCall } = props;
   const ready = wave.triumph_total >= wave.triumph_threshold;
   const locked = wave.locked_until > now;
   const pledged = wave.triumph_total > 0;
@@ -342,11 +362,20 @@ const PurchaseCard = (props: {
         <span style={{ fontSize: '11px', color: INK_SOFT }}>
           {locked
             ? `locked ${fmtClock(wave.locked_until - now)}`
-            : `${wave.roll_chance}%`}
+            : wave.auto_roll
+              ? `${wave.roll_chance}%`
+              : 'Manual calls only'}
         </span>
       </div>
       <div style={{ minHeight: '32px' }}>
         <StaticRoleLine roles={wave.roles} />
+        <div style={noteStyle}>
+          Minimum: {wave.minimum_players} players · Maximum:{' '}
+          {wave.maximum_players}. All required roles must be filled.
+          {wave.min_optional_fills > 0
+            ? ` At least ${wave.min_optional_fills} optional slots must also join.`
+            : ''}
+        </div>
       </div>
       <ProgressBar
         value={wave.triumph_total}
@@ -363,9 +392,6 @@ const PurchaseCard = (props: {
         <span style={{ fontSize: '11px', color: INK_SOFT }}>
           {wave.triumph_total}/{wave.triumph_threshold}
           {wave.my_contribution > 0 ? ` (you: ${wave.my_contribution})` : ''}
-          {wave.min_optional_fills > 0
-            ? ` · Min. Optionals: ${wave.min_optional_fills}`
-            : ''}
         </span>
         <button
           type="button"
@@ -380,7 +406,7 @@ const PurchaseCard = (props: {
           Pledge
         </button>
       </div>
-      {supporterCanCall && (
+      {(supporterCanCall || adminCanCall) && (
         <button
           type="button"
           style={{
@@ -393,7 +419,9 @@ const PurchaseCard = (props: {
           disabled={!wave.supporter_callable}
           onClick={() => act('supporter_wave', { wave: wave.ref })}
         >
-          Call wave (subscription)
+          {adminCanCall
+            ? 'Call wave (admin, free)'
+            : 'Call wave (subscription)'}
         </button>
       )}
     </div>
@@ -529,13 +557,18 @@ export const MigrantPanel = () => {
           <div style={subtitleStyle}>
             Pledge triumph to weight or guarantee a wave&apos;s arrival.
           </div>
-          {!!data.supporter_can_call && (
+          {data.admin_can_call ? (
+            <div style={subtitleStyle}>
+              Admin: free wave calls with no daily limit. Normal wave
+              requirements still apply.
+            </div>
+          ) : data.supporter_can_call ? (
             <div style={subtitleStyle}>
               Scientist+: {data.supporter_calls_remaining}/2 free wave calls
               left today. Resets at midnight UTC. Calls are used when formation
               begins.
             </div>
-          )}
+          ) : null}
           {tabWaves.length === 0 ? (
             <div style={{ ...cardStyle, color: INK_SOFT, textAlign: 'center' }}>
               None available.
@@ -558,6 +591,7 @@ export const MigrantPanel = () => {
                     !!data.supporter_can_call &&
                     data.supporter_calls_remaining > 0
                   }
+                  adminCanCall={!!data.admin_can_call}
                 />
               ))}
             </div>

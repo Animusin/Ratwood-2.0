@@ -6,7 +6,7 @@ SUBSYSTEM_DEF(migrants)
 
 	var/wave_wait_time = 3 MINUTES
 	var/regular_roll_interval = 5 MINUTES
-	var/special_roll_interval = 12 MINUTES
+	var/special_roll_interval = 30 MINUTES
 	var/faction_fail_cooldown = 20 MINUTES
 	var/raid_fail_cooldown = 30 MINUTES
 	var/ooc_ping_interval = 5 MINUTES
@@ -92,21 +92,24 @@ SUBSYSTEM_DEF(migrants)
 	return SSticker.HasRoundStarted() && is_purchasable_wave(wave) && !track_forming[MIGRANT_TRACK_TRIUMPH] && !is_wave_forming(wave.type) && wave_eligible(wave) && world.time >= wave_cooldown[wave.type]
 
 /datum/controller/subsystem/migrants/proc/call_supporter_wave(client/player, wave_type)
-	if(!player?.has_scientist_subscription(TRUE))
-		to_chat(player, span_warning("Calling a free wave requires an active Scientist subscription or higher."))
+	if(!player || (!player.holder && !player.has_scientist_subscription(TRUE)))
+		to_chat(player, span_warning("Calling a free wave requires an active Scientist subscription or higher, or an admin account."))
 		return FALSE
 	// Refreshing the subscription yields; recheck the track, wave and quota afterwards.
+	if(!player || (!player.holder && !player.has_scientist_subscription()))
+		return FALSE
 	var/datum/migrant_wave/wave = MIGRANT_WAVE(wave_type)
 	if(!can_call_supporter_wave(wave))
 		to_chat(player, span_warning("This wave cannot be called yet, is already forming, or the Triumph track is busy."))
 		return FALSE
-	if(!SSdonations.consume_migrant_call(player.ckey))
+	if(!player.holder && !SSdonations.consume_migrant_call(player.ckey))
 		to_chat(player, span_warning("No daily wave calls remain, or your quota could not be saved. The limit resets at midnight UTC."))
 		return FALSE
 	begin_forming(MIGRANT_TRACK_TRIUMPH, wave_type)
 	announce_special_wave(wave_type)
-	log_game("SUPPORTER: [player.ckey] called migrant wave [wave.name].")
-	message_admins("SUPPORTER: [key_name_admin(player)] called migrant wave [wave.name].")
+	var/caller_type = player.holder ? "ADMIN" : "SUPPORTER"
+	log_game("[caller_type]: [player.ckey] called migrant wave [wave.name].")
+	message_admins("[caller_type]: [key_name_admin(player)] called migrant wave [wave.name].")
 	update_ui()
 	return TRUE
 
@@ -462,7 +465,7 @@ SUBSYSTEM_DEF(migrants)
 	var/list/available_weighted_waves = list()
 	for(var/wave_type in GLOB.migrant_waves)
 		var/datum/migrant_wave/wave = MIGRANT_WAVE(wave_type)
-		if(wave.track != track)
+		if(wave.track != track || !wave.auto_roll)
 			continue
 		if(is_wave_forming(wave_type))
 			continue
@@ -597,6 +600,9 @@ SUBSYSTEM_DEF(migrants)
 		line += "<br>Needs: [needs.Join(", ")]."
 	if(length(slots))
 		line += "<br>Slots open for [slots.Join(", ")]."
+	line += "<br>Minimum group: [wave.get_minimum_players()] players; all required roles must be filled."
+	if(wave.min_optional_fills)
+		line += " At least [wave.min_optional_fills] optional slots must also be filled."
 	line += "<br><a href='?src=[REF(src)];open_panel=1'>Click to join.</a> [wave_wait_time / (1 SECONDS)]s remaining."
 	for(var/mob/dead/new_player/lobby_nerd in GLOB.player_list)
 		if(!lobby_nerd.client)

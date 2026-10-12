@@ -182,6 +182,8 @@ SUBSYSTEM_DEF(nightshift)
 	towner_jobs = GLOB.peasant_positions | GLOB.yeoman_positions | GLOB.youngfolk_positions
 	if(mind.assigned_role != "Unassigned" && istype(mind.assigned_role, /datum/job) && (mind.assigned_role.title in towner_jobs)) //If you play a towner-related role, you get an additonal triumph
 		triumphs_to_add++
+	if(istype(mind.assigned_role, /datum/job/roguetown/nightmaiden))
+		triumphs_to_add += 2
 	adjust_triumphs(triumphs_to_add)
 	to_chat(src, span_danger("Days Survived: \Roman[allmig_reward]"))
 

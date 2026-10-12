@@ -529,7 +529,7 @@ GLOBAL_LIST_INIT(roleplay_readme, world.file2list("strings/rt/rp_prompt.txt"))
 		if(world.time < GLOB.job_respawn_delays[ckey])
 			return JOB_UNAVAILABLE_JOB_COOLDOWN
 	var/position_limit = latejoin ? SSjob.get_latejoin_position_limit(job) : job.get_position_limit(FALSE)
-	if((job.current_positions >= position_limit) && position_limit != -1)
+	if((job.current_positions >= position_limit) && position_limit != -1 && !(position_limit > 0 && job.can_bypass_position_limit(client)))
 		if(job.title == "Assistant")
 			if(isnum(client.player_age) && client.player_age <= 14) //Newbies can always be assistants
 				return JOB_AVAILABLE
@@ -564,6 +564,11 @@ GLOBAL_LIST_INIT(roleplay_readme, world.file2list("strings/rt/rp_prompt.txt"))
 /mob/dead/new_player/proc/attempt_late_spawn(rank)
 	if(!check_respawn_cooldown())
 		return FALSE
+	var/datum/job/entry_job = SSjob.GetJob(rank)
+	if(entry_job?.supports_scientist_slot_bypass())
+		client?.sync_donation_info()
+		if(QDELETED(src) || !client)
+			return FALSE
 
 	if(rank == "Enslaved Adventurer" && istype(SSmapping?.map_adjustment, /datum/map_adjustment/template/rockhill))
 		to_chat(src, span_warning("Enslaved Adventurer is roundstart-only on Rockhill."))
@@ -691,6 +696,9 @@ GLOBAL_LIST_INIT(roleplay_readme, world.file2list("strings/rt/rp_prompt.txt"))
 /mob/dead/new_player/proc/LateChoices()
 	if(!check_respawn_cooldown())
 		return
+	client?.sync_donation_info()
+	if(QDELETED(src) || !client)
+		return
 
 	var/list/dat = list("<div class='notice' style='font-style: normal; font-size: 14px; margin-bottom: 2px; padding-bottom: 0px'>Round Duration: [DisplayTimeText(world.time - SSticker.round_start_time, 1)] &mdash; <a href='byond://?src=[REF(src)];late_join=1'>Refresh slots</a></div>")
 	for(var/datum/job/prioritized_job in SSjob.prioritized_jobs)
@@ -784,12 +792,15 @@ GLOBAL_LIST_INIT(roleplay_readme, world.file2list("strings/rt/rp_prompt.txt"))
 					if(job in GLOB.noble_positions)
 						command_bold = TRUE
 					var/display_position_limit = SSjob.get_latejoin_position_limit(job_datum, remaining_antag_capacity)
-					var/position_full = display_position_limit != -1 && display_position_limit <= job_datum.current_positions
+					var/subscriber_slot = display_position_limit > 0 && job_datum.can_bypass_position_limit(client)
+					var/position_full = display_position_limit != -1 && display_position_limit <= job_datum.current_positions && !subscriber_slot
 					var/used_name = job_datum.display_title || job_datum.title
 					if(client.prefs.pronouns == SHE_HER && job_datum.f_title)
 						used_name = job_datum.f_title
 					if(job_datum.triumph_entry_cost)
 						used_name += " - [job_datum.triumph_entry_cost] Triumphs"
+					if(subscriber_slot)
+						used_name += " - Scientist+ slot access"
 					if(job_datum in SSjob.prioritized_jobs && !job_datum.antag_job && !position_full)
 						dat += "<a class='job[command_bold]' href='byond://?src=[REF(src)];SelectedJob=[job_datum.title]'><span class='priority'>[used_name] ([job_datum.current_positions]/[display_position_limit])</span></a>"
 					else

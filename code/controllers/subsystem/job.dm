@@ -112,6 +112,25 @@ SUBSYSTEM_DEF(job)
 		return cap_position_limit
 	return min(job_position_limit, cap_position_limit)
 
+/// Per-player slot availability; a subscriber does not increase the cap for everyone.
+/datum/controller/subsystem/job/proc/has_available_position(datum/job/job, mob/player, latejoin = FALSE, refresh = FALSE)
+	if(!job || QDELETED(player) || !player.client)
+		return FALSE
+	if(latejoin && job.bypass_latejoin_position_limit)
+		return TRUE
+	var/position_limit = latejoin ? get_latejoin_position_limit(job) : job.get_position_limit(FALSE)
+	if(position_limit == -1 || job.current_positions < position_limit)
+		return TRUE
+	// Zero slots is an explicit closure, not merely a full job.
+	if(position_limit <= 0)
+		return FALSE
+	var/can_bypass = job.can_bypass_position_limit(player.client, refresh)
+	if(QDELETED(player) || !player.client)
+		return FALSE
+	// A subscription refresh may yield; recompute live slots afterwards.
+	position_limit = latejoin ? get_latejoin_position_limit(job) : job.get_position_limit(FALSE)
+	return position_limit == -1 || job.current_positions < position_limit || (position_limit > 0 && can_bypass)
+
 /datum/controller/subsystem/job/proc/AssignRole(mob/player, rank, latejoin = FALSE)
 	JobDebug("Running AR, Player: [player], Rank: [rank], LJ: [latejoin]")
 	if(player && player.mind && rank)
@@ -128,13 +147,9 @@ SUBSYSTEM_DEF(job)
 			return FALSE
 		if(!can_assign_antag_job(job))
 			return FALSE
-		var/position_limit = job.total_positions
-		if(latejoin)
-			position_limit = get_latejoin_position_limit(job)
-			if(!job.bypass_latejoin_position_limit && position_limit != -1 && job.current_positions >= position_limit)
-				return FALSE
-		else
-			position_limit = job.get_position_limit(FALSE)
+		if((latejoin || job.supports_scientist_slot_bypass()) && !has_available_position(job, player, latejoin, TRUE))
+			return FALSE
+		var/position_limit = latejoin ? get_latejoin_position_limit(job) : job.get_position_limit(FALSE)
 		if(job.triumph_entry_cost && SStriumphs.get_triumphs(player.ckey) < job.triumph_entry_cost)
 			return FALSE
 		JobDebug("Player: [player] is now Rank: [rank], JCP:[job.current_positions], JPL:[position_limit]")
@@ -342,12 +357,10 @@ SUBSYSTEM_DEF(job)
 //			JobDebug("GRJ incompatible with lastclass, Player: [player], Job: [job.title]")
 //			continue
 
-		var/position_limit = job.get_position_limit(FALSE)
-		if(position_limit)
-			if((job.current_positions < position_limit) || position_limit == -1)
-				JobDebug("GRJ Random job given, Player: [player], Job: [job]")
-				if(AssignRole(player, job.title))
-					return TRUE
+		if(has_available_position(job, player, FALSE, TRUE))
+			JobDebug("GRJ Random job given, Player: [player], Job: [job]")
+			if(AssignRole(player, job.title))
+				return TRUE
 
 /datum/controller/subsystem/job/proc/ResetOccupations()
 	JobDebug("Occupations reset.")
@@ -647,8 +660,7 @@ SUBSYSTEM_DEF(job)
 				// If the player wants that job on this level, then try give it to him.
 				if(player.client.prefs.job_preferences[job.title] == level)
 					// If the job isn't filled
-					var/position_limit = job.get_position_limit(FALSE)
-					if((job.current_positions < position_limit) || position_limit == -1)
+					if(has_available_position(job, player, FALSE, TRUE))
 						testing("DO pass, Player: [player], Level:[level], Job:[job.title]")
 						if(AssignRole(player, job.title))
 							break

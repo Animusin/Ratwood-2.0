@@ -1,6 +1,6 @@
-#define MERCENARY_POPULATION_RATIO 0.08
-#define MERCENARY_MIN_POSITIONS 2
-#define MERCENARY_MAX_POSITIONS 8
+#define MERCENARY_POPULATION_RATIO 0.05
+#define MERCENARY_MIN_POSITIONS 1
+#define MERCENARY_MAX_POSITIONS 5
 
 /datum/job/roguetown/mercenary
 	townie_contract_gate_exempt = TRUE
@@ -9,8 +9,8 @@
 	flag = WANDERERS
 	department_flag = WANDERERS
 	faction = "Station"
-	total_positions = 8
-	spawn_positions = 8
+	total_positions = 5
+	spawn_positions = 5
 	allowed_sexes = list(MALE, FEMALE)
 	allowed_races = RACES_ALL_KINDS
 	tutorial = "Blood stains your hands and the coins you hold. You are a sell-sword, a mercenary, a contractor of war. Where you come from, what you are, who you serve.. none of it matters. What matters is that the mammon flows to your pocket."

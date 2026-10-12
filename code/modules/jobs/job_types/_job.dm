@@ -368,6 +368,13 @@
 /datum/job/proc/get_default_position_limit(latejoin = FALSE)
 	return latejoin ? total_positions : spawn_positions
 
+/// Exact job types only: Court Agent and other descendants do not inherit this perk.
+/datum/job/proc/supports_scientist_slot_bypass()
+	return type == /datum/job/roguetown/adventurer || type == /datum/job/roguetown/mercenary
+
+/datum/job/proc/can_bypass_position_limit(client/player, refresh = FALSE)
+	return supports_scientist_slot_bypass() && player?.has_scientist_subscription(refresh)
+
 /datum/job/proc/set_admin_position_limit(new_limit)
 	if(!isnum(new_limit))
 		return FALSE

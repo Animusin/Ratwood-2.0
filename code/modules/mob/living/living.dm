@@ -779,18 +779,24 @@
 	else
 		stop_pulling()
 
+/// A garrote on the victim may belong to a different simultaneous grabber.
+/mob/living/proc/get_held_garrote_for(mob/living/victim)
+	for(var/obj/item/inqarticles/garrote/cord in held_items)
+		if(!QDELETED(cord) && cord.victim == victim)
+			return cord
+
 /mob/living/stop_pulling(forced = TRUE)
 	if(pulling)
 		if(ismob(pulling))
 			var/mob/living/M = pulling
-			M.reset_offsets("pulledby")
-			if(!M.is_shifted)
-				reset_pull_offsets(pulling)
+			if(M.pulledby == src)
+				M.reset_offsets("pulledby")
+				if(!M.is_shifted)
+					reset_pull_offsets(pulling)
 			if(HAS_TRAIT(M, TRAIT_GARROTED))
-				var/obj/item/inqarticles/garrote/gcord = src.get_active_held_item()
-				if(!gcord)
-					gcord = src.get_inactive_held_item()
-				gcord.wipeslate(src)
+				// Another grabber may own the garrote; only clean up our own cord and victim.
+				var/obj/item/inqarticles/garrote/gcord = get_held_garrote_for(M)
+				gcord?.wipeslate(src)
 
 		if(forced) //if false, called by the grab item itself, no reason to drop it again
 			if(istype(get_active_held_item(), /obj/item/grabbing))
@@ -1441,6 +1447,7 @@
 	var/mob/living/L = pulledby
 	if(!L)
 		return TRUE
+	var/obj/item/inqarticles/garrote/gcord = HAS_TRAIT(src, TRAIT_GARROTED) ? L.get_held_garrote_for(src) : null
 	var/combat_modifier = 1
 	var/agg_grab = FALSE
 
@@ -1460,7 +1467,7 @@
 	else if(!cmode && L.cmode)
 		combat_modifier -= 0.3
 	if(agg_grab)
-		if(!HAS_TRAIT(src, TRAIT_GARROTED))
+		if(!gcord)
 			combat_modifier -= 0.3
 		else
 			if(!src.mind)
@@ -1474,7 +1481,7 @@
 			combat_modifier -= 0.15
 
 	resist_chance += max((wrestling_diff * 10), -20)
-	if(HAS_TRAIT(src, TRAIT_GARROTED))
+	if(gcord)
 		resist_chance += (STACON - L.STASPD) * 5
 	else
 		resist_chance += (STACON - (agg_grab ? L.STASTR : L.STAWIL)) * 5
@@ -1498,39 +1505,27 @@
 		var/rchance = ""
 		if(client?.prefs.showrolls)
 			rchance = " ([resist_chance]%)"
-		if(HAS_TRAIT(src, TRAIT_GARROTED))
-			var/obj/item/inqarticles/garrote/gcord = L.get_active_held_item()
-			if(!gcord)
-				gcord = L.get_inactive_held_item()
+		if(gcord)
 			to_chat(pulledby, span_warning("[src] struggles against the [gcord]!"))
-		if(!HAS_TRAIT(src, TRAIT_GARROTED))
+		if(!gcord)
 			visible_message(span_warning("[src] struggles to break free from [L]'s grip!"), \
 						span_warning("I struggle against [L]'s grip![rchance]"), null, null, L)
 		else
-			var/obj/item/inqarticles/garrote/gcord = L.get_active_held_item()
-			if(!gcord)
-				gcord = L.get_inactive_held_item()
 			visible_message(span_warning("[src] struggles to break free from [L]'s [gcord]!"), \
 						span_warning("I struggle against [L]'s [gcord]![rchance]"), null, null, L)
 		playsound(src.loc, 'sound/combat/grabstruggle.ogg', 50, TRUE, -1)
-		if(!HAS_TRAIT(src, TRAIT_GARROTED))
+		if(!gcord)
 			to_chat(pulledby, span_warning("[src] struggles against my grip!"))
 		return FALSE
-	if(!HAS_TRAIT(src, TRAIT_GARROTED))
+	if(!gcord)
 		visible_message(span_warning("[src] breaks free of [L]'s grip!"), \
 						span_notice("I break free of [L]'s grip!"), null, null, L)
 		to_chat(L, span_danger("[src] breaks free of my grip!"))
 	else
-		var/obj/item/inqarticles/garrote/gcord = L.get_active_held_item()
-		if(!gcord)
-			gcord = L.get_inactive_held_item()
 		visible_message(span_warning("[src] breaks free of [L]'s [gcord]!"), \
 						span_notice("I break free of [L]'s [gcord]!"), null, null, L)
 		to_chat(L, span_danger("[src] breaks free from my [gcord]!"))
-	if(HAS_TRAIT(src, TRAIT_GARROTED))
-		var/obj/item/inqarticles/garrote/gcord = L.get_active_held_item()
-		if(!gcord)
-			gcord = L.get_inactive_held_item()
+	if(gcord)
 		gcord.take_damage(100)//Two escapes to snap it.
 		gcord.wipeslate(src)
 	log_combat(L, src, "broke grab")

@@ -27,7 +27,7 @@
 		return S.duration - world.time
 	return 0
 
-/mob/living/proc/Stun(amount, updating = TRUE, ignore_canstun = FALSE) //Can't go below remaining duration
+/mob/living/proc/Stun(amount, updating = TRUE, ignore_canstun = FALSE, datum/pin_hold/pin_source) //Can't go below remaining duration
 	if(SEND_SIGNAL(src, COMSIG_LIVING_STATUS_STUN, amount, updating, ignore_canstun) & COMPONENT_NO_STUN)
 		return
 	if(((status_flags & CANSTUN) && !HAS_TRAIT(src, TRAIT_STUNIMMUNE)) || ignore_canstun)
@@ -35,9 +35,12 @@
 			return
 		var/datum/status_effect/incapacitating/stun/S = IsStun()
 		if(S)
-			S.duration = max(world.time + amount, S.duration)
+			if(!S.update_pin_duration(amount, "max", pin_source))
+				S.duration = max(world.time + amount, S.duration)
 		else if(amount > 0)
 			S = apply_status_effect(STATUS_EFFECT_STUN, amount, updating)
+			if(S && pin_source)
+				S.update_pin_duration(amount, "max", pin_source, new_effect = TRUE)
 		return S
 
 /mob/living/proc/SetStun(amount, updating = TRUE, ignore_canstun = FALSE) //Sets remaining duration
@@ -46,13 +49,14 @@
 	if(((status_flags & CANSTUN) && !HAS_TRAIT(src, TRAIT_STUNIMMUNE)) || ignore_canstun)
 		var/datum/status_effect/incapacitating/stun/S = IsStun()
 		if(amount <= 0)
-			if(S)
+			if(S && !S.update_pin_duration(amount, "set"))
 				qdel(S)
 		else
 			if(absorb_stun(amount, ignore_canstun))
 				return
 			if(S)
-				S.duration = world.time + amount
+				if(!S.update_pin_duration(amount, "set"))
+					S.duration = world.time + amount
 			else
 				S = apply_status_effect(STATUS_EFFECT_STUN, amount, updating)
 		return S
@@ -65,7 +69,8 @@
 			return
 		var/datum/status_effect/incapacitating/stun/S = IsStun()
 		if(S)
-			S.duration += amount
+			if(!S.update_pin_duration(amount, "add"))
+				S.duration += amount
 		else if(amount > 0)
 			S = apply_status_effect(STATUS_EFFECT_STUN, amount, updating)
 		return S
@@ -81,7 +86,7 @@
 		return K.duration - world.time
 	return 0
 
-/mob/living/proc/Knockdown(amount, updating = TRUE, ignore_canstun = FALSE) //Can't go below remaining duration
+/mob/living/proc/Knockdown(amount, updating = TRUE, ignore_canstun = FALSE, datum/pin_hold/pin_source) //Can't go below remaining duration
 	if(SEND_SIGNAL(src, COMSIG_LIVING_STATUS_KNOCKDOWN, amount, updating, ignore_canstun) & COMPONENT_NO_STUN)
 		return
 	if(((status_flags & CANKNOCKDOWN) && !HAS_TRAIT(src, TRAIT_STUNIMMUNE)) || ignore_canstun)
@@ -89,9 +94,12 @@
 			return
 		var/datum/status_effect/incapacitating/knockdown/K = IsKnockdown()
 		if(K)
-			K.duration = max(world.time + amount, K.duration)
+			if(!K.update_pin_duration(amount, "max", pin_source))
+				K.duration = max(world.time + amount, K.duration)
 		else if(amount > 0)
 			K = apply_status_effect(STATUS_EFFECT_KNOCKDOWN, amount, updating)
+			if(K && pin_source)
+				K.update_pin_duration(amount, "max", pin_source, new_effect = TRUE)
 		return K
 
 /mob/living/proc/SetKnockdown(amount, updating = TRUE, ignore_canstun = FALSE) //Sets remaining duration
@@ -100,13 +108,14 @@
 	if(((status_flags & CANKNOCKDOWN) && !HAS_TRAIT(src, TRAIT_STUNIMMUNE)) || ignore_canstun)
 		var/datum/status_effect/incapacitating/knockdown/K = IsKnockdown()
 		if(amount <= 0)
-			if(K)
+			if(K && !K.update_pin_duration(amount, "set"))
 				qdel(K)
 		else
 			if(absorb_stun(amount, ignore_canstun))
 				return
 			if(K)
-				K.duration = world.time + amount
+				if(!K.update_pin_duration(amount, "set"))
+					K.duration = world.time + amount
 			else
 				K = apply_status_effect(STATUS_EFFECT_KNOCKDOWN, amount, updating)
 		return K
@@ -119,7 +128,8 @@
 			return
 		var/datum/status_effect/incapacitating/knockdown/K = IsKnockdown()
 		if(K)
-			K.duration += amount
+			if(!K.update_pin_duration(amount, "add"))
+				K.duration += amount
 		else if(amount > 0)
 			K = apply_status_effect(STATUS_EFFECT_KNOCKDOWN, amount, updating)
 		return K
@@ -136,7 +146,7 @@
 		return I.duration - world.time
 	return 0
 
-/mob/living/proc/Immobilize(amount, updating = TRUE, ignore_canstun = FALSE) //Can't go below remaining duration
+/mob/living/proc/Immobilize(amount, updating = TRUE, ignore_canstun = FALSE, datum/pin_hold/pin_source) //Can't go below remaining duration
 	if(SEND_SIGNAL(src, COMSIG_LIVING_STATUS_IMMOBILIZE, amount, updating, ignore_canstun) & COMPONENT_NO_STUN)
 		return
 	if(((status_flags & CANKNOCKDOWN) && !HAS_TRAIT(src, TRAIT_STUNIMMUNE)) || ignore_canstun)
@@ -144,9 +154,12 @@
 			return
 		var/datum/status_effect/incapacitating/immobilized/I = IsImmobilized()
 		if(I)
-			I.duration = max(world.time + amount, I.duration)
+			if(!I.update_pin_duration(amount, "max", pin_source))
+				I.duration = max(world.time + amount, I.duration)
 		else if(amount > 0)
 			I = apply_status_effect(STATUS_EFFECT_IMMOBILIZED, amount, updating)
+			if(I && pin_source)
+				I.update_pin_duration(amount, "max", pin_source, new_effect = TRUE)
 		return I
 
 /mob/living/proc/SetImmobilized(amount, updating = TRUE, ignore_canstun = FALSE) //Sets remaining duration
@@ -155,13 +168,14 @@
 	if(((status_flags & CANKNOCKDOWN) && !HAS_TRAIT(src, TRAIT_STUNIMMUNE)) || ignore_canstun)
 		var/datum/status_effect/incapacitating/immobilized/I = IsImmobilized()
 		if(amount <= 0)
-			if(I)
+			if(I && !I.update_pin_duration(amount, "set"))
 				qdel(I)
 		else
 			if(absorb_stun(amount, ignore_canstun))
 				return
 			if(I)
-				I.duration = world.time + amount
+				if(!I.update_pin_duration(amount, "set"))
+					I.duration = world.time + amount
 			else
 				I = apply_status_effect(STATUS_EFFECT_IMMOBILIZED, amount, updating)
 		return I
@@ -174,7 +188,8 @@
 			return
 		var/datum/status_effect/incapacitating/immobilized/I = IsImmobilized()
 		if(I)
-			I.duration += amount
+			if(!I.update_pin_duration(amount, "add"))
+				I.duration += amount
 		else if(amount > 0)
 			I = apply_status_effect(STATUS_EFFECT_IMMOBILIZED, amount, updating)
 		return I

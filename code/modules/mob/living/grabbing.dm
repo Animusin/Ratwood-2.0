@@ -1,22 +1,25 @@
-/// Applies a pin's hold, returning how far it actually pushed the crowd-control timers out.
-/mob/living/proc/apply_pin_hold(stun_amount, immobilize_amount, knockdown_amount)
-	var/stun_before = AmountStun()
-	var/immobilize_before = AmountImmobilized()
-	var/knockdown_before = AmountKnockdown()
-	Stun(stun_amount)
-	Immobilize(immobilize_amount)
-	Knockdown(knockdown_amount)
-	return list(AmountStun() - stun_before, AmountImmobilized() - immobilize_before, AmountKnockdown() - knockdown_before)
+/// One pin's contribution to the existing control effects, independent of other sources.
+/datum/pin_hold
+	var/list/effects = list()
 
-/mob/living/proc/release_pin_hold(list/held)
+/datum/pin_hold/Destroy()
+	for(var/datum/status_effect/incapacitating/effect as anything in effects.Copy())
+		if(!QDELETED(effect))
+			effect.remove_pin_hold(src)
+	effects = null
+	return ..()
+
+/// Reuse the same source on refresh so releasing one pin cannot release another one.
+/mob/living/proc/apply_pin_hold(stun_amount, immobilize_amount, knockdown_amount, datum/pin_hold/held)
 	if(!held)
-		return
-	if(held[1] > 0)
-		SetStun(max(0, AmountStun() - held[1]))
-	if(held[2] > 0)
-		SetImmobilized(max(0, AmountImmobilized() - held[2]))
-	if(held[3] > 0)
-		SetKnockdown(max(0, AmountKnockdown() - held[3]))
+		held = new
+	Stun(stun_amount, pin_source = held)
+	Immobilize(immobilize_amount, pin_source = held)
+	Knockdown(knockdown_amount, pin_source = held)
+	return held
+
+/mob/living/proc/release_pin_hold(datum/pin_hold/held)
+	qdel(held)
 
 ///////////OFFHAND///////////////
 /obj/item/grabbing
@@ -90,6 +93,11 @@
 		grabbee.stop_pulling(FALSE)
 	if(was_active_puller && replacement_puller && !grabbed_movable.pulledby)
 		grabbed_movable.pulledby = replacement_puller
+		if(isliving(grabbed_movable))
+			var/mob/living/target = grabbed_movable
+			target.update_mobility()
+			if(!target.is_shifted)
+				replacement_puller.set_pull_offsets(target, replacement_puller.grab_state)
 
 /obj/item/grabbing/Click(location, control, params)
 	var/list/modifiers = params2list(params)
@@ -417,19 +425,19 @@
 					return
 				var/stun_dur = max(((65 + (skill_diff * 10) + (user.STASTR * 5) - (M.STASTR * 5)) * combat_modifier), 20)
 				var/pincount = 0
-				var/list/pin_hold
+				var/datum/pin_hold/pin_hold
 				user.stamina_add(rand(1,3))
 				while(M == grabbed && !(M.mobility_flags & MOBILITY_STAND) && (src in M.grabbedby))
 					if(M.IsStun())
 						if(!do_after(user, stun_dur + 1, needhand = 0, target = M) || !(src in M.grabbedby))
 							qdel(src)
 							break
-						pin_hold = M.apply_pin_hold(stun_dur - pincount * 2, stun_dur, stun_dur)
+						pin_hold = M.apply_pin_hold(stun_dur - pincount * 2, stun_dur, stun_dur, pin_hold)
 						user.stamina_add(rand(1,3) + abs(skill_diff) + stun_dur / 1.5)
 						M.visible_message(span_danger("[user] keeps [M] pinned to the ground!"))
 						pincount += 2
 					else if(src in M.grabbedby)
-						pin_hold = M.apply_pin_hold(stun_dur - 10, stun_dur, stun_dur)
+						pin_hold = M.apply_pin_hold(stun_dur - 10, stun_dur, stun_dur, pin_hold)
 						user.stamina_add(rand(1,3) + abs(skill_diff) + stun_dur / 1.5)
 						pincount += 2
 						M.visible_message(span_danger("[user] pins [M] to the ground!"), \

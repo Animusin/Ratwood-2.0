@@ -5,6 +5,53 @@
 	status_type = STATUS_EFFECT_REPLACE
 	alert_type = null
 	var/needs_update_stat = FALSE
+	/// Only populated for pin-controlled stun/immobilize/knockdown; ordinary effects are unchanged.
+	var/list/pin_holds
+	var/non_pin_expiry = 0
+
+/// Track non-pin requests even when shorter than the current pin. Returns FALSE for the
+/// ordinary upstream path so callers retain their existing behavior without active pins.
+/datum/status_effect/incapacitating/proc/update_pin_duration(amount, operation, datum/pin_hold/source, new_effect = FALSE)
+	if(!pin_holds && !source)
+		return FALSE
+	if(!pin_holds)
+		pin_holds = list()
+		non_pin_expiry = new_effect ? world.time : duration
+	if(source)
+		pin_holds[source] = max(pin_holds[source], world.time + amount)
+		source.effects |= src
+	else
+		switch(operation)
+			if("max")
+				non_pin_expiry = max(non_pin_expiry, world.time + amount)
+			if("set")
+				non_pin_expiry = world.time + amount
+			if("add")
+				non_pin_expiry = max(world.time, non_pin_expiry) + amount
+	recalculate_pin_duration()
+	return TRUE
+
+/datum/status_effect/incapacitating/proc/recalculate_pin_duration()
+	duration = non_pin_expiry
+	for(var/datum/pin_hold/hold as anything in pin_holds)
+		duration = max(duration, pin_holds[hold])
+	if(duration <= world.time)
+		qdel(src)
+
+/datum/status_effect/incapacitating/proc/remove_pin_hold(datum/pin_hold/hold)
+	if(!pin_holds || !(hold in pin_holds))
+		return
+	pin_holds -= hold
+	hold.effects -= src
+	recalculate_pin_duration()
+	if(!length(pin_holds))
+		pin_holds = null
+
+/datum/status_effect/incapacitating/Destroy()
+	for(var/datum/pin_hold/hold as anything in pin_holds)
+		hold.effects -= src
+	pin_holds = null
+	return ..()
 
 /datum/status_effect/incapacitating/on_creation(mob/living/new_owner, set_duration, updating_canmove)
 	if(isnum(set_duration))

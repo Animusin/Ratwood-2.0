@@ -168,10 +168,12 @@
 
 		var/validated = E.ValidateAndSet(value)
 		if(!validated)
-			log_config("Failed to validate setting \"[value]\" for [entry]")
+			var/logged_value = (E.protection & CONFIG_ENTRY_HIDDEN) ? "<hidden>" : value
+			log_config("Failed to validate setting \"[logged_value]\" for [entry]")
 		else
 			if(E.modified && !E.dupes_allowed)
-				log_config("Duplicate setting for [entry] ([value], [E.resident_file]) detected! Using latest.")
+				var/logged_value = (E.protection & CONFIG_ENTRY_HIDDEN) ? "<hidden>" : value
+				log_config("Duplicate setting for [entry] ([logged_value], [E.resident_file]) detected! Using latest.")
 
 		E.resident_file = filename
 

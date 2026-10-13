@@ -587,3 +587,8 @@ MONKEYCAP 64
 
 ## Enable the capitalist agenda on your server.
 ECONOMY
+
+## Optional Herald integration. Both settings may instead be added directly to config.txt.
+## Keep actual values private; do NOT use the Discord bot token or the roundstart webhook.
+# WEBHOOK_ADMINHELP https://discord.com/api/webhooks/WEBHOOK_ID/WEBHOOK_TOKEN
+# HERALD_READONLY_KEY REPLACE_WITH_A_RANDOM_SECRET_OF_64_TO_128_CHARACTERS

@@ -601,6 +601,8 @@ GLOBAL_DATUM_INIT(ahelp_tickets, /datum/admin_help_tickets, new)
 		heard_by_no_admins = FALSE
 		send2irc(initiator_ckey, "Ticket #[id]: Answered by [key_name(usr)]")
 	_interactions += "[time_stamp()]: [formatted_message]"
+	// Server-side HTTPS relay: independent of online admins and the desktop assistant.
+	SSahelp_relay?.queue_ticket_event(src, formatted_message)
 	// Update any open TGUI windows
 	SStgui.update_uis(src)
 

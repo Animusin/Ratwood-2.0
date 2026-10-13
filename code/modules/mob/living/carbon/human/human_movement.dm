@@ -142,8 +142,8 @@
 			return riding_datum.handle_ride(user, direction)
 	return ..()
 
-/mob/living/carbon/human/Knockdown(amount, updating = TRUE)
-	. = ..() // parent Knockdown
+/mob/living/carbon/human/Knockdown(amount, updating = TRUE, ignore_canstun = FALSE, datum/pin_hold/pin_source)
+	. = ..(amount, updating, ignore_canstun, pin_source)
 	if(HAS_TRAIT(src, TRAIT_PONYGIRL_RIDEABLE) && buckled_mobs)
 		for(var/mob/living/carbon/human/rider in buckled_mobs)
 			unbuckle_mob(rider, TRUE)

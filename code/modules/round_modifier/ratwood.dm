@@ -2,7 +2,7 @@
 #define RATWOOD_CHAOS_LOW "Low Chaos"
 #define RATWOOD_CHAOS_HIGH "High Chaos"
 #define RATWOOD_LOW_DIVISOR 15
-#define RATWOOD_HIGH_DIVISOR 10
+#define RATWOOD_HIGH_DIVISOR 7
 
 /datum/round_modifier_policy
 	var/id = "upstream"

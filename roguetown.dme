@@ -1728,6 +1728,7 @@
 #include "code\modules\client\verbs\typing.dm"
 #include "code\modules\client\verbs\who.dm"
 #include "code\modules\discord_notify\notify_all.dm"
+#include "code\modules\discord_notify\herald_game_operations.dm"
 #include "code\modules\clothing\adjustable_component.dm"
 #include "code\modules\clothing\clothing.dm"
 #include "code\modules\clothing\glasses\_glasses.dm"

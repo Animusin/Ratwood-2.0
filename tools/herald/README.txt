@@ -1,4 +1,4 @@
-HERALD: SERVER-SIDE AHELP RELAY AND OWNER-OPERATED READ INTERFACE
+HERALD: SERVER RELAYS, READ INTERFACE AND OPT-IN FIXED ADMIN ACTIONS
 
 Installation using ordinary config access only
 ---------------------------------------------
@@ -50,8 +50,8 @@ The separate Topic keyword herald_read accepts ONLY:
   status: round ID, map, player count, CPU, tick lag, round state;
   players: 25 connected clients per page, ckey/name/stat, offset 0..1000;
   character: one normalized ckey, name/stat/health/x/y/z, at most 1000 clients.
-There is no SQL, arbitrary SDQL, proc-call, object reference lookup, dynamic var
-selection, world-atom traversal or game mutation endpoint. Four fixed SDQL read
+This read endpoint has no SQL, arbitrary SDQL, proc-call, object reference lookup,
+dynamic var selection, world-atom traversal or game mutations. Four fixed SDQL read
 examples are exercised in the LOCAL test world only, not exposed to the API.
 Authentic reads are limited globally to one per second; replies are bounded by
 the fixed fields and page size. Invalid inputs are rejected before world lookup.
@@ -123,3 +123,67 @@ and _1.json checkpoints are written at most once per two-second subsystem fire,
 and flushed at orderly shutdown. A hard crash may lose the last uncheckpointed
 entries; lost send confirmations can duplicate a batch. Window timers are not
 persisted across game-server restarts. Existing ahelp checkpoints are unchanged.
+
+Optional manual game administration (one shared key)
+---------------------------------------------------
+The existing HERALD_READONLY_KEY retains its legacy name but is ALSO used to sign
+the new fixed admin endpoint, ONLY when both of these extra main config lines exist:
+HERALD_ADMIN_OPERATOR_IDS DISCORD_OWNER_ID
+HERALD_ADMIN_CKEY YOUR_NORMALIZED_BYOND_ADMIN_CKEY
+
+No second secret, new daemon or extra config file is required. Without this mapping
+writes remain disabled. The configured game admin must exist in loaded admin/deadmin
+datums and have R_AHELP for replies, R_BAN for bans, R_ADMIN for kicks/PQ. This allows
+the administrator to be offline; it does NOT create an admin or spoof an usr/client.
+The initial desktop implementation authorizes only its owner, not Royal Guard or
+chat personas. The shared secret now has privileged scope: keep it private. Anyone
+holding it can claim an allowlisted Discord operator ID; IDs are not extra secrets.
+
+Fixed actions, one target each, exact current rogue_round_id and normalized ckey:
+  reply: {ticket_id: integer 1..9999999, text: 1..1000 characters}
+    Active GAME ahelp only, matching initiator/current ticket and connected player.
+    Plain literal text, labeled with the actual admin ckey + Herald + Discord ID;
+    ahelp history, sound/flash and server relay use the normal game mechanisms.
+    No claiming/closing ticket, unsolicited replies or AI autonomous moderation.
+  ban: {minutes: integer 0..525600, reason: 1..500 characters}
+    Zero is an explicitly requested permanent server ban. Ckey only, no IP/CID,
+    sticky/role/admin bans. Known database player required. Existing active server
+    ban returns already_banned rather than inserting another. Uses parameterized
+    standard ban and note tables with real admin ckey, round, reason and Discord
+    audit identity. No fake admin IP/CID (stored as 0/empty). DB unavailable -> refusal.
+  kick: {reason: 1..500 characters}
+    Connected non-admin only. Staff/admin targets are protected for bans and kicks.
+  pq: {delta: nonzero number -100..100, reason: 1..500 characters}
+    Known saved player required, including offline. Uses adjust_playerquality and
+    its usual history/admin logs, verifies persisted before/after with -100..PQ_CAP
+    clamp. The existing game denies entry at PQ <= -100: deductions can cause this.
+
+No arbitrary SQL, SDQL, role string, proc, path, world atom traversal or mass action
+is exposed. One action runs at a time, at least two seconds between new actions,
+at most 512 receipts/round. Ticket lookup is bounded to 1000 active tickets. Ban
+database calls use existing async rust-g queries. These limits reduce load; they
+are not a guarantee that the database/filesystem can never stall or crash.
+
+Topic keyword herald_admin = reply|ban|kick|pq. Other query fields are round, ckey,
+payload (JSON string with action-specific fields), minute, request_id (32 lower hex),
+operator (allowlisted numeric Discord ID), signature. Unknown fields/actions fail.
+Canonical signed string: admin_request|ACTION|ROUND|CKEY|SHA256(PAYLOAD)|UNIX_MINUTE|REQUEST_ID|OPERATOR
+Response signature: admin_response|REQUEST_ID|DATA_STRING using the same signature
+function as reads. No key is sent on the wire. Topic still is NOT encrypted: a
+protected network/tunnel is necessary for confidentiality against interception.
+
+The request ID is bound to action/target/payload/operator. Identical retransmission
+returns its cached outcome, never repeats. Reusing it for different data fails.
+Alternating data/herald_admin_receipts_0.json/_1.json are saved BEFORE side effects
+and after completion, scoped to the current round. Retain them across updates.
+If the initial checkpoint fails, nothing is executed. A partial runtime/lost ACK
+leaves an uncertain reservation: do not repeat automatically. A completed reply
+means sent to the connected client, NOT proof the player read it. Desktop SQLite
+also retains attempted/results outside model memory and across bot restarts.
+
+Local probe checks actual PQ save changes and idempotency/recovery, fixed protocol,
+signatures, mapping/rights/round guards, HTML escaping, active ahelp history and
+SQL parameter binding with a MOCK database. Recipient delivery is a FAKE test
+fixture because no real BYOND client connects. No production ban/kick/PQ/reply was
+performed. After deployment, separately test delivery with a volunteer account
+and standard ban-table compatibility in the host's staging database.

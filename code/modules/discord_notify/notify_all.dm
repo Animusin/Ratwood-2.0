@@ -289,7 +289,209 @@ SUBSYSTEM_DEF(emote_relay)
 			"content" = "[heading][copytext_char(body, offset, offset + 700)]"))
 	persist()
 
-// A separately scoped, read-only Topic API. It NEVER accepts SDQL or proc names.
+// Optional fixed admin capabilities. One legacy HERALD_READONLY_KEY is shared;
+// writes remain disabled unless an operator allowlist and real admin are configured.
+/datum/config_entry/string/herald_admin_operator_ids
+	protection = CONFIG_ENTRY_HIDDEN
+
+/datum/config_entry/string/herald_admin_operator_ids/ValidateAndSet(str_val)
+	if(!length(str_val))
+		return ..()
+	var/list/operators = splittext(str_val, ",")
+	if(length(operators) > 32)
+		return FALSE
+	for(var/i in 1 to length(operators))
+		operators[i] = trim(operators[i])
+		if(!length(operators[i]) || length(operators[i]) > 20 || operators[i] == "0" || !regex("^\[0-9\]+$").Find(operators[i]))
+			return FALSE
+	return ..(jointext(operators, ","))
+
+/datum/config_entry/string/herald_admin_ckey
+	protection = CONFIG_ENTRY_HIDDEN
+
+/datum/config_entry/string/herald_admin_ckey/ValidateAndSet(str_val)
+	return (!length(str_val) || (length(str_val) <= 32 && ckey(str_val) == str_val)) && ..()
+
+/proc/herald_ahelp_body(message)
+	// Literal text, never HTML, clickable admin links, embeds or executable code.
+	return replacetext(html_encode(message), "\n", "<br>")
+
+/datum/admin_help/proc/HeraldReply(operator, message, admin_ckey)
+	var/client/recipient = initiator
+	if(!recipient || recipient.ckey != initiator_ckey || recipient.current_ticket != src || state != AHELP_ACTIVE)
+		return "player_offline_or_ticket_changed"
+	var/display = "[admin_ckey] через Геральда (Discord [operator])"
+	var/body = herald_ahelp_body(message)
+	AddInteraction("<font color='blue'>PM from [display]: [body]</font>")
+	heard_by_no_admins = FALSE
+	to_chat(recipient, span_adminhelp("<b>Admin PM from [display]</b>: [body]<br><i>Ответить можно в текущем тикете Adminhelp.</i>"))
+	SEND_SOUND(recipient, sound('sound/adminhelp.ogg'))
+	window_flash(recipient, ignorepref = TRUE)
+	log_admin_private("Herald Discord [operator] replied to ahelp #[id] ([initiator_ckey]): [message]")
+	message_admins(span_adminnotice("Herald Discord [operator] replied to ahelp #[id] ([initiator_ckey]): [body]"))
+	return "delivered"
+
+/datum/world_topic/herald_admin
+	keyword = "herald_admin"
+	log = FALSE
+	var/static/next_action = 0
+	var/static/list/receipts = list()
+	var/static/busy = FALSE
+	var/static/recovered = FALSE
+	var/static/generation = 0
+
+/datum/world_topic/herald_admin/proc/recover_receipts()
+	if(recovered)
+		return
+	recovered = TRUE
+	for(var/path in list("data/herald_admin_receipts_0.json", "data/herald_admin_receipts_1.json"))
+		if(!fexists(path))
+			continue
+		try
+			var/list/saved = json_decode(file2text(path))
+			if(islist(saved) && saved["round"] == "[GLOB.rogue_round_id]" && isnum(saved["generation"]) && saved["generation"] > generation && islist(saved["receipts"]) && length(saved["receipts"]) <= 512)
+				generation = saved["generation"]
+				receipts = saved["receipts"]
+		catch
+			log_admin("Herald admin: incomplete receipt checkpoint ignored; credentials hidden.")
+
+/datum/world_topic/herald_admin/proc/persist_receipts()
+	generation++
+	var/path = "data/herald_admin_receipts_[generation % 2].json"
+	if(fexists(path))
+		fdel(path)
+	return text2file(json_encode(list("round" = "[GLOB.rogue_round_id]", "generation" = generation, "receipts" = receipts)), path)
+
+/datum/world_topic/herald_admin/proc/envelope(secret, request_id, list/data)
+	var/payload = json_encode(data)
+	return json_encode(list("data" = payload, "signature" = herald_read_signature(secret, "admin_response|[request_id]|[payload]")))
+
+/datum/world_topic/herald_admin/proc/admin_identity(operator, action)
+	if(!(operator in splittext(CONFIG_GET(string/herald_admin_operator_ids), ",")))
+		return null
+	var/admin_ckey = CONFIG_GET(string/herald_admin_ckey)
+	var/datum/admins/holder = GLOB.admin_datums[admin_ckey] || GLOB.deadmins[admin_ckey]
+	var/required_right = action == "reply" ? R_AHELP : (action == "ban" ? R_BAN : R_ADMIN)
+	if(!holder?.rank || !(holder.rank.rights & required_right))
+		return null
+	return admin_ckey
+
+/datum/world_topic/herald_admin/proc/validate_payload(action, list/data)
+	if(!islist(data))
+		return FALSE
+	var/list/allowed
+	switch(action)
+		if("reply")
+			allowed = list("ticket_id", "text")
+			if(!isnum(data["ticket_id"]) || data["ticket_id"] != round(data["ticket_id"]) || data["ticket_id"] < 1 || data["ticket_id"] > 9999999 || !istext(data["text"]) || !length(trim(data["text"])) || length_char(data["text"]) > 1000)
+				return FALSE
+		if("ban", "kick", "pq")
+			allowed = action == "ban" ? list("minutes", "reason") : (action == "pq" ? list("delta", "reason") : list("reason"))
+			if(!istext(data["reason"]) || !length(trim(data["reason"])) || length_char(data["reason"]) > 500)
+				return FALSE
+			if(action == "ban" && (!isnum(data["minutes"]) || data["minutes"] != round(data["minutes"]) || data["minutes"] < 0 || data["minutes"] > 525600))
+				return FALSE
+			if(action == "pq" && (!isnum(data["delta"]) || !data["delta"] || abs(data["delta"]) > 100))
+				return FALSE
+	for(var/key in data)
+		if(!(key in allowed))
+			return FALSE
+	return TRUE
+
+/datum/world_topic/herald_admin/proc/execute(action, ck, list/data, operator, admin_ckey)
+	if(action == "reply")
+		var/datum/admin_help/ticket
+		for(var/i in 1 to min(length(GLOB.ahelp_tickets.active_tickets), 1000))
+			var/datum/admin_help/candidate = GLOB.ahelp_tickets.active_tickets[i]
+			if(candidate.id == data["ticket_id"])
+				ticket = candidate
+				break
+		if(!ticket || ticket.state != AHELP_ACTIVE || ticket.initiator_ckey != ck)
+			return list("status" = "ticket_not_active_or_ckey_mismatch")
+		return list("status" = ticket.HeraldReply(operator, data["text"], admin_ckey), "ticket_id" = ticket.id)
+	return GLOB.herald_game_operations.execute(action, ck, data, operator, admin_ckey)
+
+/datum/world_topic/herald_admin/TryRun(list/input)
+	if(!config)
+		return json_encode(list("error" = "disabled"))
+	var/secret = CONFIG_GET(string/herald_readonly_key)
+	if(length(secret) < 64 || !length(CONFIG_GET(string/herald_admin_operator_ids)) || !length(CONFIG_GET(string/herald_admin_ckey)))
+		return json_encode(list("error" = "disabled"))
+	var/action = input[keyword]
+	if(!(action in list("reply", "ban", "kick", "pq")))
+		return json_encode(list("error" = "unsupported_action"))
+	var/list/allowed = list(keyword, "round", "ckey", "payload", "minute", "request_id", "operator", "signature")
+	for(var/key in input)
+		if(!(key in allowed))
+			return json_encode(list("error" = "invalid_argument"))
+	var/round_id = input["round"]
+	var/ck = input["ckey"]
+	var/payload = input["payload"]
+	var/stamp = input["minute"]
+	var/request_id = input["request_id"]
+	var/operator = input["operator"]
+	if(!istext(round_id) || !length(round_id) || length(round_id) > 100 || !regex("^\[A-Za-z0-9_.-\]+$").Find(round_id))
+		return json_encode(list("error" = "invalid_argument"))
+	if(!istext(ck) || !length(ck) || length(ck) > 32 || ckey(ck) != ck)
+		return json_encode(list("error" = "invalid_argument"))
+	if(!istext(payload) || length(payload) > 8000)
+		return json_encode(list("error" = "invalid_argument"))
+	if(!istext(stamp) || !regex("^\[0-9\]{1,10}$").Find(stamp) || !istext(request_id) || !regex("^\[a-f0-9\]{32}$").Find(request_id))
+		return json_encode(list("error" = "invalid_argument"))
+	if(!istext(operator) || !length(operator) || length(operator) > 20 || !regex("^\[0-9\]+$").Find(operator))
+		return json_encode(list("error" = "unauthorized"))
+	var/current_minute = round(world.realtime / 600) + 15778080
+	if(abs(text2num(stamp) - current_minute) > 3)
+		return json_encode(list("error" = "expired"))
+	var/payload_hash = rustg_hash_string(RUSTG_HASH_SHA256, payload)
+	var/signed = "admin_request|[action]|[round_id]|[ck]|[payload_hash]|[stamp]|[request_id]|[operator]"
+	if(input["signature"] != herald_read_signature(secret, signed))
+		return json_encode(list("error" = "unauthorized"))
+	var/admin_ckey = admin_identity(operator, action)
+	if(!admin_ckey)
+		return json_encode(list("error" = "admin_rights_denied"))
+	var/list/data
+	try
+		data = json_decode(payload)
+	catch
+		return json_encode(list("error" = "invalid_argument"))
+	if(!validate_payload(action, data))
+		return json_encode(list("error" = "invalid_argument"))
+	if(round_id != "[GLOB.rogue_round_id]")
+		return json_encode(list("error" = "wrong_round"))
+	recover_receipts()
+	var/fingerprint = "[action]|[round_id]|[ck]|[payload_hash]|[operator]"
+	var/list/previous = receipts[request_id]
+	if(previous)
+		if(previous["fingerprint"] != fingerprint)
+			return json_encode(list("error" = "request_id_conflict"))
+		var/list/previous_result = previous["result"]
+		var/list/result = previous_result.Copy()
+		result["duplicate"] = TRUE
+		return envelope(secret, request_id, result)
+	if(busy || world.time < next_action || length(receipts) >= 512)
+		return json_encode(list("error" = "rate_limited_or_full"))
+	next_action = world.time + 2 SECONDS
+	var/list/result = list("action" = action, "round" = round_id, "ckey" = ck, "request_id" = request_id, "status" = "operation_uncertain")
+	// Reserve before any side effect. Never resend after a partial runtime/response loss.
+	receipts[request_id] = list("fingerprint" = fingerprint, "result" = result)
+	if(!persist_receipts())
+		receipts -= request_id
+		return json_encode(list("error" = "receipt_storage_failed"))
+	busy = TRUE
+	try
+		var/list/outcome = execute(action, ck, data, operator, admin_ckey)
+		for(var/key in outcome)
+			result[key] = outcome[key]
+	catch
+		log_admin("Herald admin [action] [request_id] uncertain after an internal error; do not repeat automatically.")
+	busy = FALSE
+	if(!persist_receipts())
+		result["warning"] = "Receipt update failed; the persisted reservation prevents automatic re-execution after restart."
+	log_admin("Herald Discord [operator] / [admin_ckey]: [action] [ck], request [request_id], status [result["status"]].")
+	return envelope(secret, request_id, result)
+
+// Read-only actions remain unchanged; the optional admin endpoint above is opt-in.
 /datum/config_entry/string/herald_readonly_key
 	protection = CONFIG_ENTRY_HIDDEN
 

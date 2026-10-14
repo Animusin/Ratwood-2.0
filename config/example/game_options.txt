@@ -596,3 +596,8 @@ ECONOMY
 ## Custom emote triggers a 3-minute window of the same character's emotes/IC speech.
 ## Separate PRIVATE moderation channel webhook, never reuse either webhook above.
 # WEBHOOK_CUSTOM_EMOTES https://discord.com/api/webhooks/WEBHOOK_ID/WEBHOOK_TOKEN
+
+## Optional fixed admin actions using the SAME HERALD_READONLY_KEY (legacy name).
+## Additional opt-in mapping, not another key. Checked against actual game rights.
+# HERALD_ADMIN_OPERATOR_IDS DISCORD_OWNER_ID
+# HERALD_ADMIN_CKEY YOUR_NORMALIZED_BYOND_ADMIN_CKEY

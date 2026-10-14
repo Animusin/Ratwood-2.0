@@ -28,7 +28,7 @@ def read_exact(stream, length):
 
 def query(port, values):
     raw = ('?' + urlencode(values)).encode('ascii')
-    assert len(raw) <= 2048
+    assert len(raw) <= 16000
     with socket.create_connection(('127.0.0.1', port), timeout=8) as stream:
         stream.sendall(b'\x00\x83' + struct.pack('>H', len(raw) + 6) + b'\0' * 5 + raw + b'\0')
         header = read_exact(stream, 4)
@@ -57,11 +57,31 @@ def validated(port, values):
     return data
 
 
+def admin_request(action, round_id, ck, data, request_id=None):
+    payload = json.dumps(data, ensure_ascii=False, sort_keys=True, separators=(',', ':'))
+    values = {'herald_admin': action, 'round': round_id, 'ckey': ck, 'payload': payload,
+              'minute': str(int(time.time() // 60)), 'request_id': request_id or secrets.token_hex(16), 'operator': '2'}
+    digest = hashlib.sha256(payload.encode()).hexdigest()
+    canonical = f'admin_request|{action}|{round_id}|{ck}|{digest}|{values["minute"]}|{values["request_id"]}|2'
+    values['signature'] = sign(canonical)
+    return values
+
+
+def validated_admin(port, values):
+    envelope = query(port, values)
+    assert 'data' in envelope, envelope
+    assert hmac.compare_digest(envelope['signature'], sign('admin_response|' + values['request_id'] + '|' + envelope['data']))
+    data = json.loads(envelope['data'])
+    assert data['request_id'] == values['request_id'] and data['ckey'] == values['ckey']
+    return data
+
+
 def main():
     port = int(sys.argv[1])
     for action in ('status', 'players', 'character'):
         values = request(action, ckey='notonline' if action == 'character' else '')
-        validated(port, values)
+        snapshot = validated(port, values)
+        round_id = str(snapshot['round'])
         print('PASS local_signed_' + action)
         time.sleep(1.1)
     values = request('status')
@@ -73,6 +93,25 @@ def main():
     invalid['signature'] = '0' * 64
     assert query(port, invalid)['error'] == 'unauthorized'
     print('PASS replay_unsupported_sdql_and_bad_signature_refused')
+    # Isolated probe fake recipient. No live player and no real DB are contacted.
+    reply = admin_request('reply', round_id, 'heraldwire', {'ticket_id': 998, 'text': 'Ответ из Discord 🐟'})
+    assert validated_admin(port, reply)['status'] == 'delivered'
+    duplicate = validated_admin(port, reply)
+    assert duplicate['status'] == 'delivered' and duplicate['duplicate'] == 1
+    print('PASS real_topic_admin_reply_and_idempotent_replay')
+    time.sleep(2.1)
+    pq = admin_request('pq', round_id, 'heraldpqprobe', {'delta': -1, 'reason': 'Local wire check'})
+    result = validated_admin(port, pq)
+    assert result['status'] == 'pq_adjusted' and result['before'] == 35 and result['after'] == 34
+    assert validated_admin(port, pq)['duplicate'] == 1
+    print('PASS real_topic_pq_change_and_idempotent_replay')
+    bad = admin_request('kick', 'previous_round', 'notonline', {'reason': 'test'})
+    assert query(port, bad)['error'] == 'wrong_round'
+    bad = admin_request('kick', round_id, 'notonline', {'reason': 'test'})
+    bad['signature'] = '0'*64
+    assert query(port, bad)['error'] == 'unauthorized'
+    assert query(port, {'herald_admin': 'sdql'})['error'] == 'unsupported_action'
+    print('PASS admin_old_round_bad_signature_and_arbitrary_command_refused')
 
 
 if __name__ == '__main__':

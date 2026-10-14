@@ -178,6 +178,7 @@ var/global/datum/herald_game_probe/herald_game_probe = new
 	SSahelp_relay.persist()
 	CONFIG_SET(string/webhook_adminhelp, "")
 	test_emote_relay()
+	test_admin_actions()
 	var/mob/living/carbon/human/consistent/M = new(locate(1, 1, 1))
 	M.name = "Herald Probe"
 	GLOB.player_list |= M
@@ -201,3 +202,155 @@ var/global/datum/herald_game_probe/herald_game_probe = new
 		qdel(Q)
 	check("sdql_did_not_mutate_character", !QDELETED(M) && M.health == old_health && M.stat == old_stat && M.loc == old_location && M.name == "Herald Probe")
 	qdel(M)
+
+// Test-only identities and database seam; never loaded by production roguetown.dme.
+/datum/admins/herald_probe/New(datum/admin_rank/R, ck)
+	rank = R
+	target = ck
+
+/datum/admin_help/herald_reply_probe
+	var/reply_count = 0
+
+/datum/admin_help/herald_reply_probe/New()
+	id = 997
+	initiator_ckey = "heraldtarget"
+	_interactions = list()
+
+/datum/admin_help/herald_reply_probe/HeraldReply(operator, message, admin_ckey)
+	reply_count++
+	AddInteraction("PM from [admin_ckey] via Herald Discord [operator]: [herald_ahelp_body(message)]")
+	return "delivered" // Fake recipient; real client delivery requires deployment testing.
+
+/datum/DBQuery/herald_admin_probe/New(sql_text, list/args)
+	sql = sql_text
+	arguments = args
+	rows = list()
+	if(findtext(sql, "SELECT ckey"))
+		rows = list(list("heraldtarget"))
+	if(findtext(sql, "INSERT INTO") && findtext(sql, "(bantime"))
+		last_insert_id = 77
+
+/datum/DBQuery/herald_admin_probe/Execute(async = TRUE, log_error = TRUE)
+	return TRUE
+
+/datum/herald_game_operations/herald_probe
+	var/list/queries = list()
+	var/ban_inserts = 0
+
+/datum/herald_game_operations/herald_probe/connect_database()
+	return TRUE
+
+/datum/herald_game_operations/herald_probe/new_query(sql, list/arguments)
+	queries += list(list("sql" = sql, "arguments" = arguments))
+	if(findtext(sql, "INSERT INTO") && findtext(sql, "(bantime"))
+		ban_inserts++
+	return new /datum/DBQuery/herald_admin_probe(sql, arguments)
+
+/datum/herald_game_probe/proc/admin_sign(list/input)
+	var/payload_hash = rustg_hash_string(RUSTG_HASH_SHA256, input["payload"])
+	var/signed = "admin_request|[input["herald_admin"]]|[input["round"]]|[input["ckey"]]|[payload_hash]|[input["minute"]]|[input["request_id"]]|[input["operator"]]"
+	input["signature"] = herald_read_signature(CONFIG_GET(string/herald_readonly_key), signed)
+	return input
+
+/datum/herald_game_probe/proc/admin_request(action, ck, list/data, request_id)
+	return admin_sign(list("herald_admin" = action, "round" = "[GLOB.rogue_round_id]", "ckey" = ck,
+		"payload" = json_encode(data), "minute" = num2text(round(world.realtime / 600) + 15778080, 10), "request_id" = request_id, "operator" = "2"))
+
+/datum/herald_game_probe/proc/admin_result(datum/world_topic/herald_admin/api, list/input)
+	var/list/envelope = json_decode(api.TryRun(input))
+	if(envelope["data"])
+		check("signed_admin_response", envelope["signature"] == herald_read_signature(CONFIG_GET(string/herald_readonly_key), "admin_response|[input["request_id"]]|[envelope["data"]]"))
+		return json_decode(envelope["data"])
+	return envelope
+
+/datum/herald_game_probe/proc/test_admin_actions()
+	// The tiny probe stays in the lobby, before normal round ID assignment.
+	GLOB.rogue_round_id = "HeraldProbe1"
+	check("admin_mapping_loaded_from_main_config", CONFIG_GET(string/herald_admin_operator_ids) == "2" && CONFIG_GET(string/herald_admin_ckey) == "heraldadminprobe")
+	var/datum/admin_rank/R = new("Herald local probe", R_ADMIN | R_BAN | R_AHELP)
+	var/datum/admins/herald_probe/holder = new(R, "heraldadminprobe")
+	GLOB.admin_datums["heraldadminprobe"] = holder
+	var/datum/admin_help/herald_reply_probe/ticket = new
+	GLOB.ahelp_tickets.active_tickets += ticket
+	var/datum/admin_help/herald_reply_probe/wire_ticket = new
+	wire_ticket.id = 998
+	wire_ticket.initiator_ckey = "heraldwire"
+	GLOB.ahelp_tickets.active_tickets += wire_ticket
+	var/datum/herald_game_operations/herald_probe/ops = new
+	GLOB.herald_game_operations = ops // Every SQL query is mocked for the local wire test too.
+	var/datum/world_topic/herald_admin/api = new
+	var/list/reply = admin_request("reply", "heraldtarget", list("ticket_id" = 997, "text" = "Привет 🐟 <script>нет</script>\nОтвет"), "11111111111111111111111111111111")
+	CONFIG_SET(string/herald_admin_operator_ids, "")
+	var/list/result = admin_result(api, reply)
+	check("admin_write_disabled_without_mapping", result["error"] == "disabled")
+	CONFIG_SET(string/herald_admin_operator_ids, "2")
+	result = admin_result(api, reply)
+	check("ahelp_reply_recorded_once", result["status"] == "delivered" && ticket.reply_count == 1 && length(ticket._interactions) == 1, json_encode(result))
+	if(!length(ticket._interactions))
+		return
+	check("reply_html_is_literal", findtext(ticket._interactions[1], "&lt;script&gt;") && !findtext(ticket._interactions[1], "<script>") && findtext(ticket._interactions[1], "Привет"))
+	result = admin_result(api, reply)
+	check("ahelp_retry_idempotent", result["duplicate"] && ticket.reply_count == 1)
+	var/list/conflict = reply.Copy()
+	conflict["payload"] = json_encode(list("ticket_id" = 997, "text" = "Другой текст"))
+	result = admin_result(api, admin_sign(conflict))
+	check("request_id_conflict_denied", result["error"] == "request_id_conflict")
+	var/list/invalid = reply.Copy()
+	invalid["signature"] = "bad"
+	result = admin_result(api, invalid)
+	check("admin_bad_signature_denied", result["error"] == "unauthorized")
+	invalid = reply.Copy()
+	invalid["operator"] = "3"
+	result = admin_result(api, admin_sign(invalid))
+	check("admin_operator_not_allowlisted_denied", result["error"] == "admin_rights_denied")
+	invalid = reply.Copy()
+	invalid["round"] = "not_this_round"
+	result = admin_result(api, admin_sign(invalid))
+	check("old_round_write_denied", result["error"] == "wrong_round")
+	invalid = reply.Copy()
+	invalid["query"] = "SELECT * FROM world"
+	result = admin_result(api, invalid)
+	check("extra_sql_arguments_denied", result["error"] == "invalid_argument")
+	invalid = reply.Copy()
+	invalid["herald_admin"] = "proccall"
+	result = admin_result(api, invalid)
+	check("arbitrary_admin_action_denied", result["error"] == "unsupported_action")
+	var/path = "data/player_saves/h/heraldpqprobe/preferences.sav"
+	text2file("probe", path)
+	text2file("{\"heraldpqprobe\":40}", "data/player_saves/h/heraldpqprobe/pq_num.json")
+	var/list/pq = admin_request("pq", "heraldpqprobe", list("delta" = -10, "reason" = "Проверка"), "22222222222222222222222222222222")
+	api.next_action = 0
+	result = admin_result(api, pq)
+	check("real_pq_deduction_persisted", result["status"] == "pq_adjusted" && result["before"] == 40 && result["after"] == 30 && get_playerquality("heraldpqprobe") == 30)
+	result = admin_result(api, pq)
+	check("pq_retry_does_not_double_deduct", result["duplicate"] && get_playerquality("heraldpqprobe") == 30)
+	api.next_action = 0
+	result = admin_result(api, admin_request("pq", "heraldpqprobe", list("delta" = 5, "reason" = "Возврат"), "33333333333333333333333333333333"))
+	check("real_pq_award_persisted", result["status"] == "pq_adjusted" && get_playerquality("heraldpqprobe") == 35)
+	var/list/ban_request = admin_request("ban", "heraldtarget", list("minutes" = 60, "reason" = "x'); DROP TABLE ban; --"), "44444444444444444444444444444444")
+	api.next_action = 0
+	result = admin_result(api, ban_request)
+	check("ban_uses_standard_table_with_mock_database", result["status"] == "banned" && result["ban_id"] == 77 && ops.ban_inserts == 1)
+	var/list/insert = ops.queries[3]
+	var/list/arguments = insert["arguments"]
+	check("ban_values_parameterized_not_sql", !findtext(insert["sql"], "DROP TABLE") && findtext(arguments["reason"], "DROP TABLE") && arguments["admin_ckey"] == "heraldadminprobe" && arguments["minutes"] == 60)
+	result = admin_result(api, ban_request)
+	check("ban_retry_does_not_repeat_insert", result["duplicate"] && ops.ban_inserts == 1)
+	GLOB.admin_datums["heraldprotected"] = holder
+	api.next_action = 0
+	result = admin_result(api, admin_request("kick", "heraldprotected", list("reason" = "test"), "55555555555555555555555555555555"))
+	check("staff_cannot_be_kicked", result["status"] == "admin_target_protected")
+	api.next_action = 0
+	result = admin_result(api, admin_request("kick", "notonline", list("reason" = "test"), "66666666666666666666666666666666"))
+	check("offline_kick_not_claimed_success", result["status"] == "player_not_connected")
+	R.rights = R_AHELP
+	result = admin_result(api, admin_sign(ban_request.Copy()))
+	check("game_admin_rights_rechecked_even_for_retry", result["error"] == "admin_rights_denied")
+	R.rights = R_ADMIN | R_BAN | R_AHELP
+	api.receipts = list()
+	api.generation = 0
+	api.recovered = FALSE
+	api.next_action = 0
+	result = admin_result(api, pq)
+	check("server_receipts_recovered_without_duplicate_pq", result["duplicate"] && get_playerquality("heraldpqprobe") == 35)
+	api.next_action = 0

@@ -1,0 +1,262 @@
+//MAP CONVERTED BY dmm2tgm.py THIS HEADER COMMENT PREVENTS RECONVERSION, DO NOT REMOVE
+"aa" = (
+/turf/closed/indestructible/housing_void,
+/area/rogue/indoors/supporter_housing)
+"eY" = (
+/obj/structure/table/wood,
+/turf/open/floor/rogue/ruinedwood,
+/area/rogue/indoors/supporter_housing)
+"gZ" = (
+/obj/structure/chair/wood/rogue,
+/turf/open/floor/rogue/ruinedwood,
+/area/rogue/indoors/supporter_housing)
+"hh" = (
+/turf/open/floor/rogue/ruinedwood,
+/area/rogue/indoors/supporter_housing)
+"iJ" = (
+/obj/structure/mineral_door/wood/housing,
+/turf/open/floor/rogue/housing_foyer,
+/area/rogue/indoors/supporter_housing)
+"jw" = (
+/turf/closed/wall/mineral/rogue/wood,
+/area/rogue/indoors/supporter_housing)
+"np" = (
+/obj/structure/bed/rogue/shit,
+/turf/open/floor/rogue/ruinedwood,
+/area/rogue/indoors/supporter_housing)
+"qm" = (
+/obj/structure/fluff/traveltile/housing,
+/turf/open/floor/rogue/housing_foyer,
+/area/rogue/indoors/supporter_housing)
+"sd" = (
+/obj/structure/bell_common/housing,
+/turf/open/floor/rogue/ruinedwood,
+/area/rogue/indoors/supporter_housing)
+"wp" = (
+/turf/closed/indestructible/housing_hedge,
+/area/rogue/indoors/supporter_housing)
+"QC" = (
+/turf/open/floor/rogue/housing_foyer,
+/area/rogue/indoors/supporter_housing)
+
+(1,1,1) = {"
+aa
+aa
+aa
+aa
+aa
+aa
+aa
+aa
+aa
+aa
+aa
+aa
+aa
+aa
+aa
+"}
+(2,1,1) = {"
+aa
+wp
+wp
+wp
+wp
+wp
+wp
+wp
+wp
+wp
+wp
+wp
+wp
+wp
+aa
+"}
+(3,1,1) = {"
+aa
+wp
+jw
+jw
+jw
+jw
+jw
+jw
+jw
+jw
+wp
+wp
+wp
+wp
+aa
+"}
+(4,1,1) = {"
+aa
+wp
+jw
+hh
+np
+hh
+hh
+hh
+hh
+jw
+wp
+wp
+wp
+wp
+aa
+"}
+(5,1,1) = {"
+aa
+wp
+jw
+hh
+hh
+hh
+hh
+hh
+hh
+jw
+wp
+wp
+wp
+wp
+aa
+"}
+(6,1,1) = {"
+aa
+wp
+jw
+hh
+hh
+hh
+hh
+hh
+hh
+jw
+jw
+jw
+jw
+wp
+aa
+"}
+(7,1,1) = {"
+aa
+wp
+jw
+hh
+hh
+hh
+hh
+sd
+hh
+iJ
+QC
+QC
+qm
+wp
+aa
+"}
+(8,1,1) = {"
+aa
+wp
+jw
+hh
+hh
+gZ
+hh
+hh
+hh
+jw
+jw
+jw
+jw
+wp
+aa
+"}
+(9,1,1) = {"
+aa
+wp
+jw
+hh
+hh
+eY
+hh
+hh
+hh
+jw
+wp
+wp
+wp
+wp
+aa
+"}
+(10,1,1) = {"
+aa
+wp
+jw
+hh
+hh
+gZ
+hh
+hh
+hh
+jw
+wp
+wp
+wp
+wp
+aa
+"}
+(11,1,1) = {"
+aa
+wp
+jw
+jw
+jw
+jw
+jw
+jw
+jw
+jw
+wp
+wp
+wp
+wp
+aa
+"}
+(12,1,1) = {"
+aa
+wp
+wp
+wp
+wp
+wp
+wp
+wp
+wp
+wp
+wp
+wp
+wp
+wp
+aa
+"}
+(13,1,1) = {"
+aa
+aa
+aa
+aa
+aa
+aa
+aa
+aa
+aa
+aa
+aa
+aa
+aa
+aa
+aa
+"}

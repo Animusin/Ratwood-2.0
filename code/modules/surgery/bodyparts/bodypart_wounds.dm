@@ -107,10 +107,27 @@
 		return FALSE
 	return TRUE
 
+/// Sums the bleed rate a tourniquet can pinch off: mortal wounds, anything rated
+/// CRITICAL or worse, and any wound bleeding at artery level or above (which is what
+/// a fully upgraded "lethal" slash reaches). Bone injuries such as fractures are
+/// deliberately excluded - they rate only SEVERE and bleed far below artery level,
+/// and a tourniquet has nothing to do with setting a broken bone.
+/obj/item/bodypart/proc/get_lethal_bleed_rate()
+	var/lethal_rate = 0
+	for(var/datum/wound/wound as anything in wounds)
+		if(isnull(wound) || !istype(wound, /datum/wound))
+			continue
+		if(wound.mortal || wound.severity >= WOUND_SEVERITY_CRITICAL || wound.bleed_rate >= ARTERY_LIMB_BLEEDRATE)
+			lethal_rate += wound.bleed_rate
+	return lethal_rate
+
 /// Returns the total bleed rate on this bodypart
 /obj/item/bodypart/proc/get_bleed_rate()
 	var/bleed_rate = bleeding
-	if(bandage && !HAS_BLOOD_DNA(bandage))
+	var/is_tourniquet = istype(bandage, /obj/item/natural/cloth/tourniquet)
+	if(is_tourniquet)
+		bleed_rate = max(bleed_rate - get_lethal_bleed_rate(), 0)
+	if(bandage && !is_tourniquet && !HAS_BLOOD_DNA(bandage))
 		process_bandage(bleed_rate)
 		var/obj/item/natural/cloth/cloth = bandage
 		bleed_rate *= cloth.bandage_effectiveness
@@ -139,7 +156,10 @@
 /// Returns the bleed amount that matters for HUD visuals without mutating bandages.
 /obj/item/bodypart/proc/get_hud_bleed_rate()
 	var/hud_bleed_rate = bleeding
-	if(bandage && !HAS_BLOOD_DNA(bandage))
+	var/is_tourniquet = istype(bandage, /obj/item/natural/cloth/tourniquet)
+	if(is_tourniquet)
+		hud_bleed_rate = max(hud_bleed_rate - get_lethal_bleed_rate(), 0)
+	if(bandage && !is_tourniquet && !HAS_BLOOD_DNA(bandage))
 		var/obj/item/natural/cloth/cloth = bandage
 		if(istype(cloth))
 			hud_bleed_rate *= cloth.bandage_effectiveness
@@ -626,12 +646,17 @@
 		return FALSE
 	bandage = new_bandage
 	new_bandage.forceMove(src)
+	if(istype(new_bandage, /obj/item/natural/cloth))
+		var/obj/item/natural/cloth/cloth = new_bandage
+		cloth.on_bandaged(owner, src)
 	owner?.mark_zone_selector_hud_dirty()
 	return TRUE
 
 /obj/item/bodypart/proc/process_bandage(bleed_rate)
 	if(!bandage)
 		return FALSE
+	if(istype(bandage, /obj/item/natural/cloth/tourniquet))
+		return FALSE // tourniquets are never soiled by blood; they stop the flow instead
 	var/obj/item/natural/cloth/cloth
 	if(istype(bandage, /obj/item/natural/cloth))
 		cloth = bandage
@@ -662,6 +687,8 @@
 		return FALSE
 	if(!bandage)
 		return FALSE
+	if(istype(bandage, /obj/item/natural/cloth/tourniquet))
+		return FALSE
 	if(owner.stat != DEAD)
 		owner.visible_message(span_warning("Blood soaks through the bandage on [owner]'s [name]."), span_warning("Blood soaks through the bandage on my [name]."), vision_distance = 3)
 	owner.mark_zone_selector_hud_dirty()
@@ -670,6 +697,9 @@
 /obj/item/bodypart/proc/remove_bandage()
 	if(!bandage)
 		return FALSE
+	if(istype(bandage, /obj/item/natural/cloth))
+		var/obj/item/natural/cloth/cloth = bandage
+		cloth.on_unbandaged(owner, src)
 	var/drop_location = owner?.drop_location() || drop_location()
 	if(drop_location)
 		bandage.forceMove(drop_location)

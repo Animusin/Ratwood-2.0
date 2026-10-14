@@ -303,10 +303,14 @@ GLOBAL_LIST_INIT(primordial_wounds, init_primordial_wounds())
 
 /// Called on handle_wounds(), on the life() proc
 /datum/wound/proc/on_life()
-	if(!isnull(clotting_threshold) && clotting_rate && (bleed_rate > clotting_threshold))
-		set_bleed_rate(max(clotting_threshold, bleed_rate - clotting_rate))
-	if(owner.stat != DEAD && passive_healing) // passive healing is only called if we're like, you know, alive
-		heal_wound(passive_healing)
+	// An artery under a tourniquet is starved of blood: it must not clot or heal,
+	// or the bleeding would be permanently lost once the tourniquet is removed.
+	var/pinned = istype(src, /datum/wound/artery) && bodypart_owner && istype(bodypart_owner.bandage, /obj/item/natural/cloth/tourniquet)
+	if(!pinned)
+		if(!isnull(clotting_threshold) && clotting_rate && (bleed_rate > clotting_threshold))
+			set_bleed_rate(max(clotting_threshold, bleed_rate - clotting_rate))
+		if(owner.stat != DEAD && passive_healing) // passive healing is only called if we're like, you know, alive
+			heal_wound(passive_healing)
 	return TRUE
 
 /// Called on handle_wounds(), on the life() proc

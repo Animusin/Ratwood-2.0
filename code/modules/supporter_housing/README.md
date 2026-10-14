@@ -9,9 +9,12 @@ home during the round.
 
 ## Scope and activation
 
+Russian deployment guide for the server programmer:
+[`docs/supporter-housing-setup.md`](../../../docs/supporter-housing-setup.md).
+
 The feature is disabled by default. Before a controlled server trial:
 
-1. Apply `SQL/supporter_housing.sql` to the **game** database. If a table prefix is
+1. Apply `SQL/supporter_housing.sql` to the **game** database. If `FEEDBACK_TABLEPREFIX` is
    configured, use it in the migration. The donation database remains the authority
    for subscription eligibility; no subscription records are modified.
 2. Add `SUPPORTER_HOUSING` to the server configuration.

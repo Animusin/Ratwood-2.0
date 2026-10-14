@@ -1,5 +1,5 @@
 -- Apply to the GAME database before enabling SUPPORTER_HOUSING.
--- If sql_table_prefix is configured, prefix the table name accordingly.
+-- If FEEDBACK_TABLEPREFIX is configured, prefix the table name accordingly.
 -- A single InnoDB statement atomically replaces each bounded decor snapshot.
 CREATE TABLE IF NOT EXISTS `supporter_housing` (
   `ckey` varchar(32) NOT NULL,

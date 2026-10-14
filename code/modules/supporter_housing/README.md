@@ -45,7 +45,7 @@ in the round after a role change and remains accessible using normal keys/follow
 
 ## Sizes and budgets
 
-| Subscription | Plot including boundary | Active furnishings | Workstations | Lights |
+| Subscription | Plot including boundary | Active items including contents | Workstations | Lights |
 |---|---:|---:|---:|---:|
 | Wizard | 13 x 15 | 40 | 2 | 8 |
 | Cultist | 17 x 19 | 80 | 4 | 12 |
@@ -60,7 +60,7 @@ and candlesticks are available at Wizard.
 A single lazily allocated Z-level contains at most **60 homes**, in separate
 28 x 28 cells. Its dimensions follow the running world, without increasing X/Y.
 Interiors load only on first use, with no per-house polling subsystem. Saves are
-limited to 160 furnishings including the archive, 64 changed terrain cells, and
+limited to 160 items including contents and the archive, 64 changed terrain cells, and
 60,000 ASCII JSON characters per account. At most three furnishings may share a
 tile, with at most one dense furnishing; large bounds must fit within the home.
 Save attempts are limited to once a minute.
@@ -93,6 +93,11 @@ minimum subscription/layout requirements and placement/capacity conflicts. The
 owner gets a short hint on their first conscious entrance each round. Save and
 craft failures report the specific budget or offending furnishing/terrain.
 
+The bell explicitly shows **N/40, N/80 or N/120 items**, including the number
+inside containers. A chest with ten approved cups uses eleven places. Archived
+items, including packed contents, also count toward the separate 160-item storage
+cap. Wall/floor changes retain their separate 64-record limit.
+
 Records contain an exact approved type, relative X/Y, direction and a hex colour.
 Terrain changes add `kind = wall`; only approved ordinary walls and floors are
 accepted. Original wall removal, added partitions and painting are retained.
@@ -112,13 +117,40 @@ Items use a separate explicit crockery/lighting list. Exclusions include the lar
 steel furnace, stairs and ladders, floor passages, apiaries, infernal engines,
 antagonist altars/wonders, and service trading/communication machines.
 
-No mobs, bodies, loose loot, container inventories, liquids, fuel, workpieces,
-production queues, fire or arbitrary object vars are serialized. New fixtures
-load empty and burning machinery loads extinguished. Restored objects have zero
+Approved small items directly inside approved closet-based furniture (chests,
+drawers and cupboards) are saved with their container, up to its native capacity
+or 30 items, whichever is lower. Each child records only its approved type,
+direction and colour. Nested bags, machine inputs, unapproved loot, mobs, bodies,
+liquids, fuel, workpieces, production queues, fire and arbitrary object vars are
+excluded. Close filled containers before saving; opening one puts its contents on
+the floor, where the normal overlap limits apply. A container and its contents are
+restored or archived together, including when their combined count exceeds the
+current tier's item/light limits. Old saves without contents remain compatible;
+the JSON format expands inside the existing column, with no new SQL migration.
+New fixtures lose generated contents before approved saved children are restored.
+Burning machinery loads extinguished. Restored objects and stored items have zero
 sale value even after derived-price, loot and glaze adjustments; they cannot be
 smelted or dismantled into materials. Walls/doors retain ordinary damage behavior.
 Custom sign text, wiring, mechanical network connections, object integrity and
 per-object production state are outside this prototype's record format.
+
+## Admin testing without Patreon or databases
+
+With `R_ADMIN`, take control of a human on an ordinary floor outside a supporter
+home and open **Admin > Test Supporter Home**. Select **Set test subscription**
+for Wizard/Cultist/Assistant, then **Create / enter**. Ring the bell to preview and
+save, and use **Reload saved test home** to exercise restoration or tier changes.
+The entrance portal is limited to the owning admin; return remains possible after
+rights are lost. Test saving bypasses the donor, job and save-cooldown checks, but
+still validates ownership/admin rights, item budgets, layout and fire/combat.
+
+**Expired**, **Service unavailable**, and **Toggle storage outage** exercise failed
+creation/saving while retaining the existing test home and snapshot. Reloading
+requires confirmation, evacuates occupants, deletes objects left in the test plot
+and reuses that same reserved plot. **Return outside** leaves the test area.
+Test snapshots live only in memory until round end and use no SQL or Patreon
+connection. Normal house records and real subscription levels are never changed.
+Testing works with the feature flag off and uses the shared, bounded home atlas.
 
 ## Passage behavior
 
@@ -147,15 +179,19 @@ wall restoration, doors, timed prisoner passage, death/exit behavior, constructo
 inventories, and the 60-plot limit. It also loads 120 simple decorations in each
 stress-test manor. The storage probe replaces the SQL transport while exercising
 the production read/write methods, including insert/update collisions, outages,
-and corrupt JSON. The real databases are not touched. The final probe passed 738
+and corrupt JSON. The real databases are not touched. The final probe passed 799
 checks without failures or runtime errors, including retrying an interrupted home
 creation without another plot or database read, dark-wood window persistence,
 unsupported terrain rejection and window lock directions. Its 60 homes, with
-roughly 7,000 simple furnishings, loaded in 11.58 seconds; peak working set of the
-entire isolated process was 696 MiB. Feedback checks cover dirty-state comparisons,
+roughly 7,000 simple furnishings, loaded in 14.22 seconds; peak working set of the
+entire isolated process was 672 MiB. Feedback checks cover dirty-state comparisons,
 archive explanations, removal/omission previews, specific errors, owner-only status,
 one-time welcome, cancelled/changed confirmations, successful saves and failed-write
-preservation. Confirmation and SQL are simulated; actual client dialog presentation
+preservation. Container/admin checks cover strict child schemas, shared budgets,
+storage movement, whole-container downgrade/upgrade archives, empty liquids and
+zero-value restored contents, isolated memory saves, simulated outages/expiry,
+revoked authorization and reuse of the same test plot. Positive admin authorization,
+confirmation and SQL are simulated; actual client dialog presentation
 still needs an in-game check. The full BYOND 516.1687 build had no errors or warnings and
 all three home templates passed maplint. Actual Rockhill, Desert Town and Dun
 World configs were checked for generic-door access, workshop exclusion and atlas

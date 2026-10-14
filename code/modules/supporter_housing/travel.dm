@@ -76,6 +76,8 @@
 		try_living_travel(null, user)
 
 /obj/structure/fluff/traveltile/housing/attack_ghost(mob/dead/observer/user)
+	if(is_exterior && home?.test_session && !home.test_session.authorized(user))
+		return
 	if(home)
 		user.forceMove(is_exterior ? get_turf(home.exit) : home.outside)
 
@@ -123,6 +125,8 @@
 	if(!home || home.transferring || !isliving(mover))
 		return FALSE
 	var/mob/living/user = mover
+	if(is_exterior && home.test_session && !home.test_session.authorized(user))
+		return FALSE
 	if(is_exterior && home.exterior?.density)
 		return FALSE
 	if(!user.Adjacent(src) || user.incapacitated() || world.time < user.recent_travel + 15 SECONDS)

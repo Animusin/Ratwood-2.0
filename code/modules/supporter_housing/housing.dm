@@ -153,29 +153,35 @@ GLOBAL_DATUM_INIT(supporter_housing, /datum/supporter_housing, new)
 	var/columns = FLOOR((world.maxx - 2) / HOUSING_CELL_SIZE, 1)
 	var/x = 2 + (slots_used % columns) * HOUSING_CELL_SIZE
 	var/y = 2 + FLOOR(slots_used / columns, 1) * HOUSING_CELL_SIZE
+	var/datum/supporter_home/home = load_home_at(owner_ckey, tier, saved, x, y)
+	// A failed load may have placed part of a map: never allocate over that plot.
+	slots_used++
+	if(home)
+		homes[owner_ckey] = home
+	loading = FALSE
+	return home
+
+// Caller holds loading and owns the plot. Admin reloads reuse their reserved plot.
+/datum/supporter_housing/proc/load_home_at(owner_ckey, tier, list/saved, x, y)
+	var/list/records = validate_records(saved["records"])
+	if(isnull(records))
+		return null
 	var/list/profile = profiles[tier]
 	var/datum/map_template/template = new(profile["template"])
 	var/list/bounds = template.load(locate(x, y, level.z_value))
 	qdel(template)
 	if(!bounds)
-		loading = FALSE
 		return
 	var/datum/supporter_home/home = new(src, owner_ckey, tier, x, y, level.z_value)
 	if(!home.setup(records, saved["found"], saved["revision"]))
-		// Never allocate over a partial load in this round.
-		slots_used++
-		loading = FALSE
 		qdel(home)
 		return
-	homes[owner_ckey] = home
 	home.last_saved_age = saved["saved_age"]
 	home.last_saved_seen = world.time
-	slots_used++
-	loading = FALSE
 	return home
 
 /datum/supporter_housing/proc/valid_record(list/record)
-	if(!islist(record) || length(record) > 7 || !istext(record["type"]))
+	if(!islist(record) || length(record) > 8 || !istext(record["type"]))
 		return FALSE
 	if(!isnull(record["archived"]) && record["archived"] != TRUE)
 		return FALSE
@@ -183,7 +189,7 @@ GLOBAL_DATUM_INIT(supporter_housing, /datum/supporter_housing, new)
 	if(is_wall ? !wall_types[record["type"]] : (!isnull(record["kind"]) || !decor_types[record["type"]]))
 		return FALSE
 	for(var/field in record)
-		if(!(field in list("type", "x", "y", "dir", "color", "kind", "archived")))
+		if(!(field in list("type", "x", "y", "dir", "color", "kind", "archived", "contents")))
 			return FALSE
 	var/x = record["x"]
 	var/y = record["y"]
@@ -196,6 +202,15 @@ GLOBAL_DATUM_INIT(supporter_housing, /datum/supporter_housing, new)
 	var/static/regex/color_pattern = regex("^#\[0-9a-fA-F\]{6}$")
 	if(!isnull(decor_color) && (!istext(decor_color) || length(decor_color) != 7 || !color_pattern.Find(decor_color)))
 		return FALSE
+	if("contents" in record)
+		if(is_wall || !is_home_storage(decor_types[record["type"]]) || !islist(record["contents"]))
+			return FALSE
+		var/obj/structure/closet/container_type = decor_types[record["type"]]
+		if(length(record["contents"]) > min(30, initial(container_type.storage_capacity)))
+			return FALSE
+		for(var/list/child as anything in record["contents"])
+			if(!valid_stored_item(child))
+				return FALSE
 	return TRUE
 
 /datum/supporter_housing/proc/validate_records(list/records)
@@ -217,7 +232,7 @@ GLOBAL_DATUM_INIT(supporter_housing, /datum/supporter_housing, new)
 			if(!record["archived"])
 				wall_tiles[tile_id] = TRUE
 			continue
-		decor_count++
+		decor_count += record_size(record)
 		if(decor_count > 160)
 			return null
 		if(record["archived"])

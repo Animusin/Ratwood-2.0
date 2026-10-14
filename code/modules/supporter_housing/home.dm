@@ -17,6 +17,7 @@
 	var/last_saved_age
 	var/last_saved_seen = 0
 	var/owner_welcomed = FALSE
+	var/datum/housing_test_session/test_session
 	var/transferring = FALSE
 	var/obj/structure/mineral_door/exterior
 	var/obj/structure/mineral_door/wood/housing/interior
@@ -86,20 +87,22 @@
 			continue
 		var/turf/destination = locate(x + record["x"] - 1, y + record["y"] - 1, z)
 		var/path = manager.decor_types[record["type"]]
-		var/workstation = manager.is_workstation(path)
-		var/is_light = manager.is_light(path)
-		if(!placement_fits(path, destination) || !restore_slot_available(path, destination) || restored >= decor_limit || manager.decor_tiers[record["type"]] > tier || (workstation && stations >= tier * 2) || (is_light && lights >= tier * 4 + 4))
+		var/workstation = manager.record_category_count(record, "station")
+		var/is_light = manager.record_category_count(record, "light")
+		var/record_size = manager.record_size(record)
+		if(!placement_fits(path, destination) || !restore_slot_available(path, destination) || restored + record_size > decor_limit || manager.record_required_tier(record) > tier || stations + workstation > tier * 2 || lights + is_light > tier * 4 + 4)
 			archive += list(record.Copy())
 			continue
 		var/obj/decor = new path(destination)
 		manager.prepare_restored(decor)
+		unpack_contents(decor, record)
 		decor.dir = record["dir"]
 		if(istype(decor, /obj/structure/roguewindow/openclose))
 			var/obj/structure/roguewindow/openclose/window = decor
 			window.lockdir = window.dir
 		if(record["color"])
 			decor.color = record["color"]
-		restored++
+		restored += record_size
 		stations += workstation
 		lights += is_light
 	if(!found)
@@ -217,11 +220,13 @@
 			if(tile_count > 3 || dense_count > 1)
 				snapshot_error = "Too many furnishings share the space around [initial(decor.name)]. Separate them (at most 3 small objects or 1 solid furnishing per tile)."
 				return null
-			active_count++
-			stations += manager.is_workstation(decor.type)
-			lights += manager.is_light(decor.type)
-			// Contents, integrity, scripts, custom names and arbitrary vars are never serialized.
+			// Only approved small items in furniture storage may add bounded contents.
 			var/list/record = list("type" = "[decor.type]", "x" = tile.x - x + 1, "y" = tile.y - y + 1, "dir" = decor.dir, "color" = istext(decor.color) ? decor.color : null)
+			if(!pack_contents(decor, record))
+				return null
+			active_count += manager.record_size(record)
+			stations += manager.record_category_count(record, "station")
+			lights += manager.record_category_count(record, "light")
 			if(!manager.valid_record(record))
 				snapshot_error = "[initial(decor.name)] has an unsupported facing or paint colour. Rotate it to a cardinal direction or remove its paint."
 				return null
@@ -234,10 +239,12 @@
 		inactive_record["archived"] = TRUE
 		records += list(inactive_record)
 	var/wall_count = 0
+	var/stored_items = 0
 	for(var/list/record as anything in records)
 		wall_count += record["kind"] == "wall" ? 1 : 0
-	if(wall_count > 64 || length(records) - wall_count > 160)
-		snapshot_error = "Saved storage is full, including the archive: furnishings [length(records) - wall_count]/160, wall and floor changes [wall_count]/64. Remove furnishings or undo structural changes before saving."
+		stored_items += record["kind"] == "wall" ? 0 : manager.record_size(record)
+	if(wall_count > 64 || stored_items > 160)
+		snapshot_error = "Saved storage is full, including the archive: items [stored_items]/160, wall and floor changes [wall_count]/64. Remove furnishings or undo structural changes before saving."
 		return null
 	if(length(json_encode(records)) > 60000)
 		snapshot_error = "This layout is too large to save. Reduce the furnishings or wall changes."
@@ -252,12 +259,12 @@
 	if(!user || user.ckey != owner_ckey)
 		to_chat(user, span_warning("Only the homeowner can save this home."))
 		return FALSE
-	if(!manager.eligible_resident(user))
+	if(!save_role_allowed(user))
 		to_chat(user, span_warning("Saving requires a city, Mercenary or Adventurer profession. Your saved home is kept."))
 		return FALSE
 	if(!user.Adjacent(bell) || user.incapacitated() || saving)
 		return FALSE
-	if(world.time < last_save_attempt + HOUSING_SAVE_COOLDOWN)
+	if(!test_session && world.time < last_save_attempt + HOUSING_SAVE_COOLDOWN)
 		to_chat(user, span_warning("Try saving again in [ceil((last_save_attempt + HOUSING_SAVE_COOLDOWN - world.time) / 10)] seconds."))
 		return FALSE
 	if(has_fire_or_combat())
@@ -271,40 +278,45 @@
 		return FALSE
 	var/choice = confirm_save(user, preview)
 	var/success = FALSE
-	if(choice == "Save" && user?.ckey == owner_ckey && manager.eligible_resident(user) && user.Adjacent(bell) && !user.incapacitated())
+	if(choice == "Save" && user?.ckey == owner_ckey && save_role_allowed(user) && user.Adjacent(bell) && !user.incapacitated())
 		last_save_attempt = world.time
-		var/profile = manager.subscription_profile(user)
+		var/profile = test_session ? test_session.subscription_profile(user) : manager.subscription_profile(user)
 		if(isnull(profile))
 			to_chat(user, span_warning("The subscription service is unavailable. Try again later; your saved home and archive are kept."))
 		else if(!profile)
 			to_chat(user, span_warning("Saving requires a verified active Wizard subscription or higher. Your previous save is unchanged."))
-		else if(user.ckey == owner_ckey && manager.eligible_resident(user) && user.Adjacent(bell) && !user.incapacitated() && !has_fire_or_combat())
+		else if(user.ckey == owner_ckey && save_role_allowed(user) && user.Adjacent(bell) && !user.incapacitated() && !has_fire_or_combat())
 			var/list/records = snapshot()
 			if(isnull(records))
 				to_chat(user, span_warning("[snapshot_error] Your previous save is unchanged."))
 			else if(layout_signature(records) != layout_signature(preview))
 				to_chat(user, span_warning("The furnishings changed while you were confirming. Ring again to review the new layout; your previous save is unchanged."))
 			else
-				success = manager.storage.write_home(owner_ckey, records, revision)
+				var/datum/housing_storage/save_storage = test_session ? test_session.storage : manager.storage
+				success = save_storage.write_home(owner_ckey, records, revision)
 				if(success)
 					revision++
 					saved_layout = records
 					last_saved_age = 0
 					last_saved_seen = world.time
-					to_chat(user, span_notice("Your home's furnishings have been saved for future rounds."))
+					var/success_message = test_session ? "ADMIN TEST: layout saved in memory for test reloads only. It will disappear at round end; your real house save is untouched." : "Your home's furnishings have been saved for future rounds."
+					to_chat(user, span_notice(success_message))
 					if(profile != tier)
-						to_chat(user, span_notice("Your verified subscription is [tier_name(profile)]; this round's home stays [tier_name()]. Next round, furnishings that need more space or a higher tier will be kept in the archive, not deleted."))
+						to_chat(user, span_notice("[test_session ? "Your simulated subscription" : "Your verified subscription"] is [tier_name(profile)]; this round's home stays [tier_name()]. On the next load, furnishings that need more space or a higher tier will be kept in the archive, not deleted."))
 				else
 					to_chat(user, span_warning("The save failed or another server changed it. Your previous save has not been overwritten."))
 	saving = FALSE
 	return success
+
+/datum/supporter_home/proc/save_role_allowed(mob/living/carbon/human/user)
+	return test_session ? test_session.authorized(user) : manager.eligible_resident(user)
 
 /datum/supporter_home/proc/live_decor_count()
 	var/count = 0
 	for(var/turf/tile in block(locate(x, y, z), locate(x + width - 1, y + height - 1, z)))
 		for(var/obj/decor in tile)
 			if(manager.decor_types["[decor.type]"])
-				count++
+				count += 1 + contained_item_count(decor)
 	return count
 
 // Called at the destination, both before work and immediately before consuming materials.
@@ -349,6 +361,7 @@
 			if(!manager.decor_types["[decor.type]"])
 				continue
 			count += category == "station" ? manager.is_workstation(decor.type) : manager.is_light(decor.type)
+			count += contained_item_count(decor, category)
 	return count
 
 /proc/housing_allows_blueprint(turf/destination, path)

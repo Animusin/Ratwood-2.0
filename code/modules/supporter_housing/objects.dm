@@ -61,6 +61,7 @@
 	parent_type = /turf/open/floor/rogue/ruinedwood
 	name = "entrance landing"
 	baseturfs = /turf/open/floor/rogue/housing_foyer
+	var/allow_test_reset = FALSE
 
 /turf/open/floor/rogue/housing_foyer/Enter(atom/movable/mover)
 	if(isobj(mover) && (mover.density || isstructure(mover)))
@@ -69,6 +70,8 @@
 
 /turf/open/floor/rogue/housing_foyer/ChangeTurf(path, list/new_baseturfs, flags)
 	SHOULD_CALL_PARENT(FALSE)
+	if(allow_test_reset)
+		return ..()
 	return src // Building, digging and explosions cannot erase the round's return route.
 
 /turf/open/floor/rogue/housing_foyer/Entered(atom/movable/mover, atom/old_location)

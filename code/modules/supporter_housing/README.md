@@ -18,10 +18,11 @@ The feature is disabled by default. Before a controlled server trial:
    normal door prompt, and apply its townie key to its door. Opening takes five
    interruptible seconds. Entering the revealed passage takes another five seconds.
 
-Only the exact generic Towner door types are eligible, on `rockhill.dmm` and
-`deserttown.dmm`. Profession workshops, mercenary lodging and bathhouse rooms
-remain on the main map. A key cannot claim a different player's door. Once linked,
-the entrance is fixed for the round; stolen or shared real keys remain usable.
+Only the exact generic Towner door types are eligible, on `rockhill.dmm`,
+`deserttown.dmm` and `dun_world.dmm`. Profession workshops, mercenary lodging and
+bathhouse rooms remain on the main map. A key cannot claim a different player's
+door. Once linked, the entrance is fixed for the round; stolen or shared real keys
+remain usable.
 The same real key opens the inner door and restored additional keyed doors.
 
 ## Sizes and budgets
@@ -46,9 +47,10 @@ limited to 160 furnishings including the archive, 64 changed terrain cells, and
 tile, with at most one dense furnishing; large bounds must fit within the home.
 Save attempts are limited to once a minute.
 
-Rockhill has **25** eligible generic doors; Desert Town has **26**. The atlas can
-hold 60 homes on either map, but 60 simultaneous independently linked homes need
-additional authored exterior entrances. No existing main-map DMM is changed.
+Rockhill has **25** eligible generic doors; Desert Town has **26** and Dun World
+has **33**. The atlas can hold 60 homes on all three maps, but 60 simultaneous
+independently linked homes need additional authored exterior entrances. No
+existing main-map DMM is changed.
 
 ## Persistence
 
@@ -112,12 +114,15 @@ wall restoration, doors, timed prisoner passage, death/exit behavior, constructo
 inventories, and the 60-plot limit. It also loads 120 simple decorations in each
 stress-test manor. The storage probe replaces the SQL transport while exercising
 the production read/write methods, including insert/update collisions, outages,
-and corrupt JSON. The real databases are not touched. The final probe passed 629
+and corrupt JSON. The real databases are not touched. The final probe passed 644
 checks without failures or runtime errors. Its 60 homes, with roughly 7,000 simple
-furnishings, loaded in 10.32 seconds; peak working set of the entire isolated
-process was 692 MiB. The full BYOND 516.1687 build had no errors or warnings and
-all three maps passed maplint. This is not a benchmark of 60 connected clients,
-simultaneously lit homes, active production, mass combat or fire.
+furnishings, loaded in 11.13 seconds; peak working set of the entire isolated
+process was 674 MiB. The full BYOND 516.1687 build had no errors or warnings and
+all three home templates passed maplint. Actual Rockhill, Desert Town and Dun
+World configs were checked for generic-door access, workshop exclusion and atlas
+capacity; the door audit counted 25, 26 and 33 eligible entrances respectively.
+This is not a benchmark of 60 connected clients, simultaneously lit homes,
+active production, mass combat or fire.
 
 Before enabling on a live server, exercise the real game/donation database,
 ownership/confirmation UI, expiry and failed saves, door picking, directional

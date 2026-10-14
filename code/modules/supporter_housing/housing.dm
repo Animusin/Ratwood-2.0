@@ -18,7 +18,7 @@ GLOBAL_DATUM_INIT(supporter_housing, /datum/supporter_housing, new)
 	var/loading = FALSE
 	var/slots_used = 0
 	// Exact types, including map-specific door subtypes. Civic/workshop doors stay local.
-	var/list/entrance_maps = list("rockhill.dmm", "deserttown.dmm")
+	var/list/entrance_maps = list("rockhill.dmm", "deserttown.dmm", "dun_world.dmm")
 	var/list/entrance_types = list(/obj/structure/mineral_door/wood/towner/generic, /obj/structure/mineral_door/wood/towner/generic/two_keys)
 	var/list/decor_types = list()
 	var/list/decor_tiers = list()
@@ -47,7 +47,17 @@ GLOBAL_DATUM_INIT(supporter_housing, /datum/supporter_housing, new)
 	return min(HOUSING_MAX_HOMES, max(0, FLOOR((map_width - 2) / HOUSING_CELL_SIZE, 1)) * max(0, FLOOR((map_height - 2) / HOUSING_CELL_SIZE, 1)))
 
 /datum/supporter_housing/proc/is_entrance(obj/structure/mineral_door/door)
-	return !QDELETED(door) && (SSmapping.current_map?.map_file in entrance_maps) && (door.type in entrance_types)
+	return !QDELETED(door) && is_supported_map(SSmapping.current_map) && (door.type in entrance_types)
+
+/datum/supporter_housing/proc/is_supported_map(datum/map_config/map)
+	if(!map)
+		return FALSE
+	// Map configs accept both a filename and a list (Desert Town uses the latter).
+	var/list/map_files = islist(map.map_file) ? map.map_file : list(map.map_file)
+	for(var/filename in map_files)
+		if(filename in entrance_maps)
+			return TRUE
+	return FALSE
 
 /datum/supporter_housing/proc/subscription_profile(mob/living/carbon/human/user)
 	// Failure is distinct from an expired subscription. Neither destroys existing homes.

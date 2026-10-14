@@ -89,6 +89,9 @@
 		var/obj/decor = new path(destination)
 		manager.prepare_restored(decor)
 		decor.dir = record["dir"]
+		if(istype(decor, /obj/structure/roguewindow/openclose))
+			var/obj/structure/roguewindow/openclose/window = decor
+			window.lockdir = window.dir
 		if(record["color"])
 			decor.color = record["color"]
 		restored++
@@ -257,6 +260,8 @@
 	if(!home)
 		return TRUE
 	var/structural_result = ispath(recipe.result, /turf)
+	if(structural_result && !GLOB.supporter_housing.wall_types["[recipe.result]"])
+		return FALSE
 	if(structural_result ? !home.structural_tile(destination) : home.protected_tile(destination))
 		return FALSE
 	var/list/results = islist(recipe.result) ? recipe.result : list(recipe.result)

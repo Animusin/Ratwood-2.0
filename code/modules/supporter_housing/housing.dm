@@ -104,7 +104,8 @@ GLOBAL_DATUM_INIT(supporter_housing, /datum/supporter_housing, new)
 	if(pending_owners[user.ckey] || pending_doors[door])
 		to_chat(user, span_warning("This home's entrance is already being prepared."))
 		return TRUE
-	if(homes[user.ckey])
+	var/datum/supporter_home/home = homes[user.ckey]
+	if(home?.entrance)
 		to_chat(user, span_warning("Your home already has an entrance this round."))
 		return TRUE
 	var/owner_ckey = user.ckey
@@ -117,14 +118,21 @@ GLOBAL_DATUM_INIT(supporter_housing, /datum/supporter_housing, new)
 	else if(tier && eligible_resident(user) && guard.check() && user.get_active_held_item() == key)
 		to_chat(user, span_notice("I begin to prepare the entrance to my home..."))
 		if(do_after(user, 5 SECONDS, target = door, extra_checks = CALLBACK(guard, TYPE_PROC_REF(/datum/housing_action_guard, check))))
-			var/list/saved = storage.read_home(owner_ckey)
-			if(!saved)
+			// A cancelled template load can leave a complete home awaiting its entrance.
+			// Reuse it without reading storage or allocating another plot.
+			var/list/saved
+			if(!home)
+				saved = storage.read_home(owner_ckey)
+			if(!home && !saved)
 				to_chat(user, span_warning("The housing record could not be read. Your saved home is unchanged."))
 			else if(!QDELETED(door) && !door.supporter_home && guard.check() && user.get_active_held_item() == key && key.lockhash == door.lockhash && user.ckey == owner_ckey && eligible_resident(user))
-				var/datum/supporter_home/home = create_home(owner_ckey, tier, saved)
-				if(home && eligible_resident(user) && !QDELETED(door) && guard.check() && user.get_active_held_item() == key)
+				if(!home)
+					home = create_home(owner_ckey, tier, saved)
+				if(home && eligible_resident(user) && user.ckey == owner_ckey && !QDELETED(door) && !door.supporter_home && guard.check() && user.get_active_held_item() == key && key.lockhash == door.lockhash)
 					home.bind_entrance(door)
 					home.open_with_key(key, user, prepared = TRUE)
+				else if(home)
+					to_chat(user, span_warning("Preparing the entrance was interrupted. Use your key again to finish."))
 				else
 					to_chat(user, span_warning("No housing plot is available. Your saved home is unchanged."))
 	qdel(guard)

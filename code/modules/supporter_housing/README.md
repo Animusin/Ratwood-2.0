@@ -132,10 +132,12 @@ wall restoration, doors, timed prisoner passage, death/exit behavior, constructo
 inventories, and the 60-plot limit. It also loads 120 simple decorations in each
 stress-test manor. The storage probe replaces the SQL transport while exercising
 the production read/write methods, including insert/update collisions, outages,
-and corrupt JSON. The real databases are not touched. The final probe passed 671
-checks without failures or runtime errors. Its 60 homes, with roughly 7,000 simple
-furnishings, loaded in 11.21 seconds; peak working set of the entire isolated
-process was 678 MiB. The full BYOND 516.1687 build had no errors or warnings and
+and corrupt JSON. The real databases are not touched. The final probe passed 699
+checks without failures or runtime errors, including retrying an interrupted home
+creation without another plot or database read, dark-wood window persistence,
+unsupported terrain rejection and window lock directions. Its 60 homes, with
+roughly 7,000 simple furnishings, loaded in 11.73 seconds; peak working set of the
+entire isolated process was 662 MiB. The full BYOND 516.1687 build had no errors or warnings and
 all three home templates passed maplint. Actual Rockhill, Desert Town and Dun
 World configs were checked for generic-door access, workshop exclusion and atlas
 capacity. Role checks cover city professions, Mercenaries, Adventurers, explicit

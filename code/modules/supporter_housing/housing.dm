@@ -168,6 +168,8 @@ GLOBAL_DATUM_INIT(supporter_housing, /datum/supporter_housing, new)
 		qdel(home)
 		return
 	homes[owner_ckey] = home
+	home.last_saved_age = saved["saved_age"]
+	home.last_saved_seen = world.time
 	slots_used++
 	loading = FALSE
 	return home
@@ -244,7 +246,7 @@ GLOBAL_DATUM_INIT(supporter_housing, /datum/supporter_housing, new)
 /datum/housing_storage/proc/read_home(owner_ckey)
 	if(!SSdbcore.Connect())
 		return null
-	var/datum/DBQuery/query = SSdbcore.NewQuery("SELECT revision, decor FROM [format_table_name("supporter_housing")] WHERE ckey = :ckey", list("ckey" = owner_ckey))
+	var/datum/DBQuery/query = SSdbcore.NewQuery("SELECT revision, decor, TIMESTAMPDIFF(SECOND, updated_at, NOW()) FROM [format_table_name("supporter_housing")] WHERE ckey = :ckey", list("ckey" = owner_ckey))
 	if(!query.Execute())
 		qdel(query)
 		return null
@@ -252,6 +254,7 @@ GLOBAL_DATUM_INIT(supporter_housing, /datum/supporter_housing, new)
 	if(query.NextRow())
 		result["found"] = TRUE
 		result["revision"] = text2num("[query.item[1]]")
+		result["saved_age"] = max(0, text2num("[query.item[3]]"))
 		var/raw = query.item[2]
 		if(!istext(raw) || length(raw) > HOUSING_MAX_JSON)
 			qdel(query)

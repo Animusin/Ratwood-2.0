@@ -78,6 +78,21 @@ verified qualifying subscription, can save, outside fire/combat. A successful me
 sent only after the database accepts an atomic revision-checked write. Failed
 queries or concurrent edits do not overwrite the old snapshot.
 
+Examine the bell as its owner to see this round's tier, furnishing/workstation/light
+budgets, archive size, age of the last successful save, and unsaved layout changes.
+Ringing previews saved furnishings, structural changes, retained archive entries,
+missing furnishings and objects omitted from persistence before confirmation.
+Moving or painting furniture does not count as deleting it. If the layout changes
+during confirmation, saving stops and asks for a fresh preview. Failed writes keep
+the previous saved baseline and the unsaved indicator. These checks run only on
+interaction, without a polling subsystem. Save age uses the existing `updated_at`
+column; no additional schema migration is required.
+
+Right-click the bell for the guide and an owner-only archive breakdown, including
+minimum subscription/layout requirements and placement/capacity conflicts. The
+owner gets a short hint on their first conscious entrance each round. Save and
+craft failures report the specific budget or offending furnishing/terrain.
+
 Records contain an exact approved type, relative X/Y, direction and a hex colour.
 Terrain changes add `kind = wall`; only approved ordinary walls and floors are
 accepted. Original wall removal, added partitions and painting are retained.
@@ -132,12 +147,16 @@ wall restoration, doors, timed prisoner passage, death/exit behavior, constructo
 inventories, and the 60-plot limit. It also loads 120 simple decorations in each
 stress-test manor. The storage probe replaces the SQL transport while exercising
 the production read/write methods, including insert/update collisions, outages,
-and corrupt JSON. The real databases are not touched. The final probe passed 699
+and corrupt JSON. The real databases are not touched. The final probe passed 738
 checks without failures or runtime errors, including retrying an interrupted home
 creation without another plot or database read, dark-wood window persistence,
 unsupported terrain rejection and window lock directions. Its 60 homes, with
-roughly 7,000 simple furnishings, loaded in 11.73 seconds; peak working set of the
-entire isolated process was 662 MiB. The full BYOND 516.1687 build had no errors or warnings and
+roughly 7,000 simple furnishings, loaded in 11.58 seconds; peak working set of the
+entire isolated process was 696 MiB. Feedback checks cover dirty-state comparisons,
+archive explanations, removal/omission previews, specific errors, owner-only status,
+one-time welcome, cancelled/changed confirmations, successful saves and failed-write
+preservation. Confirmation and SQL are simulated; actual client dialog presentation
+still needs an in-game check. The full BYOND 516.1687 build had no errors or warnings and
 all three home templates passed maplint. Actual Rockhill, Desert Town and Dun
 World configs were checked for generic-door access, workshop exclusion and atlas
 capacity. Role checks cover city professions, Mercenaries, Adventurers, explicit

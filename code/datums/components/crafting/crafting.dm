@@ -310,8 +310,7 @@
 	if(!R.TurfCheck(user, T))
 		to_chat(user, span_warning("I can't craft here."))
 		return
-	if(!housing_allows_construction(T, R))
-		to_chat(user, span_warning("Keep the home's entrance clear and stay within its furnishings limit."))
+	if(!housing_allows_construction(T, R, user))
 		return
 	if(isturf(R.result))
 		for(var/obj/structure/fluff/traveltile/TT in range(7, user))
@@ -382,8 +381,7 @@
 						to_chat(user, span_danger("I've failed to craft \the [result_name]."))
 						continue
 					var/list/quality_capture = R.skip_quality ? list() : null
-					if(!housing_allows_construction(T, R))
-						to_chat(user, span_warning("Keep the home's entrance clear and stay within its furnishings limit."))
+					if(!housing_allows_construction(T, R, user))
 						return FALSE
 					var/list/parts = del_reqs(R, user, quality_capture)
 					var/inherited_quality = quality_capture?["min_quality"]

@@ -3621,5 +3621,6 @@
 #include "code\modules\supporter_housing\home.dm"
 #include "code\modules\supporter_housing\travel.dm"
 #include "code\modules\supporter_housing\decor.dm"
+#include "code\modules\supporter_housing\feedback.dm"
 #include "code\modules\supporter_housing\objects.dm"
 // END_INCLUDE

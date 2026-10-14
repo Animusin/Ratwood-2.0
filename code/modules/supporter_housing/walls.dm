@@ -56,6 +56,7 @@
 				records += list(seed.Copy())
 			continue
 		if(!manager.wall_types["[tile.type]"])
+			snapshot_error = "[initial(tile.name)] at home position [tile.x - x + 1], [tile.y - y + 1] cannot be saved. Replace it with a supported wall or floor."
 			return FALSE
 		records += list(list("kind" = "wall", "type" = "[tile.type]", "x" = tile.x - x + 1, "y" = tile.y - y + 1, "dir" = tile.dir, "color" = istext(tile.color) ? tile.color : null))
 	return TRUE

@@ -12,6 +12,11 @@
 	var/list/archive = list()
 	var/last_save_attempt = -INFINITY
 	var/saving = FALSE
+	var/snapshot_error
+	var/list/saved_layout
+	var/last_saved_age
+	var/last_saved_seen = 0
+	var/owner_welcomed = FALSE
 	var/transferring = FALSE
 	var/obj/structure/mineral_door/exterior
 	var/obj/structure/mineral_door/wood/housing/interior
@@ -102,6 +107,8 @@
 			for(var/obj/decor in tile)
 				if(manager.decor_types["[decor.type]"])
 					manager.prepare_restored(decor)
+	if(found)
+		saved_layout = snapshot()
 	return TRUE
 
 /datum/supporter_home/proc/bind_entrance(obj/structure/mineral_door/door)
@@ -187,6 +194,7 @@
 	return FALSE
 
 /datum/supporter_home/proc/snapshot()
+	snapshot_error = null
 	var/list/records = list()
 	if(!snapshot_walls(records))
 		return null
@@ -196,51 +204,96 @@
 	for(var/turf/tile in block(locate(x, y, z), locate(x + width - 1, y + height - 1, z)))
 		if(!decor_tile(tile))
 			continue
+		var/tile_count = 0
+		var/dense_count = 0
 		for(var/obj/decor in tile)
 			if(!manager.decor_types["[decor.type]"])
 				continue
 			if(!placement_fits(decor.type, tile))
+				snapshot_error = "[initial(decor.name)] does not fit here. Move it away from walls and the entrance."
+				return null
+			tile_count++
+			dense_count += initial(decor.density) ? 1 : 0
+			if(tile_count > 3 || dense_count > 1)
+				snapshot_error = "Too many furnishings share the space around [initial(decor.name)]. Separate them (at most 3 small objects or 1 solid furnishing per tile)."
 				return null
 			active_count++
 			stations += manager.is_workstation(decor.type)
 			lights += manager.is_light(decor.type)
-			if(active_count > decor_limit || stations > tier * 2 || lights > tier * 4 + 4)
-				return null
 			// Contents, integrity, scripts, custom names and arbitrary vars are never serialized.
 			var/list/record = list("type" = "[decor.type]", "x" = tile.x - x + 1, "y" = tile.y - y + 1, "dir" = decor.dir, "color" = istext(decor.color) ? decor.color : null)
+			if(!manager.valid_record(record))
+				snapshot_error = "[initial(decor.name)] has an unsupported facing or paint colour. Rotate it to a cardinal direction or remove its paint."
+				return null
 			records += list(record)
+	if(active_count > decor_limit || stations > tier * 2 || lights > tier * 4 + 4)
+		snapshot_error = "Over the limit: furnishings [active_count]/[decor_limit], workstations [stations]/[tier * 2], lights [lights]/[tier * 4 + 4]. Remove the excess from the home before saving."
+		return null
 	for(var/list/archived_record as anything in archive)
 		var/list/inactive_record = archived_record.Copy()
 		inactive_record["archived"] = TRUE
 		records += list(inactive_record)
-	return manager.validate_records(records)
+	var/wall_count = 0
+	for(var/list/record as anything in records)
+		wall_count += record["kind"] == "wall" ? 1 : 0
+	if(wall_count > 64 || length(records) - wall_count > 160)
+		snapshot_error = "Saved storage is full, including the archive: furnishings [length(records) - wall_count]/160, wall and floor changes [wall_count]/64. Remove furnishings or undo structural changes before saving."
+		return null
+	if(length(json_encode(records)) > 60000)
+		snapshot_error = "This layout is too large to save. Reduce the furnishings or wall changes."
+		return null
+	snapshot_error = "The layout contains an unsupported position, facing or paint colour. Check the furnishings and walls."
+	var/list/validated = manager.validate_records(records)
+	if(!isnull(validated))
+		snapshot_error = null
+	return validated
 
 /datum/supporter_home/proc/save_decor(mob/living/carbon/human/user)
-	if(!user || user.ckey != owner_ckey || !manager.eligible_resident(user) || !user.Adjacent(bell) || user.incapacitated() || saving)
+	if(!user || user.ckey != owner_ckey)
+		to_chat(user, span_warning("Only the homeowner can save this home."))
+		return FALSE
+	if(!manager.eligible_resident(user))
+		to_chat(user, span_warning("Saving requires a city, Mercenary or Adventurer profession. Your saved home is kept."))
+		return FALSE
+	if(!user.Adjacent(bell) || user.incapacitated() || saving)
 		return FALSE
 	if(world.time < last_save_attempt + HOUSING_SAVE_COOLDOWN)
-		to_chat(user, span_warning("Wait a minute between saving attempts."))
+		to_chat(user, span_warning("Try saving again in [ceil((last_save_attempt + HOUSING_SAVE_COOLDOWN - world.time) / 10)] seconds."))
 		return FALSE
 	if(has_fire_or_combat())
 		to_chat(user, span_warning("I cannot save the home during a fire or a fight."))
 		return FALSE
 	saving = TRUE
-	var/choice = alert(user, "Save the current furnishings and wall changes for future rounds? Missing furniture and removed walls will remain missing. The entrance landing is always restored.", "Save home", "Save", "Cancel")
+	var/list/preview = snapshot()
+	if(isnull(preview))
+		to_chat(user, span_warning("[snapshot_error] Your previous save is unchanged."))
+		saving = FALSE
+		return FALSE
+	var/choice = confirm_save(user, preview)
 	var/success = FALSE
 	if(choice == "Save" && user?.ckey == owner_ckey && manager.eligible_resident(user) && user.Adjacent(bell) && !user.incapacitated())
 		last_save_attempt = world.time
 		var/profile = manager.subscription_profile(user)
-		if(!profile)
+		if(isnull(profile))
+			to_chat(user, span_warning("The subscription service is unavailable. Try again later; your saved home and archive are kept."))
+		else if(!profile)
 			to_chat(user, span_warning("Saving requires a verified active Wizard subscription or higher. Your previous save is unchanged."))
 		else if(user.ckey == owner_ckey && manager.eligible_resident(user) && user.Adjacent(bell) && !user.incapacitated() && !has_fire_or_combat())
 			var/list/records = snapshot()
 			if(isnull(records))
-				to_chat(user, span_warning("Too much furniture, overlapping furniture, or unsupported decor. Your previous save is unchanged."))
+				to_chat(user, span_warning("[snapshot_error] Your previous save is unchanged."))
+			else if(layout_signature(records) != layout_signature(preview))
+				to_chat(user, span_warning("The furnishings changed while you were confirming. Ring again to review the new layout; your previous save is unchanged."))
 			else
 				success = manager.storage.write_home(owner_ckey, records, revision)
 				if(success)
 					revision++
+					saved_layout = records
+					last_saved_age = 0
+					last_saved_seen = world.time
 					to_chat(user, span_notice("Your home's furnishings have been saved for future rounds."))
+					if(profile != tier)
+						to_chat(user, span_notice("Your verified subscription is [tier_name(profile)]; this round's home stays [tier_name()]. Next round, furnishings that need more space or a higher tier will be kept in the archive, not deleted."))
 				else
 					to_chat(user, span_warning("The save failed or another server changed it. Your previous save has not been overwritten."))
 	saving = FALSE
@@ -255,15 +308,21 @@
 	return count
 
 // Called at the destination, both before work and immediately before consuming materials.
-/proc/housing_allows_construction(turf/destination, datum/crafting_recipe/recipe)
+/proc/housing_allows_construction(turf/destination, datum/crafting_recipe/recipe, mob/user)
+	var/reason = housing_construction_error(destination, recipe)
+	if(reason && user)
+		to_chat(user, span_warning(reason))
+	return !reason
+
+/proc/housing_construction_error(turf/destination, datum/crafting_recipe/recipe)
 	var/datum/supporter_home/home = GLOB.supporter_housing.home_at(destination)
 	if(!home)
-		return TRUE
+		return null
 	var/structural_result = ispath(recipe.result, /turf)
 	if(structural_result && !GLOB.supporter_housing.wall_types["[recipe.result]"])
-		return FALSE
+		return "This wall or floor cannot be saved in a home. Choose another building material."
 	if(structural_result ? !home.structural_tile(destination) : home.protected_tile(destination))
-		return FALSE
+		return "Keep the entrance landing and approach clear. Build inside the furnishing area."
 	var/list/results = islist(recipe.result) ? recipe.result : list(recipe.result)
 	var/additions = 0
 	var/new_stations = 0
@@ -271,11 +330,17 @@
 	for(var/path in results)
 		if(GLOB.supporter_housing.decor_types["[path]"])
 			if(!home.placement_fits(path, destination))
-				return FALSE
+				return "This furnishing does not fit here. Move the building site away from walls and the entrance."
 			additions++
 			new_stations += GLOB.supporter_housing.is_workstation(path)
 			new_lights += GLOB.supporter_housing.is_light(path)
-	return (!additions || home.live_decor_count() + additions <= home.decor_limit) && (!new_stations || home.live_category_count("station") + new_stations <= home.tier * 2) && (!new_lights || home.live_category_count("light") + new_lights <= home.tier * 4 + 4)
+	if(additions && home.live_decor_count() + additions > home.decor_limit)
+		return "This would exceed the furnishings limit: [home.live_decor_count() + additions]/[home.decor_limit]."
+	if(new_stations && home.live_category_count("station") + new_stations > home.tier * 2)
+		return "This would exceed the workstation limit: [home.live_category_count("station") + new_stations]/[home.tier * 2]."
+	if(new_lights && home.live_category_count("light") + new_lights > home.tier * 4 + 4)
+		return "This would exceed the light limit: [home.live_category_count("light") + new_lights]/[home.tier * 4 + 4]."
+	return null
 
 /datum/supporter_home/proc/live_category_count(category)
 	var/count = 0

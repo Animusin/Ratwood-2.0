@@ -18,13 +18,24 @@
 	name = "furnishings bell"
 	light_outer_range = 4
 	light_color = "#ffe5bd"
-	desc = "Ring to save the current furnishings for future rounds. Only the homeowner may save."
+	desc = "Ring to preview and save your home. Examine for status; right-click for your archive and help. Only the homeowner may save."
 	resistance_flags = INDESTRUCTIBLE | FIRE_PROOF | LAVA_PROOF | UNACIDABLE | ACID_PROOF
 	var/datum/supporter_home/home
 
 /obj/structure/bell_common/housing/attack_hand(mob/user)
 	if(ishuman(user))
 		home?.save_decor(user)
+
+/obj/structure/bell_common/housing/examine(mob/user)
+	. = ..()
+	if(home && user?.ckey == home.owner_ckey && user.Adjacent(src))
+		var/list/records = home.snapshot()
+		. += span_notice(replacetext(html_encode(home.status_text(records)), "\n", "<br>"))
+
+/obj/structure/bell_common/housing/attack_right(mob/user)
+	if(!home || user?.ckey != home.owner_ckey || !user.Adjacent(src) || user.incapacitated())
+		return
+	to_chat(user, span_notice(replacetext(html_encode("[home.help_text()]\n\n[home.archive_text()]"), "\n", "<br>")))
 
 /obj/structure/bell_common/housing/deconstruct(disassembled = TRUE)
 	return

@@ -176,6 +176,8 @@
 	for(var/mob/living/member as anything in party)
 		member.pulledby = pullers[member]
 		member.update_mobility()
+		if(is_exterior)
+			home.welcome_owner(member)
 	home.transferring = FALSE
 	return TRUE
 

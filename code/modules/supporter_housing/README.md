@@ -1,7 +1,8 @@
 # Supporter housing prototype
 
-Opt-in, single-floor private interiors for **Towner** characters with a verified
-active Wizard, Cultist or Assistant subscription. This is an ordinary RP location:
+Opt-in, single-floor private interiors for city roles, Mercenaries and Adventurers
+with a verified active Wizard, Cultist or Assistant subscription. This is an
+ordinary RP location:
 doors and internal walls can be broken, furnishings can burn, and an open entrance
 can be followed. Disconnecting, dying or losing a subscription does not unload a
 home during the round.
@@ -14,16 +15,30 @@ The feature is disabled by default. Before a controlled server trial:
    configured, use it in the migration. The donation database remains the authority
    for subscription eligibility; no subscription records are modified.
 2. Add `SUPPORTER_HOUSING` to the server configuration.
-3. Join as a subscribed Towner, claim an existing generic town house using the
-   normal door prompt, and apply its townie key to its door. Opening takes five
+3. Join as an eligible subscribed character, claim an existing generic town house
+   using the normal door prompt, and apply its townie key to its door. Opening takes five
    interruptible seconds. Entering the revealed passage takes another five seconds.
 
-Only the exact generic Towner door types are eligible, on `rockhill.dmm`,
-`deserttown.dmm` and `dun_world.dmm`. Profession workshops, mercenary lodging and
+Only the exact generic Towner and ordinary Mercenary room door types are eligible,
+on `rockhill.dmm`, `deserttown.dmm` and `dun_world.dmm`. Profession workshops and
 bathhouse rooms remain on the main map. A key cannot claim a different player's
 door. Once linked, the entrance is fixed for the round; stolen or shared real keys
 remain usable.
 The same real key opens the inner door and restored additional keyed doors.
+
+City roles use the existing Noblemen, Garrison, Church, Courtiers, Yeomen,
+Peasants, Youngfolk, Inquisition and Guildsmen job groups; Mercenary, Adventurer
+and the city-employed Court Agent are explicitly included. Jobs flagged
+`antag_job`, including Bandit, Wretch, Assassin and Gnoll, are excluded, as are
+monster/tribal and unknown roles. A hidden antagonist retains access through an
+otherwise eligible profession; housing does not expose secret antagonist status.
+Verified supporters in eligible roles may use the normal claim prompt on a free
+generic home, without the original Towner role requirement. The existing
+one-resident-key-claim rule still applies: choose the desired home before claiming
+any other resident-key room. Non-supporters retain the original claim rules.
+The plot is created only when its claimed entrance is first opened, not on login.
+Role eligibility is rechecked after opening/saving waits; an existing home stays
+in the round after a role change and remains accessible using normal keys/following.
 
 ## Sizes and budgets
 
@@ -55,8 +70,8 @@ existing main-map DMM is changed.
 ## Persistence
 
 The fixed bell asks for confirmation. There is no automatic round-end save and no
-mid-round rollback. Only the owner, currently playing Towner with a verified
-qualifying subscription, can save, outside fire/combat. A successful message is
+mid-round rollback. Only the owner, currently playing an eligible role with a
+verified qualifying subscription, can save, outside fire/combat. A successful message is
 sent only after the database accepts an atomic revision-checked write. Failed
 queries or concurrent edits do not overwrite the old snapshot.
 
@@ -114,13 +129,15 @@ wall restoration, doors, timed prisoner passage, death/exit behavior, constructo
 inventories, and the 60-plot limit. It also loads 120 simple decorations in each
 stress-test manor. The storage probe replaces the SQL transport while exercising
 the production read/write methods, including insert/update collisions, outages,
-and corrupt JSON. The real databases are not touched. The final probe passed 644
+and corrupt JSON. The real databases are not touched. The final probe passed 671
 checks without failures or runtime errors. Its 60 homes, with roughly 7,000 simple
-furnishings, loaded in 11.13 seconds; peak working set of the entire isolated
-process was 674 MiB. The full BYOND 516.1687 build had no errors or warnings and
+furnishings, loaded in 11.21 seconds; peak working set of the entire isolated
+process was 678 MiB. The full BYOND 516.1687 build had no errors or warnings and
 all three home templates passed maplint. Actual Rockhill, Desert Town and Dun
 World configs were checked for generic-door access, workshop exclusion and atlas
-capacity; the door audit counted 25, 26 and 33 eligible entrances respectively.
+capacity. Role checks cover city professions, Mercenaries, Adventurers, explicit
+antagonist/monster exclusions, hidden antagonists and role changes. The door audit
+counted 25, 26 and 33 eligible entrances respectively.
 This is not a benchmark of 60 connected clients, simultaneously lit homes,
 active production, mass combat or fire.
 

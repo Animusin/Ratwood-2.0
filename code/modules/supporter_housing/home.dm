@@ -213,7 +213,7 @@
 	return manager.validate_records(records)
 
 /datum/supporter_home/proc/save_decor(mob/living/carbon/human/user)
-	if(!user || user.ckey != owner_ckey || user.job != "Towner" || !user.Adjacent(bell) || user.incapacitated() || saving)
+	if(!user || user.ckey != owner_ckey || !manager.eligible_resident(user) || !user.Adjacent(bell) || user.incapacitated() || saving)
 		return FALSE
 	if(world.time < last_save_attempt + HOUSING_SAVE_COOLDOWN)
 		to_chat(user, span_warning("Wait a minute between saving attempts."))
@@ -224,12 +224,12 @@
 	saving = TRUE
 	var/choice = alert(user, "Save the current furnishings and wall changes for future rounds? Missing furniture and removed walls will remain missing. The entrance landing is always restored.", "Save home", "Save", "Cancel")
 	var/success = FALSE
-	if(choice == "Save" && user?.ckey == owner_ckey && user.job == "Towner" && user.Adjacent(bell) && !user.incapacitated())
+	if(choice == "Save" && user?.ckey == owner_ckey && manager.eligible_resident(user) && user.Adjacent(bell) && !user.incapacitated())
 		last_save_attempt = world.time
 		var/profile = manager.subscription_profile(user)
 		if(!profile)
 			to_chat(user, span_warning("Saving requires a verified active Wizard subscription or higher. Your previous save is unchanged."))
-		else if(user.ckey == owner_ckey && user.job == "Towner" && user.Adjacent(bell) && !user.incapacitated() && !has_fire_or_combat())
+		else if(user.ckey == owner_ckey && manager.eligible_resident(user) && user.Adjacent(bell) && !user.incapacitated() && !has_fire_or_combat())
 			var/list/records = snapshot()
 			if(isnull(records))
 				to_chat(user, span_warning("Too much furniture, overlapping furniture, or unsupported decor. Your previous save is unchanged."))

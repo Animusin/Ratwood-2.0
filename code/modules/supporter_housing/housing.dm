@@ -17,9 +17,9 @@ GLOBAL_DATUM_INIT(supporter_housing, /datum/supporter_housing, new)
 	var/list/pending_doors = list()
 	var/loading = FALSE
 	var/slots_used = 0
-	// Exact types, including map-specific door subtypes. Civic/workshop doors stay local.
+	// Ordinary town homes and mercenary rooms. Civic/workshop doors stay local.
 	var/list/entrance_maps = list("rockhill.dmm", "deserttown.dmm", "dun_world.dmm")
-	var/list/entrance_types = list(/obj/structure/mineral_door/wood/towner/generic, /obj/structure/mineral_door/wood/towner/generic/two_keys)
+	var/list/entrance_types = list(/obj/structure/mineral_door/wood/towner/generic, /obj/structure/mineral_door/wood/towner/generic/two_keys, /obj/structure/mineral_door/wood/mercenary)
 	var/list/decor_types = list()
 	var/list/decor_tiers = list()
 	var/list/wall_types = list()
@@ -65,6 +65,24 @@ GLOBAL_DATUM_INIT(supporter_housing, /datum/supporter_housing, new)
 		return null
 	return profile_for_subscription(user.client.donation_tier)
 
+/datum/supporter_housing/proc/role_allowed(datum/job/role)
+	if(!istype(role, /datum/job/roguetown) || role.faction != "Station" || role.antag_job)
+		return FALSE
+	if(role.type in list(/datum/job/roguetown/adventurer, /datum/job/roguetown/mercenary, /datum/job/roguetown/adventurer/courtagent))
+		return TRUE
+	return !!(role.department_flag & (NOBLEMEN | GARRISON | CHURCHMEN | COURTIERS | YEOMEN | PEASANTS | YOUNGFOLK | INQUISITION | GUILDSMEN))
+
+/datum/supporter_housing/proc/eligible_resident(mob/living/carbon/human/user)
+	return !QDELETED(user) && role_allowed(SSjob.name_occupations[user.job])
+
+/datum/supporter_housing/proc/can_claim_entrance(mob/living/carbon/human/user, obj/structure/mineral_door/door)
+	// Only verified supporters may bypass the original Towner/Mercenary role lock.
+	if(!CONFIG_GET(flag/supporter_housing) || !user?.ckey || !eligible_resident(user) || !is_entrance(door) || door.supporter_home || homes[user.ckey])
+		return FALSE
+	var/tier = subscription_profile(user)
+	// Subscription queries can yield: recheck the character and entrance afterwards.
+	return tier > 0 && eligible_resident(user) && is_entrance(door) && !door.supporter_home && !homes[user.ckey]
+
 /datum/supporter_housing/proc/profile_for_subscription(subscription_tier)
 	switch(subscription_tier)
 		if("wizard")
@@ -81,7 +99,7 @@ GLOBAL_DATUM_INIT(supporter_housing, /datum/supporter_housing, new)
 	if(door.supporter_home)
 		// Existing homes remain ordinary places, even after expiry. Keys can be stolen/shared.
 		return door.supporter_home.open_with_key(key, user)
-	if(user.job != "Towner" || door.housing_resident_ckey != user.ckey)
+	if(!eligible_resident(user) || door.housing_resident_ckey != user.ckey)
 		return FALSE
 	if(pending_owners[user.ckey] || pending_doors[door])
 		to_chat(user, span_warning("This home's entrance is already being prepared."))
@@ -96,15 +114,15 @@ GLOBAL_DATUM_INIT(supporter_housing, /datum/supporter_housing, new)
 	var/tier = subscription_profile(user)
 	if(isnull(tier))
 		to_chat(user, span_warning("The subscription service is unavailable. Your saved home is unchanged."))
-	else if(tier && guard.check() && user.get_active_held_item() == key)
+	else if(tier && eligible_resident(user) && guard.check() && user.get_active_held_item() == key)
 		to_chat(user, span_notice("I begin to prepare the entrance to my home..."))
 		if(do_after(user, 5 SECONDS, target = door, extra_checks = CALLBACK(guard, TYPE_PROC_REF(/datum/housing_action_guard, check))))
 			var/list/saved = storage.read_home(owner_ckey)
 			if(!saved)
 				to_chat(user, span_warning("The housing record could not be read. Your saved home is unchanged."))
-			else if(!QDELETED(door) && !door.supporter_home && guard.check() && user.get_active_held_item() == key && key.lockhash == door.lockhash && user.ckey == owner_ckey && user.job == "Towner")
+			else if(!QDELETED(door) && !door.supporter_home && guard.check() && user.get_active_held_item() == key && key.lockhash == door.lockhash && user.ckey == owner_ckey && eligible_resident(user))
 				var/datum/supporter_home/home = create_home(owner_ckey, tier, saved)
-				if(home && !QDELETED(door) && guard.check() && user.get_active_held_item() == key)
+				if(home && eligible_resident(user) && !QDELETED(door) && guard.check() && user.get_active_held_item() == key)
 					home.bind_entrance(door)
 					home.open_with_key(key, user, prepared = TRUE)
 				else

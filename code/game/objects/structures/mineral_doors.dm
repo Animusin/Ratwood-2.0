@@ -170,11 +170,14 @@
 	var/mob/living/carbon/human/human = user
 	if(human.received_resident_key)
 		return FALSE
+	var/housing_claim_override = FALSE
 	if(resident_role)
 		var/datum/job/job = SSjob.name_occupations[human.job]
 		if(job?.type != resident_role)
 			if(!HAS_TRAIT(human, TRAIT_RESIDENT))
-				return FALSE
+				housing_claim_override = GLOB.supporter_housing.can_claim_entrance(human, src)
+				if(!housing_claim_override)
+					return FALSE
 	if(resident_advclass)
 		if(!human.advjob)
 			return FALSE
@@ -189,6 +192,8 @@
 	if(!grant_resident_key)
 		return
 	var/spare_key = alert(user, "Have I got a spare key?", "Home", "Yes", "No")
+	if(housing_claim_override && !GLOB.supporter_housing.can_claim_entrance(human, src))
+		return FALSE
 	if(!grant_resident_key)
 		return
 	if(spare_key == "Yes")

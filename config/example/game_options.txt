@@ -592,3 +592,7 @@ ECONOMY
 ## Keep actual values private; do NOT use the Discord bot token or the roundstart webhook.
 # WEBHOOK_ADMINHELP https://discord.com/api/webhooks/WEBHOOK_ID/WEBHOOK_TOKEN
 # HERALD_READONLY_KEY REPLACE_WITH_A_RANDOM_SECRET_OF_64_TO_128_CHARACTERS
+
+## Custom emote triggers a 3-minute window of the same character's emotes/IC speech.
+## Separate PRIVATE moderation channel webhook, never reuse either webhook above.
+# WEBHOOK_CUSTOM_EMOTES https://discord.com/api/webhooks/WEBHOOK_ID/WEBHOOK_TOKEN

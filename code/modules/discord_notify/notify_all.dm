@@ -59,10 +59,17 @@ SUBSYSTEM_DEF(ahelp_relay)
 	var/failures = 0
 	var/blocked_webhook
 	var/storage_failed = FALSE
+	var/checkpoint_prefix = "data/herald_ahelp_queue"
+	var/relay_label = "Ahelp relay"
+	var/max_batch_parts = 1
+	var/pending_parts = 1
+
+/datum/controller/subsystem/ahelp_relay/proc/get_webhook()
+	return CONFIG_GET(string/webhook_adminhelp)
 
 /datum/controller/subsystem/ahelp_relay/Initialize(start_timeofday)
 	var/list/best
-	for(var/path in list("data/herald_ahelp_queue_0.json", "data/herald_ahelp_queue_1.json"))
+	for(var/path in list("[checkpoint_prefix]_0.json", "[checkpoint_prefix]_1.json"))
 		if(!fexists(path))
 			continue
 		try
@@ -71,7 +78,7 @@ SUBSYSTEM_DEF(ahelp_relay)
 				if(!best || saved["generation"] > best["generation"])
 					best = saved
 		catch
-			log_admin("Ahelp relay: an incomplete queue checkpoint was ignored; credentials are hidden.")
+			log_admin("[relay_label]: an incomplete queue checkpoint was ignored; credentials are hidden.")
 	if(best)
 		queue = best["queue"]
 		generation = best["generation"]
@@ -79,15 +86,18 @@ SUBSYSTEM_DEF(ahelp_relay)
 	return ..()
 
 /datum/controller/subsystem/ahelp_relay/proc/persist()
+	return write_checkpoint()
+
+/datum/controller/subsystem/ahelp_relay/proc/write_checkpoint()
 	// Alternate checkpoints so an interrupted write cannot destroy both copies.
 	generation++
-	var/path = "data/herald_ahelp_queue_[generation % 2].json"
+	var/path = "[checkpoint_prefix]_[generation % 2].json"
 	var/list/saved = list("generation" = generation, "serial" = serial, "queue" = queue)
 	if(fexists(path))
 		fdel(path)
 	if(!text2file(json_encode(saved), path))
 		if(!storage_failed)
-			log_admin("Ahelp relay: queue checkpoint failed. Memory queue retained; restart recovery is not guaranteed.")
+			log_admin("[relay_label]: queue checkpoint failed. Memory queue retained; restart recovery is not guaranteed.")
 		storage_failed = TRUE
 		return FALSE
 	storage_failed = FALSE
@@ -135,7 +145,7 @@ SUBSYSTEM_DEF(ahelp_relay)
 	if(pending)
 		if(!pending.is_complete())
 			if(!slow_warned && world.time - pending_started > 60 SECONDS)
-				log_admin("Ahelp relay: HTTPS request is slow; queue retained, no concurrent resend.")
+				log_admin("[relay_label]: HTTPS request is slow; queue retained, no concurrent resend.")
 				slow_warned = TRUE
 			return
 		var/datum/http_response/response = pending.into_response()
@@ -150,7 +160,7 @@ SUBSYSTEM_DEF(ahelp_relay)
 			catch
 				confirmed = FALSE
 			if(confirmed)
-				queue.Cut(1, 2)
+				queue.Cut(1, pending_parts + 1)
 				persist()
 				failures = 0
 				qdel(response)
@@ -165,29 +175,119 @@ SUBSYSTEM_DEF(ahelp_relay)
 			catch
 				retry_seconds = max(2, retry_seconds)
 		if(response.status_code in list(401, 403, 404))
-			blocked_webhook = CONFIG_GET(string/webhook_adminhelp)
-			log_admin("Ahelp relay stopped: Discord refused the webhook (HTTP [response.status_code]). Queue retained; update configuration to resume.")
+			blocked_webhook = get_webhook()
+			log_admin("[relay_label] stopped: Discord refused the webhook (HTTP [response.status_code]). Queue retained; update configuration to resume.")
 		else if(failures == 1 || failures % 10 == 0)
-			log_admin("Ahelp relay delivery uncertain/failed (HTTP [response.status_code]); queue retained. Retrying can duplicate the printed Event ID.")
+			log_admin("[relay_label] delivery uncertain/failed (HTTP [response.status_code]); queue retained. Retrying can duplicate queued entries.")
 		next_attempt = world.time + retry_seconds SECONDS
 		qdel(response)
 		return
 	if(!config || !length(queue) || world.time < next_attempt)
 		return
-	var/webhook = CONFIG_GET(string/webhook_adminhelp)
+	var/webhook = get_webhook()
 	if(!length(webhook) || webhook == blocked_webhook || webhook == CONFIG_GET(string/webhook_roundstart))
 		return
 	var/list/event = queue[1]
 	if(event["webhook_id"] != ahelp_relay_webhook_id(webhook))
 		if(blocked_webhook != webhook)
-			log_admin("Ahelp relay stopped: queued tickets belong to a different webhook. Review backlog before changing its destination.")
+			log_admin("[relay_label] stopped: queued entries belong to a different webhook. Review backlog before changing its destination.")
 		blocked_webhook = webhook
 		return
-	var/list/payload = list("content" = event["content"], "allowed_mentions" = list("parse" = list()), "flags" = 4)
+	var/content = prepare_batch()
+	var/list/payload = list("content" = content, "allowed_mentions" = list("parse" = list()), "flags" = 4)
 	pending = new /datum/http_request(RUSTG_HTTP_METHOD_POST, "[webhook]?wait=true", json_encode(payload), list("Content-Type" = "application/json"))
 	pending_started = world.time
 	slow_warned = FALSE
 	pending.begin_async()
+
+/datum/controller/subsystem/ahelp_relay/proc/prepare_batch()
+	var/list/event = queue[1]
+	var/content = event["content"]
+	pending_parts = 1
+	// Emote relay batches small entries; the original ahelp relay keeps one part/request.
+	for(var/i in 2 to min(length(queue), max_batch_parts))
+		var/list/next_event = queue[i]
+		var/combined = "[content]\n[next_event["content"]]"
+		// Conservative UTF-16 bound, including supplementary emoji.
+		if(next_event["webhook_id"] != event["webhook_id"] || length_char(combined) * 2 > 1900)
+			break
+		content = combined
+		pending_parts++
+	return content
+
+// Independent channel and durable queue, reusing the bounded HTTPS transport above.
+/datum/config_entry/string/webhook_custom_emotes
+	parent_type = /datum/config_entry/string/webhook_adminhelp
+
+SUBSYSTEM_DEF(emote_relay)
+	parent_type = /datum/controller/subsystem/ahelp_relay
+	name = "Custom Emote Discord Relay"
+	checkpoint_prefix = "data/herald_emote_queue"
+	relay_label = "Emote relay"
+	max_batch_parts = 20
+	var/checkpoint_dirty = FALSE
+	var/next_overflow_warning = 0
+
+/datum/controller/subsystem/emote_relay/get_webhook()
+	var/webhook = CONFIG_GET(string/webhook_custom_emotes)
+	// Also enforce isolation when sending a previously queued backlog.
+	if(webhook == CONFIG_GET(string/webhook_roundstart) || webhook == CONFIG_GET(string/webhook_adminhelp))
+		return null
+	return webhook
+
+/datum/controller/subsystem/emote_relay/persist()
+	// Speech/emotes only append in memory. At most one checkpoint write per fire.
+	checkpoint_dirty = TRUE
+	return TRUE
+
+/datum/controller/subsystem/emote_relay/fire(resumed)
+	if(checkpoint_dirty)
+		checkpoint_dirty = !write_checkpoint()
+	return ..()
+
+/datum/controller/subsystem/emote_relay/Shutdown()
+	if(checkpoint_dirty)
+		write_checkpoint()
+	return ..()
+
+/mob
+	var/herald_emote_until = 0
+	var/herald_emote_author
+
+// A small seam for local synthetic probes; production identity is the actual ckey.
+/mob/proc/herald_relay_ckey()
+	return ckey
+
+/datum/controller/subsystem/emote_relay/proc/queue_character_event(mob/actor, message, message_type, custom_emote = FALSE)
+	if(!config || !isliving(actor) || !(message_type in list(LOG_EMOTE, LOG_SAY, LOG_WHISPER)))
+		return
+	var/webhook = get_webhook()
+	if(!length(webhook) || webhook == CONFIG_GET(string/webhook_roundstart) || webhook == CONFIG_GET(string/webhook_adminhelp))
+		return
+	var/author = actor.herald_relay_ckey()
+	if(!length(author))
+		return // NPCs without a player ckey do not open windows.
+	if(custom_emote && message_type == LOG_EMOTE)
+		actor.herald_emote_author = author
+		actor.herald_emote_until = world.time + 3 MINUTES
+	if(actor.herald_emote_author != author || world.time >= actor.herald_emote_until)
+		return
+	var/kind = message_type == LOG_EMOTE ? "EMOTE" : (message_type == LOG_WHISPER ? "WHISPER" : "SAY")
+	var/character = copytext_char(ahelp_relay_plaintext(actor.real_name || actor.name), 1, 81)
+	character = replacetext(replacetext(character, "\n", " "), ascii2text(13), " ")
+	var/heading = "[time2text(world.realtime, "YYYY-MM-DD hh:mm:ss", TIMEZONE_UTC)] UTC | [author] | [character] | [kind] "
+	var/body = ahelp_relay_plaintext(message)
+	var/parts = max(1, CEILING(length_char(body) / 700, 1))
+	if(length(queue) + parts > 2000)
+		if(world.time >= next_overflow_warning)
+			log_admin("Emote relay queue full: new entries remain in normal game logs; relay overflow warnings limited to once per minute.")
+			next_overflow_warning = world.time + 1 MINUTES
+		return
+	serial++
+	for(var/offset in 1 to max(1, length_char(body)) step 700)
+		queue += list(list("event_id" = "[GLOB.rogue_round_id]:[serial]", "webhook_id" = ahelp_relay_webhook_id(webhook),
+			"content" = "[heading][copytext_char(body, offset, offset + 700)]"))
+	persist()
 
 // A separately scoped, read-only Topic API. It NEVER accepts SDQL or proc names.
 /datum/config_entry/string/herald_readonly_key

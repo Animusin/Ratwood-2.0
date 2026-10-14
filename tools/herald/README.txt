@@ -84,6 +84,42 @@ world under tmp/herald-probe. It does not connect to production or Discord.
 It checks ordinary config.txt loading, relay queue/429/403/confirmation, Russian
 text and hyperlink scrubbing, four real SDQL read queries without character
 mutation, signed BYOND packets, replay denial and arbitrary-SDQL denial.
+It also executes real custom/built-in/subtle/free-text emote paths, checks window
+refresh/expiry and author/body isolation, speech/whisper inclusion, OOC/seen-copy
+exclusion, Unicode splitting, batching/429/ACK, queue cap and shutdown flushing.
 The script stops its exact test daemon and removes its generated next_map.json.
 After production deployment, separately test an ahelp, player/admin replies and
 closure in the designated private Discord channel.
+
+Custom emotes and three-minute context
+-------------------------------------
+Optional extra line in the SAME existing config/config.txt:
+WEBHOOK_CUSTOM_EMOTES https://discord.com/api/webhooks/WEBHOOK_ID/WEBHOOK_TOKEN
+
+Use a separate incoming webhook bound to the PRIVATE emote moderation channel.
+This setting is hidden/validated like WEBHOOK_ADMINHELP. Sharing the roundstart
+or ahelp URL is refused. No desktop bot or language model is involved.
+
+A successful intentional player-written custom emote (me, big-me, free text,
+subtle/big-subtle) opens/refreshes a three-minute window on that character/body
+and ckey. It includes the triggering emote, then that author's LOG_EMOTE,
+LOG_SAY and LOG_WHISPER entries. Built-ins, speech and whispers never refresh
+the deadline. Built-ins alone do not trigger it. Swapping characters does not
+carry the window across, and another ckey possessing the body cannot inherit it.
+Observers, NPCs without a ckey, OOC/LOOC, admin PMs, other characters' messages
+and recipient-side LOG_SEEN copies are excluded. This is source-log text, not
+a guarantee that nearby players heard it; whisper/swallowed/forced tags remain.
+
+Format: YYYY-MM-DD hh:mm:ss UTC | ckey | real character name | KIND text
+KIND is EMOTE, SAY or WHISPER. Timestamp is the event time, not delivery time.
+Long messages are split without dropping text; each part repeats its heading.
+HTML/admin hyperlinks and active Discord mentions are stripped/neutralized.
+
+At most 2000 parts are retained in an independent queue; overflow is warned in
+the normal admin log, at most once/minute. Up to 20 short parts are batched in
+one bounded Discord message every transport cycle (one outstanding request).
+Emote hooks only append in memory; alternating data/herald_emote_queue_0.json
+and _1.json checkpoints are written at most once per two-second subsystem fire,
+and flushed at orderly shutdown. A hard crash may lose the last uncheckpointed
+entries; lost send confirmations can duplicate a batch. Window timers are not
+persisted across game-server restarts. Existing ahelp checkpoints are unchanged.

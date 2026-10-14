@@ -21,6 +21,8 @@
 		return FALSE
 	else if(!params)
 		var/custom_emote = copytext(sanitize(input("What does your character subtly do?") as text|null), 1, MAX_MESSAGE_LEN)
+		if(!length(custom_emote))
+			return FALSE // A cancelled dialog must not reuse the shared datum's last message.
 		if(custom_emote)
 			message = custom_emote
 			emote_type = EMOTE_VISIBLE
@@ -29,7 +31,9 @@
 		if(type_override)
 			emote_type = type_override
 
-	user.log_message("SUBTLE - " + message, LOG_EMOTE)
+	if(!length(message))
+		return FALSE
+	user.log_message("SUBTLE - " + message, LOG_EMOTE, meta = list("herald_custom_emote" = intentional))
 	message = "<b>[user]</b> " + message
 /*
 	for(var/mob/M in GLOB.dead_mob_list)

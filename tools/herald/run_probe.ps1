@@ -54,7 +54,9 @@ try {
       'HERALD_READONLY_KEY DO_NOT_LOG_HERALD_KEY',
       ('HERALD_READONLY_KEY '+('a'*64)),
       'WEBHOOK_ADMINHELP https://discord.com/api/webhooks/123/testtoken',
-      'WEBHOOK_ADMINHELP https://discord.com/api/webhooks/123/testtoken')|Set-Content -LiteralPath (Join-Path $cfg 'config.txt') -Encoding ascii
+      'WEBHOOK_ADMINHELP https://discord.com/api/webhooks/123/testtoken',
+      'WEBHOOK_CUSTOM_EMOTES https://discord.com/api/webhooks/456/emotetesttoken',
+      'WEBHOOK_CUSTOM_EMOTES https://discord.com/api/webhooks/456/emotetesttoken')|Set-Content -LiteralPath (Join-Path $cfg 'config.txt') -Encoding ascii
     Get-ChildItem -LiteralPath $repo -File -Filter '*.dll'|Copy-Item -Destination $runtime
     foreach($icon in @('title_static.png','rogueworld_title.dmi','tg_32.png')){
         Copy-Item -LiteralPath (Join-Path $repo ('icons/'+$icon)) -Destination (Join-Path $runtime 'icons')
@@ -81,7 +83,7 @@ try {
     if($LASTEXITCODE -ne 0){throw 'Real BYOND wire test failed.'}
     $findings=Get-ChildItem -LiteralPath $runtime -Recurse -File -Filter '*.log'|Select-String -Pattern 'runtime error:|uncaught runtime|Exception occurred'
     if($findings){throw 'Probe log has runtime errors.'}
-    $secretFindings=Get-ChildItem -LiteralPath $runtime -Recurse -File -Filter '*.log'|Select-String -SimpleMatch -Pattern 'DO_NOT_LOG_HERALD_KEY',('a'*64),'https://discord.com/api/webhooks/123/testtoken'
+    $secretFindings=Get-ChildItem -LiteralPath $runtime -Recurse -File -Filter '*.log'|Select-String -SimpleMatch -Pattern 'DO_NOT_LOG_HERALD_KEY',('a'*64),'https://discord.com/api/webhooks/123/testtoken','https://discord.com/api/webhooks/456/emotetesttoken'
     if($secretFindings){throw 'Hidden config credential appeared in probe logs.'}
     Write-Output 'PASS hidden_config_validation_and_duplicate_values_redacted'
     Write-Output 'HERALD_GAME_PROBE_OK: real SDQL read templates + server relay + signed Topic reads.'

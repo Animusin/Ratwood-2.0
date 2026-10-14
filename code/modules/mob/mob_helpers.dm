@@ -997,6 +997,9 @@
 		stack_trace("Empty message")
 		return
 
+	if(log_globally && (message_type in list(LOG_EMOTE, LOG_SAY, LOG_WHISPER)))
+		SSemote_relay?.queue_character_event(src, message, message_type, meta?["herald_custom_emote"])
+
 	// Cannot use the list as a map if the key is a number, so we stringify it (thank you BYOND)
 	var/smessage_type = num2text(message_type)
 

@@ -168,6 +168,9 @@
 				return
 
 
+	if(modifiers["shift"] && modifiers["ctrl"] && modifiers["right"] && HAS_TRAIT(src, TRAIT_LEVY))
+		callout_point(A)
+		return
 	if(modifiers["shift"] && modifiers["right"])
 		ShiftRightClickOn(A, params)
 		return

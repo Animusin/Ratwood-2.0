@@ -1,13 +1,22 @@
 import { useState } from 'react';
 import { useBackend } from 'tgui/backend';
 import { Window } from 'tgui/layouts';
-import { Autofocus, Button, Divider, Input, Section, Stack } from 'tgui-core/components';
+import {
+  Autofocus,
+  Box,
+  Button,
+  Divider,
+  Input,
+  Section,
+  Stack,
+} from 'tgui-core/components';
 import { isAlphabetic, isNumeric, KEY } from 'tgui-core/keys';
 
 import { InputButtons } from './common/InputButtons';
 import { Loader } from './common/Loader';
 
 type ListInputData = {
+  descriptions?: Record<string, string> | null;
   enable_preview: boolean;
   init_value: string;
   items: string[];
@@ -21,6 +30,7 @@ type ListInputData = {
 export const ListInputModal = (props) => {
   const { act, data } = useBackend<ListInputData>();
   const {
+    descriptions,
     items = [],
     message = '',
     init_value,
@@ -100,7 +110,9 @@ export const ListInputModal = (props) => {
   );
   // Dynamically changes the window height based on the message.
   const windowHeight =
-    325 + Math.ceil(message.length / 3) + (large_buttons ? 5 : 0);
+    (descriptions ? 525 : 325) +
+    Math.ceil(message.length / 3) +
+    (large_buttons ? 5 : 0);
   // Grabs the cursor when no search bar is visible.
   if (!searchBarVisible) {
     setTimeout(() => document!.getElementById(selected.toString())?.focus(), 1);
@@ -127,7 +139,11 @@ export const ListInputModal = (props) => {
   }
 
   return (
-    <Window title={title} width={325} height={windowHeight}>
+    <Window
+      title={title}
+      width={descriptions ? 600 : 325}
+      height={windowHeight}
+    >
       {timeout && <Loader value={timeout} />}
       <Window.Content
         onKeyDown={(event) => {
@@ -163,6 +179,15 @@ export const ListInputModal = (props) => {
                 selected={selected}
               />
             </Stack.Item>
+            {!!descriptions?.[filteredItems[selected]] && (
+              <Stack.Item basis="45%" style={{ minHeight: 0 }}>
+                <Section title={filteredItems[selected]} fill scrollable>
+                  <Box style={{ whiteSpace: 'pre-line' }}>
+                    {descriptions[filteredItems[selected]]}
+                  </Box>
+                </Section>
+              </Stack.Item>
+            )}
             {searchBarVisible && (
               <Input
                 autoFocus
@@ -184,11 +209,21 @@ export const ListInputModal = (props) => {
                   <Stack.Item>
                     <Button
                       color="transparent"
-                      className={previewing ? 'input-button__cancel' : 'input-button__submit'}
-                      disabled={!filteredItems.length || selected === null || selected < 0}
+                      className={
+                        previewing
+                          ? 'input-button__cancel'
+                          : 'input-button__submit'
+                      }
+                      disabled={
+                        !filteredItems.length ||
+                        selected === null ||
+                        selected < 0
+                      }
                       m={0.5}
                       onClick={() =>
-                        act('preview_toggle', { entry: filteredItems[selected] })
+                        act('preview_toggle', {
+                          entry: filteredItems[selected],
+                        })
                       }
                       textAlign="center"
                     >

@@ -6,6 +6,9 @@
 
 /// Every trait in the game, "TRAIT_DEFINE" = trait value. Used by the VV trait modification menu.
 GLOBAL_LIST_INIT(all_traits, list(
+	"TRAIT_LEVY" = TRAIT_LEVY,
+	"TRAIT_LEECHRESIST" = TRAIT_LEECHRESIST,
+	"TRAIT_SELF_RELIANCE" = TRAIT_SELF_RELIANCE,
 	"TRAIT_WEBWALK" = TRAIT_WEBWALK,
 	"TRAIT_NOSTINK" = TRAIT_NOSTINK,
 	"TRAIT_ZJUMP" = TRAIT_ZJUMP,

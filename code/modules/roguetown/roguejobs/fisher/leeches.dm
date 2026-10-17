@@ -126,6 +126,8 @@
 /obj/item/natural/worms/leech/on_embed(obj/item/bodypart/bp)
 	if(bp.owner)
 		host = bp.owner
+		if(HAS_TRAIT(host, TRAIT_LEECHRESIST))
+			to_chat(host, span_notice("I feel a leech latch onto my [bp.name]!"))
 		START_PROCESSING(SSobj, src)
 
 /obj/item/natural/worms/leech/examine(mob/user)

@@ -7,6 +7,8 @@
 /mob/living/carbon/human/proc/wildshape_transformation(shapepath)
 	if(!mind)
 		log_runtime("NO MIND ON [src.name] WHEN TRANSFORMING")
+	if(buckled)
+		buckled.unbuckle_mob(src, force = TRUE)
 	Paralyze(1, ignore_canstun = TRUE)
 
 	//before we shed our items, save our neck and ring, if we have any, so we can quickly rewear them
@@ -112,7 +114,8 @@
 	var/obj/item/stored_neck = wear_neck
 	var/obj/item/stored_ring = wear_ring
 	for(var/obj/item/W in src)
-		dropItemToGround(W)
+		// This body is deleted at the end of the transformation, so its items must not stay inside it.
+		dropItemToGround(W, force = TRUE)
 	icon = null
 	invisibility = INVISIBILITY_MAXIMUM
 

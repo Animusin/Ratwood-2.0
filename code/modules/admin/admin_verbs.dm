@@ -9,6 +9,8 @@ GLOBAL_PROTECT(admin_verbs_default)
 	/client/proc/adjust_pq,
 	/client/proc/recalc_pq_bulk,
 	/client/proc/recalc_pq_single,
+	/client/proc/fix_agevet_pq_bulk,
+	/client/proc/fix_agevet_pq_lookup,
 	/client/proc/hearallasghost,
 	/client/proc/hearglobalLOOC,
 	/client/proc/togglespawnmessages,
@@ -19,6 +21,8 @@ GLOBAL_PROTECT(admin_verbs_default)
 	/client/proc/admin_move_oasis,
 	/datum/admins/proc/start_vote,
 	/datum/admins/proc/show_player_panel,
+	/datum/admins/proc/reset_respawn_cooldown,
+	/datum/admins/proc/reset_respawn_cooldown_by_ckey,
 	/datum/admins/proc/admin_heal,
 	/datum/admins/proc/admin_show_inventory,
 	/datum/admins/proc/admin_revive,
@@ -760,24 +764,10 @@ GLOBAL_PROTECT(admin_verbs_hideable)
 	set name = "Give Spell"
 	set desc = ""
 
-	var/list/spell_list = list()
-	var/type_length = length("/obj/effect/proc_holder/spell") + 2
-	for(var/A in GLOB.spells)
-		spell_list[copytext("[A]", type_length)] = A
-	var/obj/effect/proc_holder/spell/S = input("Choose the spell to give to that guy", "ABRAKADABRA") as null|anything in sortList(spell_list)
-	if(!S)
+	if(!check_rights_for(src, NONE) || QDELETED(T))
 		return
-
-	SSblackbox.record_feedback("tally", "admin_verb", 1, "Give Spell") //If you are copy-pasting this, ensure the 2nd parameter is unique to the new proc!
-	log_admin("[key_name(usr)] gave [key_name(T)] the spell [S].")
-	message_admins(span_adminnotice("[key_name_admin(usr)] gave [key_name_admin(T)] the spell [S]."))
-
-	S = spell_list[S]
-	if(T.mind)
-		T.mind.AddSpell(new S)
-	else
-		T.AddSpell(new S)
-		message_admins(span_danger("Spells given to mindless mobs will not be transferred in mindswap or cloning!"))
+	var/datum/admin_spell_library/library = new(src, T)
+	library.ui_interact(mob)
 
 /client/proc/remove_spell(mob/T in GLOB.mob_list)
 	set category = "-GameMaster-"
@@ -997,4 +987,3 @@ GLOBAL_PROTECT(admin_verbs_hideable)
 
 	to_chat(src, "Browser tools are now enabled.")
 	winset(src, null, "browser-options=devtools,find,byondstorage")
-

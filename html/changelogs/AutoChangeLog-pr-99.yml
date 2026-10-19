@@ -1,0 +1,4 @@
+author: "sigmaboy124124"
+delete-after: True
+changes:
+  - bugfix: "Critical Resistance now protects against Bed Breaker pelvis and jaw fractures."

@@ -414,7 +414,7 @@
 		swingi.loc = swingtarget.loc
 
 /mob/proc/aftermiss()
-	if(ishuman(src))
+	if(ishuman(src) && used_intent)
 		var/mob/living/carbon/human/H = src
 		H.stamina_add(used_intent.misscost)
 
@@ -872,6 +872,8 @@ GLOBAL_LIST_EMPTY(reach_dummy_pool)
 	return
 
 /mob/proc/RightClickOn(atom/A, params)
+	if(stat)
+		return
 	if(A.Adjacent(src))
 		if(A.loc == src && (A == get_active_held_item()) )
 			A.rmb_self(src)

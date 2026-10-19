@@ -294,8 +294,10 @@ GLOBAL_LIST_EMPTY(cached_loadout_icons)
 		"extra_language_2" = extra_language_2
 	)
 	
-	// Add to history
-	customization_history.Insert(1, snapshot)
+	// Add to history. Wrap in list() so Insert() stores the snapshot as a single
+	// element - passing the assoc list directly makes Insert() splice its contents,
+	// which corrupts the history and makes undo_last_change() throw "bad index".
+	customization_history.Insert(1, list(snapshot))
 	
 	// Keep only last 10 entries
 	if(customization_history.len > 10)
@@ -511,7 +513,7 @@ GLOBAL_LIST_EMPTY(cached_loadout_icons)
 		vice6 = null
 	redolent_type = preset["redolent_type"] || "Neutral"
 	redolent_scent = preset["redolent_scent"] || ""
-	
+
 	// Load loadout types and instantiate them if valid
 	var/loadout_type = string_to_typepath(preset["loadout"])
 	if(loadout_type && ispath(loadout_type, /datum/loadout_item))
@@ -1199,11 +1201,11 @@ GLOBAL_LIST_EMPTY(cached_loadout_icons)
 				<a class='btn btn-select' href='byond://?src=\ref[src];quirk_action=add'>Add a Quirk</a>
 			</div>
 		</div>
-		
+
 		<h2 style='color: [theme["text"]]; padding: 0 20px; margin: 20px 0 10px 0; border-bottom: 1px solid [theme["border"]]; padding-bottom: 10px;'>Vice Selection</h2>
 		<p style='color: [theme["label"]]; padding: 0 20px; margin: 0 0 15px 0; font-size: 0.9em;'>Select up to 6 vices. Each selected vice grants +1 loadout point <span style='color: #4CAF50;'>(you have [get_total_points()] total)</span>.<br>Your <b>first</b> vice is required but grants no Q-Points.<br>Additional vices after it grant at least one each.</p>			<div class="vices-grid">
 	"}
-	
+
 	// Generate 6 vice slots
 	var/no_flaw_active = istype(vice1, /datum/charflaw/noflaw)
 	var/other_vices_populated = (vice2 || vice3 || vice4 || vice5 || vice6)
@@ -1525,6 +1527,11 @@ GLOBAL_LIST_EMPTY(cached_loadout_icons)
 		var/datum/loadout_item/selected = items[item_id]
 		
 		if(!selected || !slot)
+			temp_loadout_selection = null
+			usr << browse(null, "window=loadout_select")
+			return
+		if(!selected.is_available_to(usr.client, TRUE))
+			to_chat(usr, span_warning("Donator cosmetics require an active Scientist tier or higher."))
 			temp_loadout_selection = null
 			usr << browse(null, "window=loadout_select")
 			return
@@ -1880,7 +1887,7 @@ GLOBAL_LIST_EMPTY(cached_loadout_icons)
 					// Check for conflicting vices (eye-related)
 					if(check_vice_vice_conflict(vice_type, selected_vices, TRUE, usr))
 						continue
-					
+
 					vices_available[vice_name] = vice_type
 				
 				vices_available = sort_list(vices_available)

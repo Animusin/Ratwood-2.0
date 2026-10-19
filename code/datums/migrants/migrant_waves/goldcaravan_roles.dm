@@ -8,7 +8,7 @@
 	greet_text = "The esteemed EA-Hasir owns your gold company, Promising only the finest quality gold in grimoria\
 	You've been sent with your caravan to sell golden riches and wonders- at a high price."
 
-/datum/advclass/merchantEA
+/datum/advclass/ea_hasir/merchant
 	name = "EA Hasir-ian Merchant"
 	tutorial = "You were born into wealth, learning from before you could talk about the basics of mathematics. \
 	Counting coins is a simple pleasure for any person, but you've made it an art form. \
@@ -26,7 +26,7 @@
 	subclass_virtues = list(
 		/datum/virtue/utility/riding
 	)
-/datum/outfit/job/roguetown/merchant/ea_hasir/pre_equip(mob/living/carbon/human/H)
+/datum/outfit/job/roguetown/merchant/ea_hasir/pre_equip(mob/living/carbon/human/H, visualsOnly = FALSE)
 	..()
 	H.adjust_blindness(-3)
 	H.adjust_skillrank(/datum/skill/combat/swords, 2, TRUE)
@@ -60,7 +60,8 @@
 		shoes = /obj/item/clothing/shoes/roguetown/gladiator
 	if(H.mind)
 		H.mind.AddSpell(new /obj/effect/proc_holder/spell/invoked/appraise/secular)
-	new /obj/structure/handcart/ea_hasir(src)
+	if(!visualsOnly)
+		new /obj/structure/handcart/ea_hasir(get_turf(H))
 
 /datum/migrant_role/ea_hasir/guard
 	name = "EA Hasir-ian Guard"
@@ -70,7 +71,7 @@
 	greet_text = "The esteemed EA Hasir owns your gold company, Promising only the finest quality gold in grimoria\
 	You've been sent to guard his caravans and earn a tidy profit as you do."
 
-/datum/advclass/guard
+/datum/advclass/ea_hasir/guard
 	name = "EA Hasir-ian Guard"
 	tutorial = "You're a caravan guard, used to dealing with your average thief and the occasional bandit raid.\
 	EA-Hasir is a reliable employer, and you're guarding a rather high value merchant\

@@ -788,6 +788,46 @@
 /client/proc/show_player_panel_next(mob/M)
 	holder?.show_player_panel_next(M)
 
+/datum/admins/proc/reset_respawn_cooldown(mob/M in GLOB.mob_list)
+	set name = "Reset Respawn Cooldown"
+	set desc = "Allow a player to return from observing without waiting for their respawn cooldown"
+	set category = "-GameMaster-"
+
+	if(!check_rights(R_ADMIN))
+		return
+	if(!M?.ckey)
+		to_chat(usr, span_warning("The selected mob has no player attached."))
+		return
+
+	GLOB.respawntimes -= M.ckey
+	to_chat(M, span_notice("An admin has reset my respawn cooldown."))
+	message_admins(span_adminnotice("[key_name_admin(usr)] reset [key_name_admin(M)]'s respawn cooldown."))
+	log_admin("[key_name(usr)] reset [key_name(M)]'s respawn cooldown.")
+	SSblackbox.record_feedback("tally", "admin_verb", 1, "Reset Respawn Cooldown")
+
+/datum/admins/proc/reset_respawn_cooldown_by_ckey()
+	set name = "Reset Respawn Cooldown by Ckey"
+	set desc = "Reset a player's respawn cooldown by ckey, including disconnected players"
+	set category = "-GameMaster-"
+
+	if(!check_rights(R_ADMIN))
+		return
+
+	var/target_ckey = ckey(input(usr, "Enter the player's ckey.", "Reset Respawn Cooldown") as null|text)
+	if(!target_ckey)
+		return
+	if(!(target_ckey in GLOB.respawntimes))
+		to_chat(usr, span_warning("[target_ckey] has no active respawn cooldown."))
+		return
+
+	GLOB.respawntimes -= target_ckey
+	var/client/target_client = GLOB.directory[target_ckey]
+	if(target_client)
+		to_chat(target_client, span_notice("An admin has reset my respawn cooldown."))
+	message_admins(span_adminnotice("[key_name_admin(usr)] reset [key_name_admin(target_ckey)]'s respawn cooldown by ckey."))
+	log_admin("[key_name(usr)] reset [key_name(target_ckey)]'s respawn cooldown by ckey.")
+	SSblackbox.record_feedback("tally", "admin_verb", 1, "Reset Respawn Cooldown by Ckey")
+
 /datum/admins/proc/admin_revive(mob/living/M in GLOB.mob_list)
 	set name = "Mob - Revive"
 	set desc = "Resuscitate a mob"
@@ -1256,22 +1296,26 @@
 		var/datum/job/job = j
 		count++
 		var/J_title = html_encode(job.title)
-		var/J_opPos = html_encode(job.total_positions - (job.total_positions - job.current_positions))
-		var/J_totPos = html_encode(job.total_positions)
-		dat += "<tr><td>[J_title]:</td> <td>[J_opPos]/[job.total_positions < 0 ? " (unlimited)" : J_totPos]"
+		var/position_limit = job.get_position_limit(TRUE)
+		var/J_opPos = html_encode(job.current_positions)
+		var/J_totPos = html_encode(position_limit)
+		dat += "<tr><td>[J_title]:</td> <td>[J_opPos]/[position_limit < 0 ? " (unlimited)" : J_totPos]"
 
 		dat += "</td>"
 		dat += "<td>"
-		if(job.total_positions >= 0)
+		if(position_limit >= 0)
 			dat += "<A href='?src=[REF(src)];[HrefToken()];customjobslot=[job.title]'>Custom</A> | "
 			dat += "<A href='?src=[REF(src)];[HrefToken()];addjobslot=[job.title]'>Add 1</A> | "
-			if(job.total_positions > job.current_positions)
+			if(position_limit > job.current_positions)
 				dat += "<A href='?src=[REF(src)];[HrefToken()];removejobslot=[job.title]'>Remove</A> | "
 			else
 				dat += "Remove | "
-			dat += "<A href='?src=[REF(src)];[HrefToken()];unlimitjobslot=[job.title]'>Unlimit</A></td>"
+			dat += "<A href='?src=[REF(src)];[HrefToken()];unlimitjobslot=[job.title]'>Unlimit</A>"
 		else
-			dat += "<A href='?src=[REF(src)];[HrefToken()];limitjobslot=[job.title]'>Limit</A></td>"
+			dat += "<A href='?src=[REF(src)];[HrefToken()];limitjobslot=[job.title]'>Limit</A>"
+		if(!isnull(job.admin_position_limit))
+			dat += " | <A href='?src=[REF(src)];[HrefToken()];resetjobslot=[job.title]'>Reset</A>"
+		dat += "</td></tr>"
 
 	browser.height = min(100 + count * 20, 650)
 	browser.set_content(dat.Join())
@@ -1358,14 +1402,29 @@
 	set category = "-Special Verbs-"
 	set name = "Back to Lobby"
 
-	var/mob/living/carbon/human/H = mob
-	H.admin_send_back_to_lobby(usr)
+	mob?.admin_send_back_to_lobby(usr)
 
 
-/mob/living/carbon/human/proc/admin_send_back_to_lobby(mob/admin, delete_character = FALSE)
+/mob/proc/admin_send_back_to_lobby(mob/admin, delete_character = FALSE)
+	if(isnewplayer(src))
+		to_chat(admin || src, span_notice("Already in the lobby."))
+		return FALSE
+	if(!ishuman(src))
+		if(!client)
+			return FALSE
+		returntolobby()
+		return TRUE
 	var/datum/job/mob_job
 	var/target_job = SSrole_class_handler.get_advclass_by_name(advjob)
 	var/player_key = key ? key : mind?.key
+	if(!player_key)
+		to_chat(admin, span_warning("[src] has no key to return to the lobby."))
+		return FALSE
+	SSrole_class_handler.cancel_class_handler(ckey(player_key))
+	mind?.clear_queued_admin_antag()
+	var/mob/living/carbon/human/character = src
+	character.admin_antag_spawn = FALSE
+	character.admin_antag_setup_pending = FALSE
 	if(mind)
 		mob_job = SSjob.GetJob(mind.assigned_role)
 		if(mob_job)
@@ -1387,6 +1446,7 @@
 		LAZYREMOVE(GLOB.actors_list[SSjob.bitflag_to_department(mob_job.department_flag, mob_job.obsfuscated_job)], mobid)
 	LAZYREMOVE(GLOB.roleplay_ads, mobid)
 	if(client)
+		SStgui.close_user_uis(src)
 		SSdroning.kill_droning(client)
 		SSdroning.kill_loop(client)
 		SSdroning.kill_rain(client)
@@ -1396,6 +1456,7 @@
 	else if(admin)
 		to_chat(admin, span_warning("[src] has no key to return to the lobby."))
 	if(delete_character)
+		mind?.remove_all_antag_datums()
 		qdel(src)
 	return TRUE
 

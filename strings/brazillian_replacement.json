@@ -1,5 +1,5 @@
 {
-    "full": {
+	"full": {
 		"hello": "olá",
 		"hi": "oi",
 		"hey": "ei",
@@ -40,8 +40,8 @@
 		"idiot": "idiota",
 		"ghetto": "favela",
 		"what": "que",
-        "what's": "qual é",
-        "who's": "quem é",
+		"what's": "qual é",
+		"who's": "quem é",
 		"haha": "huehue",
 		"awesome": "incrível",
 		"happy": "feliz",
@@ -78,13 +78,22 @@
 		"in": "em",
 		"the": "o"
 	},
+	"start": {
+	},
+	"end": {
+		"иш": "ишшш"
+	},
 	"multiword": {
 		"who are you": "quem é você"
 	},
 	"syllable": {
-        "shi": "chee",
+		"shi": "chee",
 		"thi": "thee",
 		"sh": "ch",
-		"ish": "eesh"
-    }
+		"ish": "eesh",
+		"т": "тх",
+		"ш": "шш",
+		"х": "хх",
+		"с": "ссс"
+	}
 }

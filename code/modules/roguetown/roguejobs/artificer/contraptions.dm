@@ -19,6 +19,12 @@
 	obj_flags_ignore = TRUE
 	/// If this contraption should accept cogs that alter its behaviour
 	var/cog_accept = TRUE
+	var/battery_accept = TRUE
+
+/proc/contraption_misfire_examine_text(misfire_chance, skill)
+	if(skill > 2)
+		return span_warning("You calculate this contraptions chance of failure to be anywhere between [max(0, (misfire_chance - skill) - rand(4))]% and [max(2, (misfire_chance - skill) + rand(3))]%.")
+	return span_warning("It seems slightly unstable...")
 
 /obj/item/contraption/getonmobprop(tag)
 	. = ..()
@@ -55,15 +61,13 @@
 		return
 	var/mob/living/player = user
 	var/skill = player.get_skill_level(/datum/skill/craft/engineering)
-	if(current_charge)
-		. += span_warning("The contraption has [current_charge] charges left.")
-	if(!current_charge)
-		. += span_warning("This contraption requires a new [initial(accepted_power_source.name)] to function.")
-	if(misfire_chance && skill < 6)
-		if(skill > 2)
-			. += span_warning("You calculate this contraptions chance of failure to be anywhere between [max(0, (misfire_chance - skill) - rand(4))]% and [max(2, (misfire_chance - skill) + rand(3))]%.")
-		else
-			. += span_warning("It seems slightly unstable...")
+	if(battery_accept)
+		if(current_charge)
+			. += span_warning("The contraption has [current_charge] charges left.")
+		if(!current_charge)
+			. += span_warning("This contraption requires a new [initial(accepted_power_source.name)] to function.")
+	if(misfire_chance)
+		. += contraption_misfire_examine_text(misfire_chance, skill)
 	if(skill >= 6 && sneaky_misfire_chance)
 		. += span_warning("This contraption has a chance for catastrophic failure in the hands of the inexperient.")
 
@@ -110,7 +114,7 @@
 		S.set_up(1, 1, front)
 		S.start()
 		to_chat(user, "<span class='warning'>[cog.name] inserted!</span>")
-	if(istype(I, accepted_power_source))
+	if(battery_accept && istype(I, accepted_power_source))
 		user.changeNext_move(CLICK_CD_FAST)
 		S.set_up(1, 1, front)
 		S.start()
@@ -231,6 +235,8 @@
 	on_icon = "metalizer_flick"
 	off_icon = "metalizer_off"
 	w_class = WEIGHT_CLASS_BULKY
+	misfire_chance = 0
+	cog_accept = FALSE
 	charge_per_source = 10
 
 /obj
@@ -262,9 +268,11 @@
 	if(istype(O, /obj/structure/mineral_door/wood)) //This is to ensure the new door will retain its lock
 		var/obj/structure/mineral_door/wood/I = O
 		var/obj/structure/mineral_door/wood/new_door = new I.metalizer_result(get_turf(I))
+		// The replacement initializes its own lockhash, but the existing key matches the original one.
+		GLOB.lockhashes.Remove(new_door.lockhash)
 		new_door.locked = I.locked
-		if(I.lockid)
-			new_door.lockid = I.lockid
+		new_door.lockid = I.lockid
+		new_door.lockhash = I.lockhash
 		qdel(I)
 	else
 		var/newdir = O.dir
@@ -300,12 +308,13 @@
 	w_class = WEIGHT_CLASS_BULKY
 	accepted_power_source = /obj/item/rogueore/coal
 	misfire_chance = 0
+	cog_accept = FALSE
 	charge_per_source = 12
 
 /obj/item/contraption/smelter/misfire_result()
 	misfiring = TRUE
 	for(var/obj/object in oview(3, src))
-		if(object.smeltresult)  // Check if the object is within the flame range
+		if(object.smeltresult)
 			if(istype(object, /obj/item/ingot))
 				continue
 			if(istype(object, /obj/item/contraption))
@@ -314,6 +323,10 @@
 					continue
 				addtimer(CALLBACK(I, PROC_REF(misfire_result)), rand(5))
 				continue
+			if(istype(object, /obj/item))
+				var/obj/item/item_object = object
+				if(!item_object.can_be_smelted())
+					continue
 			object.popcorn_smelt()
 
 	explosion(src, flame_range = 3, smoke = TRUE, soundin = pick('sound/misc/explode/bottlebomb (1).ogg','sound/misc/explode/bottlebomb (2).ogg'))
@@ -344,6 +357,11 @@
 		S.set_up(1, 1, front)
 		S.start()
 		return
+	if(istype(O, /obj/item))
+		var/obj/item/smeltable_item = O
+		if(!smeltable_item.can_be_smelted())
+			to_chat(user, span_info("\The [O] needs a full batch of [smeltable_item.smelt_batch_num] to smelt, which [name] can't take."))
+			return
 	user.mind.add_sleep_experience(/datum/skill/craft/engineering, (user.STAINT / 3))
 	charge_deduction(O, user, 1)
 	flick(on_icon, src)
@@ -371,6 +389,11 @@
 	resistance_flags = FIRE_PROOF
 	grid_height = 32
 	grid_width = 64
+	cog_accept = FALSE
+	battery_accept = FALSE
+
+/obj/item/contraption/folding_table_stored/hammer_action(obj/item/I, mob/user)
+	return
 
 /obj/item/contraption/folding_table_stored/attack_self(mob/user)
 	. = ..()
@@ -457,8 +480,8 @@
 	charge_per_source = 4
 	cog_accept = FALSE
 	var/list/allowed_locks = list(/obj/structure/mineral_door, /obj/structure/closet, /obj/structure/roguemachine/steward, /obj/structure/roguemachine/vendor, /obj/structure/roguemachine/goldface)
-	var/stored_lock_id = "artificer"
-	var/stored_lock_hash = 354
+	var/stored_lock_id
+	var/stored_lock_hash
 	var/mode = "Examiner"
 
 /obj/item/contraption/lock_imprinter/examine(mob/user)
@@ -472,28 +495,74 @@
 		if(skill >= 4)
 			if(stored_lock_id)
 				. += span_warning("The current stored Lock ID is [stored_lock_id].")
+			else if(stored_lock_hash)
+				. += span_warning("The current stored Lock ID is custom.")
 			else
 				. += span_warning("There is no stored Lock ID.")
 		else
 			. += span_warning("I cannot yet fully understand this contraption.")
 
+/obj/item/contraption/lock_imprinter/proc/set_stored_lock_data(lock_id, lock_hash)
+	stored_lock_id = lock_id
+	stored_lock_hash = lock_hash
+
+/obj/item/contraption/lock_imprinter/proc/store_lock_data(lock_id, lock_hash, mob/user, atom/source)
+	if(!lock_id && !lock_hash)
+		to_chat(user, span_warning("The [name] identifies an absense of a lock or lock ID."))
+		return
+	set_stored_lock_data(lock_id, lock_hash)
+	user.changeNext_move(CLICK_CD_FAST)
+	flick(off_icon, src)
+	playsound(user, 'sound/foley/doors/unlock.ogg', 100, TRUE)
+	var/datum/effect_system/spark_spread/S = new()
+	var/turf/front = get_turf(src)
+	S.set_up(1, 1, front)
+	S.start()
+	user.visible_message(span_notice("[user] scans \a [source] with the [name] and it starts ticking..."))
+	addtimer(CALLBACK(src, PROC_REF(play_clock_sound)), 5)
+
+/obj/item/contraption/lock_imprinter/proc/imprint_lock(obj/O, mob/living/user)
+	if(!stored_lock_id && !stored_lock_hash)
+		to_chat(user, span_warning("The [name] has no stored lock data to imprint."))
+		return FALSE
+	if(istype(O, /obj/structure/roguemachine/steward))
+		var/obj/structure/roguemachine/steward/steward = O
+		steward.keycontrol = stored_lock_id
+		steward.lockhash = stored_lock_hash
+		return TRUE
+	if(istype(O, /obj/structure/roguemachine/vendor))
+		var/obj/structure/roguemachine/vendor/vendor = O
+		vendor.keycontrol = stored_lock_id
+		vendor.lockhash = stored_lock_hash
+		return TRUE
+	if(istype(O, /obj/structure/roguemachine/goldface))
+		O.lockid = stored_lock_id
+		O.lockhash = stored_lock_hash
+		return TRUE
+	if(!stored_lock_hash)
+		to_chat(user, span_warning("The [name] requires a stored lock hash to imprint this lock."))
+		return FALSE
+	if(istype(O, /obj/structure/mineral_door))
+		var/obj/structure/mineral_door/door = O
+		if(door.door_opened || door.isSwitchingStates)
+			to_chat(user, span_warning("[door] must be fully closed before imprinting its lock."))
+			return FALSE
+		door.keylock = TRUE
+	O.lockid = stored_lock_id
+	O.lockhash = stored_lock_hash
+	return TRUE
+
 /obj/item/contraption/lock_imprinter/attackby(obj/item/I, mob/user, params)
 	..()
 	if(istype(I, /obj/item/roguekey))
 		var/obj/item/roguekey/the_key = I
-		user.changeNext_move(CLICK_CD_FAST)
-		flick(off_icon, src)
-		playsound(user, 'sound/foley/doors/unlock.ogg', 100, TRUE)
-		var/datum/effect_system/spark_spread/S = new()
-		var/turf/front = get_turf(src)
-		S.set_up(1, 1, front)
-		S.start()
-		stored_lock_id = the_key.lockid
-		stored_lock_hash = the_key.lockhash
-		user.visible_message(span_notice("[user] inserts \a [the_key] into the [name] and it starts ticking..."))
-		addtimer(CALLBACK(src, PROC_REF(play_clock_sound)), 5)
+		store_lock_data(the_key.lockid, the_key.lockhash, user, the_key)
 
 /obj/item/contraption/lock_imprinter/attack_obj(obj/O, mob/living/user)
+	if(istype(O, /obj/item/roguekey))
+		var/obj/item/roguekey/the_key = O
+		store_lock_data(the_key.lockid, the_key.lockhash, user, the_key)
+		return
 	..()
 	if(!current_charge)
 		return
@@ -503,16 +572,28 @@
 		if(istype(O, type))
 			valid_lock = TRUE
 			if(mode == "Examiner")
-				if(O.lockid)
-					to_chat(user, span_warning("The [name] identifies this lock's ID as [O.lockid]."))
+				var/lock_id = O.lockid
+				var/lock_hash = O.lockhash
+				if(istype(O, /obj/structure/roguemachine/steward))
+					var/obj/structure/roguemachine/steward/steward = O
+					lock_id = steward.keycontrol
+				else if(istype(O, /obj/structure/roguemachine/vendor))
+					var/obj/structure/roguemachine/vendor/vendor = O
+					lock_id = vendor.keycontrol
+				if(lock_id || lock_hash)
+					set_stored_lock_data(lock_id, lock_hash)
+					if(lock_id)
+						to_chat(user, span_warning("The [name] identifies this lock's ID as [lock_id]."))
+					else
+						to_chat(user, span_warning("The [name] identifies a custom lock."))
 				else
 					to_chat(user, span_warning("The [name] identifies an absense of a lock or lock ID."))
 				playsound(loc, 'sound/misc/beep.ogg', 50, TRUE)
 				flick(off_icon, src)
 				break
 			if(mode == "Imprinter")
-				O.lockid = stored_lock_id
-				O.lockhash = stored_lock_hash
+				if(!imprint_lock(O, user))
+					return
 				flick(on_icon, src)
 				shake_camera(user, 1, 1)
 				user.visible_message(span_notice("[user] holds the [name] up to the [O.name] causing sparks to fly!"))
@@ -529,6 +610,11 @@
 					misfire(O, user)
 				break
 			if(mode == "Unlocker")
+				if(!O.locked && istype(O, /obj/structure/mineral_door))
+					var/obj/structure/mineral_door/door = O
+					if(door.door_opened || door.isSwitchingStates)
+						to_chat(user, span_warning("[door] must be fully closed before it can be locked."))
+						return
 				var/turf/front = get_turf(O)
 				if(O.locked)
 					O.locked = FALSE

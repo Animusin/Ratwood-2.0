@@ -1,0 +1,4 @@
+author: "sigmaboy124124"
+delete-after: True
+changes:
+  - bugfix: "Ship prosthetic orders pay producers and accept all listed limb variants."

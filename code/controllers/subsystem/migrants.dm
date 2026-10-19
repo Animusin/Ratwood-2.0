@@ -6,7 +6,7 @@ SUBSYSTEM_DEF(migrants)
 
 	var/wave_wait_time = 3 MINUTES
 	var/regular_roll_interval = 5 MINUTES
-	var/special_roll_interval = 12 MINUTES
+	var/special_roll_interval = 30 MINUTES
 	var/faction_fail_cooldown = 20 MINUTES
 	var/raid_fail_cooldown = 30 MINUTES
 	var/ooc_ping_interval = 5 MINUTES
@@ -22,6 +22,9 @@ SUBSYSTEM_DEF(migrants)
 	var/list/global_triumph_contributions = list()
 
 /datum/controller/subsystem/migrants/Initialize()
+	for(var/role_type in GLOB.migrant_roles)
+		var/datum/migrant_role/role = MIGRANT_ROLE(role_type)
+		role.apply_config()
 	track_next_roll[MIGRANT_TRACK_REGULAR] = world.time + 2 MINUTES
 	track_next_roll[MIGRANT_TRACK_SPECIAL] = world.time + special_roll_interval
 	return ..()
@@ -75,6 +78,41 @@ SUBSYSTEM_DEF(migrants)
 			return TRUE
 	return FALSE
 
+/datum/controller/subsystem/migrants/proc/is_wave_forming(wave_type)
+	for(var/track in track_forming)
+		if(track_forming[track] == wave_type)
+			return TRUE
+	return FALSE
+
+/// The same public, non-raid waves that players may fund with triumphs.
+/datum/controller/subsystem/migrants/proc/is_purchasable_wave(datum/migrant_wave/wave)
+	return wave && !wave.hidden && wave.can_roll && !wave.is_raid
+
+/datum/controller/subsystem/migrants/proc/can_call_supporter_wave(datum/migrant_wave/wave)
+	return SSticker.HasRoundStarted() && is_purchasable_wave(wave) && !track_forming[MIGRANT_TRACK_TRIUMPH] && !is_wave_forming(wave.type) && wave_eligible(wave) && world.time >= wave_cooldown[wave.type]
+
+/datum/controller/subsystem/migrants/proc/call_supporter_wave(client/player, wave_type)
+	if(!player || (!player.holder && !player.has_scientist_subscription(TRUE)))
+		to_chat(player, span_warning("Calling a free wave requires an active Scientist subscription or higher, or an admin account."))
+		return FALSE
+	// Refreshing the subscription yields; recheck the track, wave and quota afterwards.
+	if(!player || (!player.holder && !player.has_scientist_subscription()))
+		return FALSE
+	var/datum/migrant_wave/wave = MIGRANT_WAVE(wave_type)
+	if(!can_call_supporter_wave(wave))
+		to_chat(player, span_warning("This wave cannot be called yet, is already forming, or the Triumph track is busy."))
+		return FALSE
+	if(!player.holder && !SSdonations.consume_migrant_call(player.ckey))
+		to_chat(player, span_warning("No daily wave calls remain, or your quota could not be saved. The limit resets at midnight UTC."))
+		return FALSE
+	begin_forming(MIGRANT_TRACK_TRIUMPH, wave_type)
+	announce_special_wave(wave_type)
+	var/caller_type = player.holder ? "ADMIN" : "SUPPORTER"
+	log_game("[caller_type]: [player.ckey] called migrant wave [wave.name].")
+	message_admins("[caller_type]: [key_name_admin(player)] called migrant wave [wave.name].")
+	update_ui()
+	return TRUE
+
 /datum/controller/subsystem/migrants/proc/begin_forming(track, wave_type, forced = FALSE)
 	track_forming[track] = wave_type
 	track_arrival[track] = world.time + wave_wait_time
@@ -116,6 +154,10 @@ SUBSYSTEM_DEF(migrants)
 	var/list/assignments = assemble_role_wave(wave, active_migrants, picked_migrants)
 	if(isnull(assignments))
 		return FALSE
+	var/wave_antag_weight = wave.get_antag_cap_weight(assignments)
+	if(wave_antag_weight && SSgamemode && !SSgamemode.can_add_antag_weight(wave_antag_weight))
+		log_game("Migrants: [wave.name] requires [wave_antag_weight] antagonist capacity, but only [SSgamemode.get_remaining_antag_capacity()] remains.")
+		return FALSE
 
 	var/turf/spawn_location = get_spawn_turf_for_job(wave.spawn_landmark)
 	var/atom/fallback_location = spawn_location
@@ -134,11 +176,12 @@ SUBSYSTEM_DEF(migrants)
 
 	var/greet_text = pick_greet_text(wave, assignments.len)
 
-	for(var/client/client as anything in picked_migrants)
-		client.prefs.migrant.post_spawn()
-
+	var/spawned_count = 0
 	for(var/datum/migrant_assignment/assignment as anything in assignments)
-		spawn_migrant(wave, assignment, wave.spawn_on_location, greet_text)
+		if(spawn_migrant(wave, assignment, wave.spawn_on_location, greet_text))
+			spawned_count++
+	if(!spawned_count)
+		return FALSE
 
 	var/used_wave_type = wave.type
 	if(wave.shared_wave_type)
@@ -148,7 +191,7 @@ SUBSYSTEM_DEF(migrants)
 	spawned_waves[used_wave_type] += 1
 
 	reset_wave_contributions(wave)
-	message_admins("MIGRANTS: Spawned wave: [wave.name] (players: [assignments.len]) at [ADMIN_VERBOSEJMP(spawn_location)]")
+	message_admins("MIGRANTS: Spawned wave: [wave.name] (players: [spawned_count]) at [ADMIN_VERBOSEJMP(spawn_location)]")
 
 	return TRUE
 
@@ -263,16 +306,26 @@ SUBSYSTEM_DEF(migrants)
 
 /datum/controller/subsystem/migrants/proc/spawn_migrant(datum/migrant_wave/wave, datum/migrant_assignment/assignment, spawn_on_location, greet_text)
 	var/rank = "Migrant"
-	var/mob/dead/new_player/newplayer = assignment.client.mob
-
-	SSjob.AssignRole(newplayer, rank, TRUE)
-
-	var/mob/living/character = newplayer.create_character(TRUE)	//creates the human and transfers vars and mind
+	var/mob/dead/new_player/newplayer = assignment.client?.mob
+	if(!istype(newplayer) || newplayer.spawning || newplayer.join_attempt_in_progress || !newplayer.check_respawn_cooldown(FALSE))
+		return FALSE
+	newplayer.join_attempt_in_progress = TRUE
+	var/datum/migrant_role/role = MIGRANT_ROLE(assignment.role_type)
+	if(!can_be_role(assignment.client, assignment.role_type) || !SSjob.AssignRole(newplayer, rank, TRUE))
+		if(!QDELETED(newplayer))
+			newplayer.join_attempt_in_progress = FALSE
+		return FALSE
+	var/mob/living/character = newplayer.create_character(TRUE, role.triumph_entry_cost)
+	if(!character)
+		SSjob.release_failed_spawn(newplayer)
+		if(!QDELETED(newplayer))
+			newplayer.join_attempt_in_progress = FALSE
+		return FALSE
+	assignment.client?.prefs?.migrant?.post_spawn()
 
 	character.islatejoin = TRUE
 	SSjob.EquipRank(character, rank, TRUE)
 
-	var/datum/migrant_role/role = MIGRANT_ROLE(assignment.role_type)
 	character.migrant_type = assignment.role_type
 
 
@@ -340,6 +393,7 @@ SUBSYSTEM_DEF(migrants)
 	else
 		// Apply a special if we're not applying an adv class, otherwise let the adv class apply it afterwards
 		try_apply_character_post_equipment(character, character.client)
+	return TRUE
 
 /datum/controller/subsystem/migrants/proc/get_priority_players(list/players, role_type, wave_type)
 	var/list/weighted = list()
@@ -371,9 +425,11 @@ SUBSYSTEM_DEF(migrants)
 
 /datum/controller/subsystem/migrants/proc/can_be_role(client/player, role_type)
 	var/datum/migrant_role/role = MIGRANT_ROLE(role_type)
-	if(!player)
+	if(!player || !role)
 		return FALSE
 	if(!player.prefs)
+		return FALSE
+	if(role.triumph_entry_cost && SStriumphs.get_triumphs(player.ckey) < role.triumph_entry_cost)
 		return FALSE
 	var/datum/preferences/prefs = player.prefs
 	if(role.disallowed_races && (prefs.pref_species.type in role.disallowed_races))
@@ -409,7 +465,9 @@ SUBSYSTEM_DEF(migrants)
 	var/list/available_weighted_waves = list()
 	for(var/wave_type in GLOB.migrant_waves)
 		var/datum/migrant_wave/wave = MIGRANT_WAVE(wave_type)
-		if(wave.track != track)
+		if(wave.track != track || !wave.auto_roll)
+			continue
+		if(is_wave_forming(wave_type))
 			continue
 		if(!wave_eligible(wave))
 			continue
@@ -427,6 +485,8 @@ SUBSYSTEM_DEF(migrants)
 	for(var/wave_type in GLOB.migrant_waves)
 		var/datum/migrant_wave/wave = MIGRANT_WAVE(wave_type)
 		if(wave.triumph_total < wave.triumph_threshold)
+			continue
+		if(is_wave_forming(wave_type))
 			continue
 		if(!wave_eligible(wave))
 			continue
@@ -450,7 +510,7 @@ SUBSYSTEM_DEF(migrants)
 		return FALSE
 
 	var/datum/migrant_wave/wave = MIGRANT_WAVE(wave_type)
-	if(!wave)
+	if(!is_purchasable_wave(wave) || !isnum(amount) || amount <= 0 || amount > MIGRANT_TRIUMPH_THRESHOLD || round(amount) != amount)
 		return FALSE
 
 	var/current_triumph = SStriumphs.get_triumphs(player.ckey)
@@ -458,7 +518,8 @@ SUBSYSTEM_DEF(migrants)
 		to_chat(player, span_warning("You don't have enough triumph! You have [current_triumph], need [amount]."))
 		return FALSE
 
-	player.adjust_triumphs(-amount, TRUE, "Wave influence: [wave.name]")
+	if(!SStriumphs.try_spend_triumphs(player.ckey, amount))
+		return FALSE
 
 	if(!wave.triumph_contributions[player.ckey])
 		wave.triumph_contributions[player.ckey] = 0
@@ -539,6 +600,9 @@ SUBSYSTEM_DEF(migrants)
 		line += "<br>Needs: [needs.Join(", ")]."
 	if(length(slots))
 		line += "<br>Slots open for [slots.Join(", ")]."
+	line += "<br>Minimum group: [wave.get_minimum_players()] players; all required roles must be filled."
+	if(wave.min_optional_fills)
+		line += " At least [wave.min_optional_fills] optional slots must also be filled."
 	line += "<br><a href='?src=[REF(src)];open_panel=1'>Click to join.</a> [wave_wait_time / (1 SECONDS)]s remaining."
 	for(var/mob/dead/new_player/lobby_nerd in GLOB.player_list)
 		if(!lobby_nerd.client)
@@ -603,6 +667,8 @@ SUBSYSTEM_DEF(migrants)
 		if(!player.client)
 			continue
 		if(!player.client.prefs)
+			continue
+		if(!player.check_respawn_cooldown(FALSE))
 			continue
 		if(!player.client.prefs.migrant.queued_wave)
 			continue

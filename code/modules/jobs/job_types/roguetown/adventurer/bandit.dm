@@ -6,6 +6,7 @@
 	total_positions = 0
 	spawn_positions = 0
 	antag_job = TRUE
+	admin_slot_antag_type = /datum/antagonist/bandit
 	allowed_races = RACES_ALL_KINDS
 	tutorial = "At some point in your lyfe, you'd fallen to the wrong side of the carriage. Whether by butchery or finesse, you're known throughout the land. \
 	Yet one of many faces in a tavern, hung up on a wall. A tale told by the locals. Now, you lyve in a camp with your fellows, to avoid an unpleasant end."
@@ -21,7 +22,7 @@
 	max_pq = null
 	round_contrib_points = 5
 	quirk_restrictions = list(/datum/quirk/assassintarget)
-	allowed_patrons = list(/datum/patron/inhumen/matthios) // Bandits bro, they rob you blind
+	forced_patron = /datum/patron/inhumen/matthios // Bandits bro, they rob you blind
 
 	advclass_cat_rolls = list(CTAG_BANDIT = 20)
 	PQ_boost_divider = 10
@@ -43,6 +44,12 @@
 		/datum/advclass/sellsword,
 		/datum/advclass/pioneer
 	)
+
+/datum/job/roguetown/bandit/New()
+	. = ..()
+	if(CONFIG_GET(string/round_modifier_policy) == "ratwood")
+		total_positions = -1
+		spawn_positions = -1
 
 /datum/job/roguetown/bandit/after_spawn(mob/living/L, mob/M, latejoin = TRUE)
 	..()

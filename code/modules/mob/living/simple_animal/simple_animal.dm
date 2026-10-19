@@ -386,7 +386,7 @@ GLOBAL_VAR_INIT(farm_animals, FALSE)
 	INVOKE_ASYNC(src, PROC_REF(emote), "lower_head", null, null, null, TRUE)
 	tame = TRUE
 	stop_automated_movement_when_pulled = TRUE
-	if(user)
+	if(ismob(user)) // some callers pass TRUE rather than a mob; SEND_SIGNAL on a non-mob reads <num>.comp_lookup
 		owner = user
 		SEND_SIGNAL(user, COMSIG_ANIMAL_TAMED, src)
 	return

@@ -1,0 +1,4 @@
+author: "Animusin"
+delete-after: True
+changes:
+  - bugfix: "Non-admin ghosts can no longer control or disrupt an observed player through shared HUD elements."

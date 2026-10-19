@@ -1,0 +1,4 @@
+author: "sigmaboy124124"
+delete-after: True
+changes:
+  - bugfix: "Upper Cut no longer resets the size of characters with custom sprite scaling."

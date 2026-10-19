@@ -18,3 +18,4 @@
 
 	total_positions = 0
 	spawn_positions = 0
+	bypass_latejoin_position_limit = TRUE

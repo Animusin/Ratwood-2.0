@@ -3,14 +3,19 @@ GLOBAL_LIST_EMPTY(billagerspawns)
 GLOBAL_VAR_INIT(adventurer_hugbox_duration, 40 SECONDS)
 GLOBAL_VAR_INIT(adventurer_hugbox_duration_still, 3 MINUTES)
 
+#define ADVENTURER_POPULATION_RATIO 0.10
+#define ADVENTURER_MIN_POSITIONS 4
+#define ADVENTURER_MAX_POSITIONS 10
+
 /datum/job/roguetown/adventurer
 	townie_contract_gate_exempt = TRUE
 	title = "Adventurer"
+	triumph_entry_cost = ADVENTURER_MERCENARY_ENTRY_COST
 	flag = ADVENTURER
 	department_flag = WANDERERS
 	faction = "Station"
-	total_positions = 20
-	spawn_positions = 20
+	total_positions = 10
+	spawn_positions = 10
 	allowed_races = RACES_ALL_KINDS
 	tutorial = "Hero of nothing, a wanderer in foreign lands in search of fame and riches. Whatever led you to this fate is up to the wind to decide, and you've never fancied yourself for much other than the thrill. Some day your pride is going to catch up to you, and you're going to find out why most men don't end up in the annals of history."
 	class_categories = TRUE
@@ -79,6 +84,11 @@ GLOBAL_VAR_INIT(adventurer_hugbox_duration_still, 3 MINUTES)
 		/datum/advclass/foreigner/bronzeclad,
 	)
 
+/datum/job/roguetown/adventurer/get_default_position_limit(latejoin = FALSE)
+	if(type != /datum/job/roguetown/adventurer)
+		return ..()
+	return clamp(floor(get_slot_scaling_population(latejoin) * ADVENTURER_POPULATION_RATIO), ADVENTURER_MIN_POSITIONS, ADVENTURER_MAX_POSITIONS)
+
 /mob/living/carbon/human/proc/adv_hugboxing_start()
 	to_chat(src, span_warning("I will be in danger once I start moving."))
 	status_flags |= GODMODE
@@ -102,3 +112,7 @@ GLOBAL_VAR_INIT(adventurer_hugbox_duration_still, 3 MINUTES)
 	status_flags &= ~GODMODE
 	REMOVE_TRAIT(src, TRAIT_PACIFISM, HUGBOX_TRAIT)
 	to_chat(src, span_danger("My joy is gone! Danger surrounds me."))
+
+#undef ADVENTURER_POPULATION_RATIO
+#undef ADVENTURER_MIN_POSITIONS
+#undef ADVENTURER_MAX_POSITIONS

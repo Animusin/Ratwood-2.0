@@ -4,6 +4,8 @@
 	var/mob/living/stored
 	var/mob/living/shape
 	var/restoring = FALSE
+	var/initial_damage_percent = 0
+	var/obj/item/bodypart/damage_bodypart
 	var/datum/soullink/shapeshift/slink
 	var/obj/effect/proc_holder/spell/targeted/shapeshift/source
 
@@ -20,9 +22,18 @@
 		stored.mind.transfer_to(shape)
 	stored.forceMove(src)
 	stored.notransform = TRUE
-	if(source?.convert_damage)
-		var/damage_percent = (stored.maxHealth - stored.health) / max(stored.maxHealth, 1)
-		var/damapply = damage_percent * shape.maxHealth
+	if(source.convert_damage)
+		initial_damage_percent = max(0, (stored.maxHealth - stored.health) / stored.maxHealth)
+		if(source.preserve_injuries && iscarbon(stored))
+			var/mob/living/carbon/carbon_caster = stored
+			var/worst_injury = -1
+			for(var/obj/item/bodypart/part as anything in carbon_caster.bodyparts)
+				var/injury = (part.brute_dam + part.burn_dam) / part.max_damage
+				if(injury > worst_injury)
+					worst_injury = injury
+					damage_bodypart = part
+			initial_damage_percent = min(0.99, max(initial_damage_percent, worst_injury))
+		var/damapply = initial_damage_percent * shape.maxHealth
 
 		shape.apply_damage(damapply, source.convert_damage_type, forced = TRUE)
 
@@ -33,6 +44,9 @@
 /obj/shapeshift_holder/Destroy()
 	if(!restoring)
 		restore()
+	QDEL_NULL(slink)
+	source = null
+	damage_bodypart = null
 	stored = null
 	shape = null
 	source = null
@@ -54,14 +68,19 @@
 
 /obj/shapeshift_holder/proc/casterDeath()
 	//Something kills the stored caster through direct damage.
-	if(source?.revert_on_death)
+	//Specialized holders, such as ooze_death, do not have a spell source.
+	if(!source)
+		return
+	if(source.revert_on_death)
 		restore(death=TRUE)
 	else if(shape)
 		shape.death()
 
 /obj/shapeshift_holder/proc/shapeDeath()
 	//Shape dies.
-	if(source?.die_with_shapeshifted_form)
+	if(!source)
+		return
+	if(source.die_with_shapeshifted_form)
 		if(source.revert_on_death)
 			restore(death=TRUE)
 	else
@@ -71,13 +90,10 @@
 	if(restoring)
 		return
 	restoring = TRUE
-	if(slink)
-		QDEL_NULL(slink)
-
-	var/mob/living/returning = stored
-	if(returning)
-		returning.forceMove(get_turf(src))
-		returning.notransform = FALSE
+	QDEL_NULL(slink)
+	if (stored)
+		stored.forceMove(get_turf(src))
+		stored.notransform = FALSE
 
 		// leave a track to indicate something has shifted out here
 		var/obj/effect/track/the_evidence = new(returning.loc)
@@ -86,34 +102,38 @@
 		the_evidence.ambiguous_track_type = "curious footprints"
 		the_evidence.base_diff = 6
 		if (knockout)
-			returning.Unconscious(knockout, TRUE, TRUE)
-			returning.visible_message(span_boldwarning("[returning] twists and shifts back into humen guise in a sickening lurch of flesh and bone, and promptly passes out!"), span_userdanger("I quickly flee the waning vitality of my former shape, but the strain is too much--"))
-			to_chat(returning, span_crit("...DARKNESS..."))
+			stored.Unconscious(knockout, TRUE, TRUE)
+			stored.visible_message(span_boldwarning("[stored] twists and shifts back into humen guise in a sickening lurch of flesh and bone, and promptly passes out!"), span_userdanger("I quickly flee the waning vitality of my former shape, but the strain is too much--"))
+			to_chat(stored, span_crit("...DARKNESS..."))
 
-		if(shape?.mind)
-			shape.mind.transfer_to(returning)
+	if(shape && shape.mind)
+		shape.mind?.transfer_to(stored)
+	if(death)
+		stored.death()
+	else if(stored && source.convert_damage)
+		var/damage_percent = (shape.maxHealth - shape.health) / shape.maxHealth
+		if(source.preserve_injuries && damage_bodypart?.owner == stored)
+			// Carbon health ignores brute wounds. Return damage to the same limb
+			// used on entry, so shifting again cannot provide a fresh health pool.
+			if(damage_percent > initial_damage_percent)
+				var/new_damage = max(0, damage_percent * damage_bodypart.max_damage - damage_bodypart.brute_dam - damage_bodypart.burn_dam)
+				stored.apply_damage(new_damage, source.convert_damage_type, damage_bodypart, forced = TRUE)
+		else
+			stored.revive(full_heal = TRUE, admin_revive = FALSE)
+			var/damapply = stored.maxHealth * damage_percent
 
-		if(death)
-			returning.death()
-		else if(source?.convert_damage && shape)
-			returning.revive(full_heal = TRUE, admin_revive = FALSE)
-
-			var/damage_percent = (shape.maxHealth - shape.health) / max(shape.maxHealth, 1)
-			var/damapply = returning.maxHealth * damage_percent
-
-			returning.apply_damage(damapply, source.convert_damage_type, forced = TRUE)
-
-	if(shape)
-		var/mob/living/old_shape = shape
-		shape = null
-		if(!QDELETED(old_shape))
-			qdel(old_shape)
-
-	if(!QDELETED(src))
+			stored.apply_damage(damapply, source.convert_damage_type, forced = TRUE)
+	to_chat(stored, span_notice("Bug notice: If you can no longer see emotes, move to a different z level and back (up/down a level). This is a known bug."))
+	qdel(shape)
+	if (!QDELETED(src))
 		qdel(src)
 
 /datum/soullink/shapeshift
 	var/obj/shapeshift_holder/source
+
+/datum/soullink/shapeshift/Destroy()
+	source = null
+	return ..()
 
 /datum/soullink/shapeshift/ownerDies(gibbed, mob/living/owner)
 	if(source && !source.restoring)

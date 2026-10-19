@@ -68,9 +68,587 @@
 
 //Probabilities end (albeit mud is handled seperately).
 
-//For highlighting tracks
+#define TRACKING_CLUE_COLOR "#ff0000"
+#define TRACKING_MARK_COLOR "#fff2a8"
+
+//For active investigation targets
+/mob/living
+	/// Weak references to investigators currently tracking this mob.
+	var/list/tracking_hunters
+
 /mob/living/carbon/human
 	var/mob/living/current_mark
+	var/datum/tracking_link/tracking_target_link
+	var/list/tracking_only_known_tracks
+	var/list/known_ordinary_tracks
+	var/list/tracking_clue_markers
+
+/// Lower-skilled trackers use the same perception-driven discovery model as ordinary tracks.
+/mob/living/carbon/human/proc/can_discover_tracking_clue(atom/evidence)
+	var/tracking_skill = get_skill_level(/datum/skill/misc/tracking)
+	if(tracking_skill >= SKILL_LEVEL_EXPERT || HAS_TRAIT(src, TRAIT_PERFECT_TRACKER))
+		return TRUE
+	var/diff = 11
+	var/list/event = evidence.read_forensic_event()
+	if(length(event))
+		diff += round((world.time - event["time"]) / (60 SECONDS), 1)
+	diff += rand(0, 5)
+	var/competence = STAPER + (2 * tracking_skill)
+	if(competence >= diff)
+		return TRUE
+	if(diff - competence < 5)
+		return prob(100 - ((diff - competence) * 20))
+	return FALSE
+
+/// A successful area investigation reveals the existing clue icon without overloading the evidence's right-click action.
+/mob/living/carbon/human/proc/discover_tracking_clue(atom/evidence, search_range = 7)
+	if(!client || cmode)
+		return FALSE
+	if(!evidence || get_dist(src, evidence) > search_range || !can_see(src, evidence, search_range))
+		return FALSE
+	var/is_blood_clue = FALSE
+	if(isturf(evidence))
+		var/turf/evidence_turf = evidence
+		for(var/obj/effect/decal/cleanable/blood/blood in evidence_turf)
+			if(length(blood.return_blood_DNA()))
+				is_blood_clue = TRUE
+				break
+	else if(!length(evidence.read_forensic_event()))
+		var/is_door_or_window = istype(evidence, /obj/structure/mineral_door) || istype(evidence, /obj/structure/roguewindow)
+		if(!is_door_or_window || (!length(evidence.return_fibers()) && !length(evidence.return_blood_DNA())))
+			return FALSE
+	if(isturf(evidence) && !is_blood_clue)
+		return FALSE
+	for(var/obj/effect/tracking_clue_marker/marker as anything in tracking_clue_markers?.Copy())
+		if(!marker || QDELETED(marker))
+			tracking_clue_markers -= marker
+			continue
+		if(marker.matches(evidence, is_blood_clue))
+			marker.refresh_lifetime()
+			return 1
+	if(!can_discover_tracking_clue(evidence))
+		return FALSE
+	new /obj/effect/tracking_clue_marker(get_turf(evidence), src, evidence, is_blood_clue)
+	return 2
+
+/// Combat mode removes both the private image and its click-catching marker.
+/mob/living/carbon/human/proc/clear_tracking_clue_markers()
+	for(var/obj/effect/tracking_clue_marker/marker as anything in tracking_clue_markers?.Copy())
+		if(marker && !QDELETED(marker))
+			qdel(marker)
+	tracking_clue_markers = null
+
+/obj/effect/tracking_clue_marker
+	name = "clue"
+	desc = "Right-click to investigate this clue."
+	icon = 'modular_hearthstone/icons/obj/effects/track.dmi'
+	icon_state = "tracks_structure"
+	invisibility = INVISIBILITY_ABSTRACT
+	mouse_opacity = MOUSE_OPACITY_OPAQUE
+	anchored = TRUE
+	resistance_flags = INDESTRUCTIBLE
+	var/datum/weakref/investigator_ref
+	var/datum/weakref/evidence_ref
+	var/is_blood_clue = FALSE
+	var/list/private_images
+	var/list/linked_blood_decals
+	var/lifetime_timer
+
+/obj/effect/tracking_clue_marker/Initialize(mapload, mob/living/carbon/human/investigator, atom/evidence, blood_clue = FALSE)
+	. = ..()
+	if(!investigator?.client || !evidence)
+		return INITIALIZE_HINT_QDEL
+	investigator_ref = WEAKREF(investigator)
+	evidence_ref = WEAKREF(evidence)
+	is_blood_clue = blood_clue
+	if(!refresh_private_images())
+		return INITIALIZE_HINT_QDEL
+	LAZYADD(investigator.tracking_clue_markers, src)
+	RegisterSignal(investigator, COMSIG_QDELETING, PROC_REF(linked_atom_deleted))
+	RegisterSignal(evidence, COMSIG_QDELETING, PROC_REF(linked_atom_deleted))
+	refresh_lifetime(FALSE)
+
+/obj/effect/tracking_clue_marker/Destroy(force)
+	deltimer(lifetime_timer)
+	lifetime_timer = null
+	var/mob/living/carbon/human/investigator = investigator_ref?.resolve()
+	var/atom/evidence = evidence_ref?.resolve()
+	if(investigator)
+		UnregisterSignal(investigator, COMSIG_QDELETING)
+		investigator.client?.images -= private_images
+		investigator.tracking_clue_markers -= src
+		UNSETEMPTY(investigator.tracking_clue_markers)
+	if(evidence)
+		UnregisterSignal(evidence, COMSIG_QDELETING)
+	clear_linked_blood_decals()
+	private_images = null
+	investigator_ref = null
+	evidence_ref = null
+	return ..()
+
+/// Replaces the large blood question mark with clickable, investigator-only outlines of the stains themselves.
+/obj/effect/tracking_clue_marker/proc/refresh_private_images()
+	var/mob/living/carbon/human/investigator = investigator_ref?.resolve()
+	var/atom/evidence = evidence_ref?.resolve()
+	if(!investigator?.client || !evidence)
+		return FALSE
+	investigator.client.images -= private_images
+	private_images = list()
+	clear_linked_blood_decals()
+	if(is_blood_clue && isturf(evidence))
+		var/turf/evidence_turf = evidence
+		for(var/obj/effect/decal/cleanable/blood/blood in evidence_turf)
+			if(QDELETED(blood) || !length(blood.return_blood_DNA()))
+				continue
+			var/image/blood_image = image(loc = src)
+			blood_image.appearance = blood.appearance
+			blood_image.loc = src
+			blood_image.layer = ABOVE_OPEN_TURF_LAYER
+			blood_image.invisibility = 0
+			blood_image.mouse_opacity = MOUSE_OPACITY_ICON
+			blood_image.filters += filter(type = "outline", color = "#ff0000", size = 1)
+			private_images += blood_image
+			LAZYADD(linked_blood_decals, blood)
+			RegisterSignal(blood, COMSIG_QDELETING, PROC_REF(linked_blood_deleted))
+	else
+		var/image/structure_image = image(icon = icon, loc = src, icon_state = icon_state, layer = ABOVE_MOB_LAYER)
+		structure_image.invisibility = 0
+		structure_image.mouse_opacity = MOUSE_OPACITY_OPAQUE
+		structure_image.pixel_y = 16
+		private_images += structure_image
+	if(!length(private_images))
+		return FALSE
+	investigator.client.images += private_images
+	return TRUE
+
+/obj/effect/tracking_clue_marker/proc/clear_linked_blood_decals()
+	for(var/obj/effect/decal/cleanable/blood/blood as anything in linked_blood_decals)
+		if(blood && !QDELETED(blood))
+			UnregisterSignal(blood, COMSIG_QDELETING)
+	linked_blood_decals = null
+
+/obj/effect/tracking_clue_marker/proc/linked_blood_deleted(datum/source)
+	SIGNAL_HANDLER
+	linked_blood_decals -= source
+	addtimer(CALLBACK(src, PROC_REF(refresh_after_blood_deleted)), 0, TIMER_UNIQUE)
+
+/obj/effect/tracking_clue_marker/proc/refresh_after_blood_deleted()
+	if(QDELETED(src))
+		return
+	if(!refresh_private_images())
+		qdel(src)
+
+/obj/effect/tracking_clue_marker/proc/linked_atom_deleted()
+	SIGNAL_HANDLER
+	qdel(src)
+
+/obj/effect/tracking_clue_marker/proc/matches(atom/evidence, blood_clue)
+	return evidence_ref?.resolve() == evidence && is_blood_clue == blood_clue
+
+/obj/effect/tracking_clue_marker/proc/refresh_lifetime(refresh_visuals = TRUE)
+	if(refresh_visuals && is_blood_clue && !refresh_private_images())
+		qdel(src)
+		return
+	deltimer(lifetime_timer)
+	lifetime_timer = addtimer(CALLBACK(src, PROC_REF(expire)), 1 MINUTES, TIMER_STOPPABLE)
+
+/obj/effect/tracking_clue_marker/proc/expire()
+	lifetime_timer = null
+	qdel(src)
+
+/obj/effect/tracking_clue_marker/attack_right(mob/user)
+	var/mob/living/carbon/human/investigator = investigator_ref?.resolve()
+	var/atom/evidence = evidence_ref?.resolve()
+	if(user != investigator || !evidence)
+		return
+	if(investigator.cmode)
+		qdel(src)
+		return
+	if(!investigator.Adjacent(evidence))
+		to_chat(investigator, span_warning("I need to get closer to examine this clue."))
+		return
+	if(is_blood_clue)
+		var/covered
+		if(investigator.is_mouth_covered(head_only = 1))
+			covered = "headgear"
+		else if(investigator.is_mouth_covered(mask_only = 1))
+			covered = "mask"
+		if(covered)
+			to_chat(investigator, span_warning("I have to remove my [covered] first!"))
+			return
+	if(investigator.m_intent != MOVE_INTENT_SNEAK)
+		if(is_blood_clue)
+			investigator.visible_message(
+				span_info("[investigator] tastes the blood, searching for a trail."),
+				span_info("I taste the blood, searching for a trail."),
+			)
+		else if(istype(evidence, /obj/structure/mineral_door))
+			investigator.visible_message(
+				span_info("[investigator] rummages around [evidence], searching for signs of tampering."),
+				span_info("I rummage around [evidence], searching for signs of tampering."),
+			)
+		else
+			investigator.visible_message(
+				span_info("[investigator] searches [evidence] for traces."),
+				span_info("I search [evidence] for traces."),
+			)
+	if(!do_after(investigator, 1.5 SECONDS, target = evidence))
+		return
+	if(QDELETED(src) || investigator.cmode)
+		return
+	if(evidence_ref?.resolve() != evidence || !investigator.Adjacent(evidence))
+		return
+	var/success = FALSE
+	if(is_blood_clue && isturf(evidence))
+		success = investigator.analyze_blood_on_turf(evidence)
+	else
+		success = evidence.analyze_forensic_event(investigator)
+	if(!success)
+		to_chat(investigator, span_warning("The clue is no longer readable."))
+	qdel(src)
+
+/obj/effect/tracking_clue_marker/attack_hand(mob/living/user)
+	return TRUE
+
+/obj/effect/tracking_clue_marker/attacked_by(obj/item/I, mob/living/user)
+	return TRUE
+
+/// Owns the target deletion signal so Tracking cannot overwrite a mob's unrelated subscriptions.
+/datum/tracking_link
+	var/datum/weakref/hunter_ref
+	var/datum/weakref/target_ref
+
+/datum/tracking_link/New(mob/living/carbon/human/hunter, mob/living/target)
+	..()
+	hunter_ref = WEAKREF(hunter)
+	target_ref = WEAKREF(target)
+	RegisterSignal(target, COMSIG_QDELETING, PROC_REF(target_deleted))
+
+/datum/tracking_link/Destroy(force)
+	var/mob/living/target = target_ref?.resolve()
+	if(target)
+		UnregisterSignal(target, COMSIG_QDELETING)
+	hunter_ref = null
+	target_ref = null
+	return ..()
+
+/datum/tracking_link/proc/target_deleted()
+	SIGNAL_HANDLER
+	var/mob/living/carbon/human/hunter = hunter_ref?.resolve()
+	if(hunter?.tracking_target_link == src)
+		hunter.set_tracking_mark(null)
+
+/mob/living/proc/add_tracking_hunter(mob/living/carbon/human/hunter)
+	LAZYOR(tracking_hunters, WEAKREF(hunter))
+
+/mob/living/proc/remove_tracking_hunter(mob/living/carbon/human/hunter)
+	if(!tracking_hunters)
+		return
+	tracking_hunters -= WEAKREF(hunter)
+	UNSETEMPTY(tracking_hunters)
+
+/mob/living/proc/is_being_tracked()
+	if(!length(tracking_hunters))
+		return FALSE
+	for(var/datum/weakref/hunter_ref as anything in tracking_hunters.Copy())
+		var/mob/living/carbon/human/hunter = hunter_ref.resolve()
+		if(!hunter || hunter.current_mark != src)
+			tracking_hunters -= hunter_ref
+	UNSETEMPTY(tracking_hunters)
+	return length(tracking_hunters)
+
+/mob/living/proc/is_tracking_mark(mob/living/possible_mark)
+	return FALSE
+
+/mob/living/carbon/human/is_tracking_mark(mob/living/possible_mark)
+	return current_mark && current_mark == possible_mark
+
+/// The only supported way to change an investigator's active Tracking target.
+/mob/living/carbon/human/proc/set_tracking_mark(mob/living/new_mark)
+	if(new_mark == src)
+		new_mark = null
+	if(current_mark == new_mark)
+		return FALSE
+	var/mob/living/old_mark = current_mark
+	if(old_mark)
+		old_mark.remove_tracking_hunter(src)
+	conceal_tracking_only_traces()
+	QDEL_NULL(tracking_target_link)
+	current_mark = null
+	if(new_mark && !QDELETED(new_mark))
+		current_mark = new_mark
+		new_mark.add_tracking_hunter(src)
+		tracking_target_link = new(src, new_mark)
+	refresh_known_track_images()
+	return TRUE
+
+/// Deliberately washing through a right-click wash action clears the one remembered quarry.
+/mob/living/carbon/human/proc/forget_tracking_quarry_after_wash()
+	if(!current_mark)
+		return FALSE
+	set_tracking_mark(null)
+	to_chat(src, span_notice("As I wash, the trail fades from my thoughts."))
+	return TRUE
+
+/mob/living/carbon/human/proc/conceal_tracking_only_traces()
+	for(var/obj/effect/track/track as anything in tracking_only_known_tracks?.Copy())
+		if(!track || QDELETED(track))
+			tracking_only_known_tracks -= track
+			continue
+		if(track.only_visible_while_tracking && (src in track.known_by))
+			track.remove_knower(src)
+	UNSETEMPTY(tracking_only_known_tracks)
+
+/// Re-evaluates the two possible visible ordinary tracks on every turf this investigator knows.
+/mob/living/carbon/human/proc/refresh_known_track_images()
+	var/list/affected_turfs = list()
+	for(var/obj/effect/track/track as anything in known_ordinary_tracks?.Copy())
+		if(!track || QDELETED(track) || track.type != /obj/effect/track || !(src in track.known_by))
+			known_ordinary_tracks -= track
+			continue
+		var/turf/track_turf = get_turf(track)
+		if(track_turf)
+			affected_turfs |= track_turf
+	UNSETEMPTY(known_ordinary_tracks)
+	for(var/turf/track_turf as anything in affected_turfs)
+		refresh_visible_ordinary_tracks(track_turf)
+
+/// Shows only the newest known ordinary track, plus the newest quarry track beneath it when different.
+/mob/living/proc/refresh_visible_ordinary_tracks(turf/track_turf)
+	if(!client || !track_turf)
+		return
+	var/obj/effect/track/newest_track
+	var/obj/effect/track/newest_mark_track
+	for(var/obj/effect/track/track in track_turf)
+		if(track.type != /obj/effect/track)
+			continue
+		client.images -= track.real_image
+		client.images -= track.marked_image
+		if(!(src in track.known_by))
+			continue
+		if(!newest_track || track.creation_time >= newest_track.creation_time)
+			newest_track = track
+		if(is_tracking_mark(track.creator) && (!newest_mark_track || track.creation_time >= newest_mark_track.creation_time))
+			newest_mark_track = track
+	if(newest_mark_track?.marked_image)
+		client.images += newest_mark_track.marked_image
+	if(newest_track && newest_track != newest_mark_track && newest_track.real_image)
+		client.images += newest_track.real_image
+
+/// Reveals and briefly marks nearby ordinary tracks belonging to the active target.
+/mob/living/carbon/human/proc/reveal_tracking_traces(search_range = 10, include_blood = FALSE)
+	var/mob/living/mark = current_mark
+	if(!mark)
+		return
+	for(var/obj/effect/track/track in range(search_range, src))
+		if(track.type != /obj/effect/track || track.creator != mark)
+			continue
+		if(!can_see(src, track, search_range))
+			continue
+		if(!(src in track.known_by))
+			if(!track.check_reveal(src))
+				continue
+			track.handle_revealing(src)
+		found_ping(get_turf(track), client, "hidden")
+	if(!include_blood || !iscarbon(mark))
+		return
+	var/mob/living/carbon/carbon_mark = mark
+	var/mark_dna = carbon_mark.dna?.unique_enzymes
+	if(!mark_dna)
+		return
+	for(var/obj/effect/decal/cleanable/blood/blood in range(search_range, src))
+		if(can_see(src, blood, search_range) && (mark_dna in blood.return_blood_DNA()))
+			tracking_blood_outline(blood, src)
+
+/// Reads the physical clue selected through a private investigation marker.
+/atom/proc/analyze_forensic_event(mob/living/user)
+	if(!ishuman(user))
+		return FALSE
+	var/tracking_skill = user.get_skill_level(/datum/skill/misc/tracking)
+	var/list/event = read_forensic_event()
+	var/list/found_fibers = return_fibers()
+	var/list/found_blood = return_blood_DNA()
+	if(!length(event) && !length(found_fibers) && !length(found_blood))
+		return FALSE
+	if(tracking_skill < SKILL_LEVEL_JOURNEYMAN)
+		if(length(event))
+			to_chat(user, span_notice("Tracking suggests that [src] was disturbed, but I cannot read the details."))
+		else
+			to_chat(user, span_notice("I notice residual traces on [src], but I cannot interpret them."))
+		return TRUE
+	if(length(event))
+		var/event_name = forensic_event_display_name(event["type"])
+		var/age = world.time - event["time"]
+		var/age_text = "old"
+		if(age <= 2 MINUTES)
+			age_text = "fresh"
+		else if(age <= 7 MINUTES)
+			age_text = "recent"
+		if(tracking_skill >= SKILL_LEVEL_EXPERT)
+			var/tool_text = event["tool"] ? html_encode(event["tool"]) : "an unknown implement"
+			if(tracking_skill >= SKILL_LEVEL_MASTER)
+				var/exact_age = age < 1 MINUTES ? "[round(age / (1 SECONDS), 0.1)] seconds" : "[round(age / (1 MINUTES), 0.1)] minutes"
+				to_chat(user, span_notice("Tracking reveals [event_name], made with [tool_text], [exact_age] ago."))
+			else
+				to_chat(user, span_notice("Tracking reveals [event_name], made with [tool_text]. The clue is [age_text]."))
+		else
+			to_chat(user, span_notice("Tracking reveals [event_name]. The clue is [age_text]."))
+	else
+		to_chat(user, span_notice("I find no readable mechanical event, only residual traces."))
+	if(length(found_fibers))
+		if(tracking_skill >= SKILL_LEVEL_EXPERT)
+			to_chat(user, span_notice("Fibers found on the object:"))
+			for(var/fiber in found_fibers)
+				to_chat(user, span_info("- [html_encode(fiber)]"))
+		else
+			to_chat(user, span_notice("I can make out fibers here, but not their exact source."))
+	else if(tracking_skill >= SKILL_LEVEL_EXPERT)
+		to_chat(user, span_info("No fibers can be distinguished."))
+	var/mob/living/blood_target
+	if(length(found_blood))
+		var/list/blood_owners = list()
+		to_chat(user, span_notice("Blood traces found on the object:"))
+		for(var/dna_key in found_blood)
+			var/list/owners = get_forensic_blood_owners(dna_key)
+			blood_owners[dna_key] = owners
+			var/mob/living/carbon/first_owner = length(owners) ? owners[1] : null
+			var/race = get_forensic_blood_species(dna_key)
+			if(!race)
+				race = first_owner?.dna?.species?.name ? first_owner.dna.species.name : "unknown race"
+			if(tracking_skill >= SKILL_LEVEL_EXPERT)
+				to_chat(user, span_info("- Blood type [found_blood[dna_key]]; [race]; freshness unknown."))
+			else
+				to_chat(user, span_info("- [race]; freshness unknown."))
+		if(length(found_blood) == 1)
+			var/only_dna = found_blood[1]
+			var/list/only_owners = blood_owners[only_dna]
+			if(length(only_owners) == 1)
+				blood_target = only_owners[1]
+	var/mob/living/culprit
+	if(length(event))
+		var/datum/weakref/culprit_ref = event["culprit"]
+		culprit = culprit_ref?.resolve()
+	if(tracking_skill < SKILL_LEVEL_EXPERT)
+		if(length(event) || length(found_blood))
+			to_chat(user, span_warning("I can read where the trail begins, but I need expert Tracking to fix its owner as my quarry."))
+		return TRUE
+	if(culprit)
+		var/mob/living/carbon/human/investigator = user
+		investigator.set_tracking_mark(culprit)
+		investigator.reveal_tracking_traces(10, TRUE)
+		to_chat(user, span_warning("The clue gives me a trail to follow, but no name."))
+	else if(length(event))
+		to_chat(user, span_warning("The disturbance left a trail, but its maker is no longer present to follow."))
+	else if(!length(event) && blood_target)
+		var/mob/living/carbon/human/investigator = user
+		investigator.set_tracking_mark(blood_target)
+		investigator.reveal_tracking_traces(10, TRUE)
+		to_chat(user, span_warning("The single blood trace gives me a quarry, but no name."))
+	else if(!length(event) && length(found_blood))
+		if(length(found_blood) > 1)
+			to_chat(user, span_warning("The blood is mixed; I cannot choose a single quarry."))
+		else
+			to_chat(user, span_warning("The blood is readable, but it does not resolve to one present owner."))
+	return TRUE
+
+/// Tracking blood analysis is initiated from the turf because blood decals ignore the mouse.
+/mob/living/carbon/human/proc/analyze_blood_on_turf(turf/target_turf)
+	var/tracking_skill = get_skill_level(/datum/skill/misc/tracking)
+	var/list/samples = list()
+	var/list/readable_blood = list()
+	var/trace_severity = FORENSIC_BLEED_UNKNOWN
+	var/overwhelmingly_mixed = FALSE
+	for(var/obj/effect/decal/cleanable/blood/blood in target_turf)
+		var/list/blood_dna = blood.return_blood_DNA()
+		if(!length(blood_dna))
+			continue
+		readable_blood += blood
+		trace_severity = max(trace_severity, blood.forensic_bleed_severity)
+		overwhelmingly_mixed ||= blood.blood_samples_overflow
+		for(var/dna_key in blood_dna)
+			var/list/sample = samples[dna_key]
+			if(!sample)
+				sample = list(
+					"blood_type" = blood_dna[dna_key],
+					"owners" = null,
+					"fresh" = FALSE,
+					"dry" = FALSE,
+				)
+				samples[dna_key] = sample
+			if(blood.is_dry)
+				sample["dry"] = TRUE
+			else
+				sample["fresh"] = TRUE
+	if(!length(samples))
+		return FALSE
+	if(tracking_skill < SKILL_LEVEL_JOURNEYMAN)
+		tracking_outline_blood_list(readable_blood, src, TRACKING_CLUE_COLOR)
+		to_chat(src, span_notice("I can tell these bloodstains form a trail, but I cannot read the details."))
+		return TRUE
+	to_chat(src, span_notice("I examine the blood traces on this ground."))
+	for(var/dna_key in samples)
+		var/list/sample = samples[dna_key]
+		var/list/owners = get_forensic_blood_owners(dna_key)
+		sample["owners"] = owners
+		var/mob/living/carbon/first_owner = length(owners) ? owners[1] : null
+		var/race = get_forensic_blood_species(dna_key)
+		if(!race)
+			race = first_owner?.dna?.species?.name ? first_owner.dna.species.name : "unknown race"
+		var/state = sample["fresh"] ? (sample["dry"] ? "fresh and dried" : "fresh") : "dried"
+		if(tracking_skill >= SKILL_LEVEL_EXPERT)
+			to_chat(src, span_info("Blood type [sample["blood_type"]]; [race]; [state]."))
+		else
+			to_chat(src, span_info("Blood from [race]; [state]."))
+	if(tracking_skill >= SKILL_LEVEL_EXPERT && length(samples) == 1 && !overwhelmingly_mixed)
+		switch(trace_severity)
+			if(FORENSIC_BLEED_MINOR)
+				to_chat(src, span_info("The blood loss appears minor."))
+			if(FORENSIC_BLEED_SIGNIFICANT)
+				to_chat(src, span_warning("The victim was bleeding significantly."))
+			if(FORENSIC_BLEED_SEVERE)
+				to_chat(src, span_danger("The victim was bleeding heavily."))
+	if(overwhelmingly_mixed)
+		tracking_outline_blood_list(readable_blood, src, TRACKING_CLUE_COLOR)
+		to_chat(src, span_warning("The blood is too thoroughly mixed to separate."))
+		return TRUE
+	if(tracking_skill < SKILL_LEVEL_EXPERT)
+		tracking_outline_blood_list(readable_blood, src, TRACKING_CLUE_COLOR)
+		if(length(samples) == 1)
+			to_chat(src, span_warning("This is one blood trail, but I need expert Tracking to fix its owner as my quarry."))
+		else
+			to_chat(src, span_warning("The blood is mixed; I cannot choose a single quarry."))
+		return TRUE
+	if(length(samples) == 1)
+		var/only_dna = samples[1]
+		var/list/only_sample = samples[only_dna]
+		var/list/only_owners = only_sample["owners"]
+		if(length(only_owners) == 1)
+			var/mob/living/only_owner = only_owners[1]
+			set_tracking_mark(only_owner)
+			reveal_tracking_traces(10, TRUE)
+			to_chat(src, span_warning("This single blood trail gives me one quarry, but no name."))
+		else
+			tracking_outline_blood_list(readable_blood, src, TRACKING_CLUE_COLOR)
+			to_chat(src, span_warning("The blood is readable, but its owner is no longer present to follow."))
+	else
+		tracking_outline_blood_list(readable_blood, src, TRACKING_CLUE_COLOR)
+		to_chat(src, span_warning("The blood is mixed; I cannot choose a single quarry."))
+	return TRUE
+
+/proc/tracking_outline_blood_list(list/blood_decals, mob/living/viewer, outline_color)
+	for(var/obj/effect/decal/cleanable/blood/blood as anything in blood_decals)
+		tracking_blood_outline(blood, viewer, outline_color)
+
+/proc/tracking_blood_outline(obj/effect/decal/cleanable/blood/blood, mob/living/viewer, outline_color = TRACKING_MARK_COLOR)
+	if(!blood || !viewer?.client)
+		return
+	var/image/highlight = image(icon = blood.icon, loc = blood, icon_state = blood.icon_state, layer = ABOVE_OPEN_TURF_LAYER, dir = blood.dir)
+	highlight.overlays = blood.overlays
+	highlight.color = blood.color
+	highlight.alpha = blood.alpha
+	highlight.filters += filter(type = "outline", color = outline_color, size = 1)
+	highlight.mouse_opacity = MOUSE_OPACITY_TRANSPARENT
+	flick_overlay(highlight, list(viewer.client), 30)
 
 //Analysis levels depending on skillcheck during reveal.
 #define ANALYSIS_TERRIBLE 1
@@ -89,7 +667,9 @@
 	///The visible state for those that know this.
 	var/real_icon_state = "tracks"
 	///The image knowers see.
-	var/real_image
+	var/image/real_image
+	///A brighter image shown beneath the newest track when this track belongs to the viewer's quarry.
+	var/image/marked_image
 	///List of mobs aware of this track.
 	var/list/mob/living/known_by = list()
 	///When this was created. Adjusts difficulty of locating / analyzing.
@@ -112,23 +692,24 @@
 	var/overwrites = 0
 	///The world.time when this track should expire (used by subsystem)
 	var/expiry_time
-	///For determining if it's been highlighted for marked person purposes
-	var/list/highlighted = list()
 	///A preserved dir for the highlights
 	var/original_dir
 	///Whether this track allows its owner to be Marked
 	var/markable = TRUE
+	/// Only the investigators actively tracking creator may reveal this fallback trace.
+	var/only_visible_while_tracking = FALSE
 	///Base difficulty for noticing these tracks
 	var/base_diff = 11
 
 /obj/effect/track/Initialize(mapload)
 	. = ..()
-	real_image = image(icon, src, real_icon_state, ABOVE_OPEN_TURF_LAYER) //Default image in case manually created.
+	rebuild_track_images()
 
 /obj/effect/track/Destroy(force)
-	real_image = null
-	for(var/knowing_one as anything in known_by)
+	for(var/knowing_one as anything in known_by.Copy())
 		remove_knower(knowing_one)
+	real_image = null
+	marked_image = null
 	if(creator)
 		clear_creator_reference(creator)
 	known_by = null
@@ -138,7 +719,7 @@
 /// Resets track state for reuse from pool - called before recycling
 /obj/effect/track/proc/soft_reset()
 	// Clear all knowers
-	for(var/knowing_one as anything in known_by)
+	for(var/knowing_one as anything in known_by.Copy())
 		remove_knower(knowing_one)
 	known_by = list()
 
@@ -157,13 +738,26 @@
 	special_movement = null
 	tracking_modifier = 0
 	overwrites = 0
-	LAZYCLEARLIST(highlighted)
 	original_dir = null
 	markable = TRUE
+	only_visible_while_tracking = FALSE
 
 	// Reset image
 	real_image = null
+	marked_image = null
 	real_icon_state = initial(real_icon_state)
+
+/// Builds client-only track images. Quarry tracks use the brighter marked sprite below the newest trace.
+/obj/effect/track/proc/rebuild_track_images(image_dir = SOUTH)
+	var/display_layer = type == /obj/effect/track ? ABOVE_OPEN_TURF_LAYER + 0.01 : ABOVE_OPEN_TURF_LAYER
+	real_image = image(icon, src, real_icon_state, display_layer, image_dir)
+	real_image.mouse_opacity = MOUSE_OPACITY_ICON
+	marked_image = null
+	if(type != /obj/effect/track)
+		return
+	marked_image = image(icon, src, "tracks_marked", ABOVE_OPEN_TURF_LAYER, image_dir)
+	marked_image.mouse_opacity = MOUSE_OPACITY_ICON
+	marked_image.filters += filter(type = "outline", color = TRACKING_MARK_COLOR, size = 1)
 
 /obj/effect/track/attack_hand(mob/living/user)
 	. = ..()
@@ -181,8 +775,12 @@
 /obj/effect/track/proc/check_reveal(mob/living/user)
 	if(user in known_by)
 		return FALSE
+	if(only_visible_while_tracking && !user.is_tracking_mark(creator))
+		return FALSE
 	var/success = FALSE
-	if(!HAS_TRAIT(user, TRAIT_PERFECT_TRACKER))
+	if(user.is_tracking_mark(creator))
+		success = TRUE
+	else if(!HAS_TRAIT(user, TRAIT_PERFECT_TRACKER))
 		var/diff = base_diff //Base Tracking Difficulty
 		diff += tracking_modifier
 		diff += round((world.time - creation_time) / (60 SECONDS), 1) //Gets more difficult to spot the older.
@@ -255,33 +853,45 @@
 			facing = "southwest"
 		if(SOUTHEAST)
 			facing = "southeast"
-	real_image = image(icon, src, real_icon_state, ABOVE_OPEN_TURF_LAYER, track_source.dir) //Recreate image with correct dir.
+	rebuild_track_images(track_source.dir)
 	original_dir = track_source.dir
-	expiry_time = world.time + 15 MINUTES //Tracks naturally expire after 15 minutes
+	expiry_time = world.time + 20 MINUTES
 	SStracks.add_track(src)
 
 ///Adds a new person to the list of people who can see this track.
 /obj/effect/track/proc/add_knower(mob/living/tracker, competence = 1)
 	known_by[tracker] = competence
-	if(ishuman(tracker))
-		var/mob/living/carbon/human/H = tracker
-		if(H.current_mark == creator && (H.get_skill_level(/datum/skill/misc/tracking) >= SKILL_LEVEL_MASTER || HAS_TRAIT(H, TRAIT_PERFECT_TRACKER)))
-			if(!(tracker in highlighted))
-				real_icon_state = "tracks_marked"
-				real_image = image(icon, src, real_icon_state, ABOVE_OPEN_TURF_LAYER, original_dir)
-				LAZYADD(highlighted, tracker)
-		if(tracker.client)
-			tracker.client.images += real_image
+	if(only_visible_while_tracking && ishuman(tracker))
+		var/mob/living/carbon/human/human_tracker = tracker
+		LAZYOR(human_tracker.tracking_only_known_tracks, src)
+	if(type == /obj/effect/track)
+		if(ishuman(tracker))
+			var/mob/living/carbon/human/human_tracker = tracker
+			LAZYOR(human_tracker.known_ordinary_tracks, src)
+		tracker.refresh_visible_ordinary_tracks(get_turf(src))
+	else if(tracker.client)
+		tracker.client.images += real_image
 	RegisterSignal(tracker, COMSIG_QDELETING, PROC_REF(remove_knower), override = TRUE)
 
 ///Removes a knower from the known ones. Usually only done when qdeleted.
 /obj/effect/track/proc/remove_knower(mob/living/tracker)
 	SIGNAL_HANDLER
+	var/turf/track_turf = get_turf(src)
+	var/ordinary_track = type == /obj/effect/track
 	UnregisterSignal(tracker, COMSIG_QDELETING)
 	if(tracker.client)
 		tracker.client.images -= real_image
-	LAZYREMOVE(highlighted, tracker)
+		tracker.client.images -= marked_image
 	known_by -= tracker
+	if(ishuman(tracker))
+		var/mob/living/carbon/human/human_tracker = tracker
+		human_tracker.tracking_only_known_tracks -= src
+		UNSETEMPTY(human_tracker.tracking_only_known_tracks)
+		if(ordinary_track)
+			human_tracker.known_ordinary_tracks -= src
+			UNSETEMPTY(human_tracker.known_ordinary_tracks)
+	if(ordinary_track)
+		tracker.refresh_visible_ordinary_tracks(track_turf)
 	if(creator == tracker)
 		creator = null
 
@@ -295,20 +905,14 @@
 /obj/effect/track/proc/track_expire()
 	qdel(src)
 
+/obj/effect/track/is_turf_list_visible_to(mob/viewer)
+	return (known_by && (viewer in known_by)) || ..()
+
 /obj/effect/track/examine(mob/user)
 	. = ..()
 	var/knowledge = known_by[user]
 	if(!knowledge)
 		return //Huh?
-	if(ishuman(user))
-		var/mob/living/carbon/human/H = user
-		if(!isnull(H.current_mark))
-			if(H.current_mark == creator && !(H in highlighted))
-				real_icon_state = "tracks_marked"
-				real_image = image(icon, src, real_icon_state, ABOVE_OPEN_TURF_LAYER, original_dir)
-				LAZYADD(highlighted, H)
-				if(H.client)
-					H.client.images += real_image
 	. += knowledge_readout(user, knowledge)
 
 /obj/effect/track/proc/knowledge_readout(mob/user, knowledge)
@@ -337,11 +941,12 @@
 			. += "[span_warning("There are traces of many older tracks here, too..")]<br>"
 		else if(overwrites >= 2)
 			. += "[span_warning("There are traces of around [overwrites] older tracks here, too..")]<br>"
-		var/mob/living/carbon/human/H = user
-		if(!isnull(H.current_mark) && H.current_mark == creator)
-			. += span_nicegreen("This track belongs to your mark.")
-		if(H.get_skill_level(/datum/skill/misc/tracking) >= SKILL_LEVEL_EXPERT)
-			. += span_nicegreen("<i><font size = 2>Right-click this track to Mark its owner.</font></i>")
+		if(ishuman(user))
+			var/mob/living/carbon/human/H = user
+			if(!isnull(H.current_mark) && H.current_mark == creator)
+				. += span_nicegreen("This track belongs to your mark.")
+			if(H.get_skill_level(/datum/skill/misc/tracking) >= SKILL_LEVEL_EXPERT)
+				. += span_nicegreen("<i><font size = 2>Right-click this track to Mark its owner.</font></i>")
 	return .
 
 ///Gets special info for a track relative to a mob, such as type and depth. Override if desiring tracking modifier adjustment.
@@ -351,58 +956,34 @@
 	this_track.ambiguous_track_type = "beast tracks" //Override proc if your mob has weird tracks.
 
 /mob/living/carbon/human/get_track_info(obj/effect/track/this_track)
-	if(istype(this_track,/obj/effect/track/structure))
-		var/holding = get_active_held_item()
-		var/obj/effect/track/structure/this = this_track
-		var/weapon
-		if(holding)
-			if(istype(holding,/obj/item/rogueweapon))
-				var/static/list/weapon_types = list(/obj/item/rogueweapon/sword, /obj/item/rogueweapon/mace, /obj/item/rogueweapon/spear, /obj/item/rogueweapon/greatsword, /obj/item/rogueweapon/pick, /obj/item/rogueweapon/huntingknife/idagger, /obj/item/rogueweapon/whip, /obj/item/lockpick)
-				for(var/type in weapon_types)
-					if(istype(holding, type))
-						var/obj/item/rogueweapon/found = type
-						weapon = initial(found.name)
-
-			if(weapon)
-				this.tool_used_ambiguous = weapon
-			var/obj/item/I = holding
-			var/skill = I.associated_skill
-			this.tool_used = I.name
-			if(skill)
-				this.skill_level = get_skill_level(skill)
+	if(!(mobility_flags & MOBILITY_STAND)) //Either pulled or crawling.
+		this_track.track_type = "drag marks"
 	else
-		if(!(mobility_flags & MOBILITY_STAND)) //Either pulled or crawling.
-			this_track.track_type = "drag marks"
-			this_track.track_type = "drag marks"
+		if(shoes && (shoes.body_parts_covered & FEET))
+			this_track.track_type = "[shoes.name] tracks"
+			this_track.ambiguous_track_type = "footwear tracks"
 		else
-			if(shoes && (shoes.body_parts_covered & FEET))
-				this_track.track_type = "[shoes.name] tracks"
-				this_track.ambiguous_track_type = "footwear tracks"
-			else
-				this_track.track_type = "[dna.species.name] footprints" //Look, I am not going to track the species of every single leg you do surgical malpractice with, so this will do.
-				this_track.ambiguous_track_type = "humanoid footprints"
+			this_track.track_type = "[dna.species.name] footprints" //Look, I am not going to track the species of every single leg you do surgical malpractice with, so this will do.
+			this_track.ambiguous_track_type = "humanoid footprints"
 
-		var/bonus_weight = 0
-		if(wear_armor)
-			switch(wear_armor.armor_class)
-				if(ARMOR_CLASS_HEAVY)
-					bonus_weight += 1
-				if(ARMOR_CLASS_MEDIUM)
-					bonus_weight = 0.5
-				else
-		if(wear_shirt)
-			switch(wear_shirt.armor_class)
-				if(ARMOR_CLASS_HEAVY)
-					bonus_weight += 1
-				if(ARMOR_CLASS_MEDIUM)
-					bonus_weight = 0.5
-				else
-		switch(bonus_weight)
-			if(2 to INFINITY)
-				this_track.depth = "very deep"
-			if(1 to 2)
-				this_track.depth = "deep"
-			else
+	var/bonus_weight = 0
+	if(wear_armor)
+		switch(wear_armor.armor_class)
+			if(ARMOR_CLASS_HEAVY)
+				bonus_weight += 1
+			if(ARMOR_CLASS_MEDIUM)
+				bonus_weight += 0.5
+	if(wear_shirt)
+		switch(wear_shirt.armor_class)
+			if(ARMOR_CLASS_HEAVY)
+				bonus_weight += 1
+			if(ARMOR_CLASS_MEDIUM)
+				bonus_weight += 0.5
+	switch(bonus_weight)
+		if(2 to INFINITY)
+			this_track.depth = "very deep"
+		if(1 to 2)
+			this_track.depth = "deep"
 	return //This is needed at the moment.
 
 //Checks if the mob should create a track, and creates one if the case (potentially replacing older tracks on the turf)
@@ -413,16 +994,44 @@
 		return
 	if(!(movement_type & GROUND) || (movement_type & (FLOATING|FLYING))) //For some reason some mobs have both ground and flying at once.
 		return
-	var/probability = round(track_creation_prob(new_turf), 0.1)
+	var/probability = round(track_creation_prob(new_turf) * 1.5, 0.1)
 	if(!probability)
 		return
+	var/tracking_only = FALSE
 	if(!prob(probability))
-		return
-	var/obj/effect/track/old_track = locate() in new_turf
+		if(!is_being_tracked() || !prob(min(probability * 1.5, 50)))
+			return
+		tracking_only = TRUE
+
+	var/list/ordinary_tracks = list()
+	var/obj/effect/track/same_track
+	var/updated_overwrites = 0
+	for(var/obj/effect/track/existing in new_turf)
+		if(existing.type != /obj/effect/track)
+			continue
+		ordinary_tracks += existing
+		if(existing.creator == src && existing.only_visible_while_tracking == tracking_only)
+			same_track = existing
+	if(same_track)
+		updated_overwrites = same_track.overwrites + 1
+		ordinary_tracks -= same_track
+		SStracks.recycle_track(same_track)
+	while(length(ordinary_tracks) >= 3)
+		var/obj/effect/track/oldest_unprotected
+		var/obj/effect/track/oldest_any
+		for(var/obj/effect/track/existing as anything in ordinary_tracks)
+			if(!oldest_any || existing.creation_time < oldest_any.creation_time)
+				oldest_any = existing
+			if(existing.only_visible_while_tracking && existing.creator?.is_being_tracked())
+				continue
+			if(!oldest_unprotected || existing.creation_time < oldest_unprotected.creation_time)
+				oldest_unprotected = existing
+		var/obj/effect/track/replaced_track = oldest_unprotected ? oldest_unprotected : oldest_any
+		ordinary_tracks -= replaced_track
+		SStracks.recycle_track(replaced_track)
 	var/obj/effect/track/new_track = SStracks.get_track(/obj/effect/track, new_turf)
-	if(old_track)
-		new_track.overwrites = 1 + old_track.overwrites
-		SStracks.recycle_track(old_track) // Recycle instead of qdel
+	new_track.only_visible_while_tracking = tracking_only
+	new_track.overwrites = updated_overwrites
 	new_track.handle_creation(src)
 
 //Gets the probability of this mob to create a track on the passed turf.
@@ -448,14 +1057,14 @@
 			if(ARMOR_CLASS_HEAVY)
 				bonus_weight += 0.5
 			if(ARMOR_CLASS_MEDIUM)
-				bonus_weight = 0.25
+				bonus_weight += 0.25
 			else
 	if(wear_shirt)
 		switch(wear_shirt.armor_class)
 			if(ARMOR_CLASS_HEAVY)
 				bonus_weight += 0.5
 			if(ARMOR_CLASS_MEDIUM)
-				bonus_weight = 0.25
+				bonus_weight += 0.25
 	if(bonus_weight)
 		. *= (1 + bonus_weight)
 
@@ -519,9 +1128,20 @@
 		if(H.get_skill_level(/datum/skill/misc/tracking) > SKILL_LEVEL_JOURNEYMAN)	//Expert+
 			if(!markable)
 				to_chat(H, span_warning("This is not enough to Mark them. I need proper tracks."))
-			to_chat(H, span_info("You start taking note of the person's gait, weight and other distinct features."))
+				return
+			if(H.m_intent == MOVE_INTENT_SNEAK)
+				to_chat(H, span_info("You start taking note of the person's gait, weight and other distinct features."))
+			else
+				H.visible_message(
+					span_info("[H] kneels down and searches the ground for tracks."),
+					span_info("I start taking note of the person's gait, weight and other distinct features."),
+				)
 			if(do_after(user, (50 - H.STAPER*2)))
-				H.current_mark = creator
+				if(!creator || QDELETED(creator))
+					to_chat(H, span_warning("The trail goes cold before I can fix it in my mind."))
+					return
+				H.set_tracking_mark(creator)
+				H.reveal_tracking_traces(10, TRUE)
 				to_chat(H, span_warning("You've marked this person. You'll notice their tracks if you find any new ones."))
 		else
 			to_chat(H, span_info("I am not skilled enough for this! (Expert level required)"))
@@ -541,7 +1161,7 @@
 
 /obj/effect/track/thievescant/handle_creation(mob/living/track_source, thiefmessage)
 	creator = track_source
-	RegisterSignal(track_source, COMSIG_QDELETING, PROC_REF(clear_creator_reference))
+	RegisterSignal(track_source, COMSIG_QDELETING, PROC_REF(clear_creator_reference), override = TRUE)
 	creation_time = world.time
 	track_source.get_track_info(src)
 	real_image = image(icon, src, real_icon_state, BULLET_HOLE_LAYER, track_source.dir)
@@ -569,3 +1189,5 @@
 #undef ANALYSIS_DECENT
 #undef ANALYSIS_GOOD
 #undef ANALYSIS_PERFECT
+#undef TRACKING_CLUE_COLOR
+#undef TRACKING_MARK_COLOR

@@ -24,17 +24,20 @@ GLOBAL_LIST_INIT(special_traits, build_special_traits())
 	if(!job)
 		// Apply the stuff if we dont have a job for some reason
 		apply_character_post_equipment(character, player)
+		character.finish_admin_antag_setup()
 		return
 	if(length(job.advclass_cat_rolls))
 		// Dont apply the stuff, let adv class handler do it later
 		return
 	// Apply the stuff if we have a job that has no adv classes
 	apply_character_post_equipment(character, player)
+	character.finish_admin_antag_setup()
 
 /proc/apply_character_post_equipment(mob/living/carbon/human/character, client/player)
 	if(!player)
 		player = character.client
 	if(!player?.prefs)
+		// No client/prefs (e.g. class preview dummy) - nothing prefs-based to apply.
 		return
 	apply_charflaw_equipment(character, player)
 	apply_prefs_special(character, player)
@@ -81,6 +84,8 @@ GLOBAL_LIST_INIT(special_traits, build_special_traits())
 		assigned_job.clamp_stats(character)
 
 /proc/apply_voicepacks(mob/living/carbon/human/character, client/player)
+	if(!player)
+		player = character.client
 	if(!player?.prefs)
 		return
 	if(player.prefs.voice_pack != "Default")
@@ -296,6 +301,8 @@ GLOBAL_LIST_INIT(special_traits, build_special_traits())
 		to_chat(character, special.greet_text)
 
 /proc/apply_prefs_origin(mob/living/carbon/human/character, client/player)
+	if(!player)
+		player = character.client
 	if(!player?.prefs)
 		return
 	var/datum/origin/O = player.prefs.origin

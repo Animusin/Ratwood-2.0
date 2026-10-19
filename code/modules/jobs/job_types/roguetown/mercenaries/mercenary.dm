@@ -1,17 +1,22 @@
+#define MERCENARY_POPULATION_RATIO 0.05
+#define MERCENARY_MIN_POSITIONS 2
+#define MERCENARY_MAX_POSITIONS 5
+
 /datum/job/roguetown/mercenary
 	townie_contract_gate_exempt = TRUE
 	title = "Mercenary"
+	triumph_entry_cost = ADVENTURER_MERCENARY_ENTRY_COST
 	flag = WANDERERS
 	department_flag = WANDERERS
 	faction = "Station"
-	total_positions = 8
-	spawn_positions = 8
+	total_positions = 5
+	spawn_positions = 5
 	allowed_sexes = list(MALE, FEMALE)
 	allowed_races = RACES_ALL_KINDS
 	tutorial = "Blood stains your hands and the coins you hold. You are a sell-sword, a mercenary, a contractor of war. Where you come from, what you are, who you serve.. none of it matters. What matters is that the mammon flows to your pocket."
 	display_order = JDO_MERCENARY
 	selection_color = JCOLOR_WANDERER
-	min_pq = 2		//Will be handled by classes if PQ limiting is needed. --But Until then, learn escalation, mercs.
+	min_pq = 20		//Will be handled by classes if PQ limiting is needed. --But Until then, learn escalation, mercs.
 	max_pq = null
 	round_contrib_points = 1
 	outfit = null	//Handled by classes
@@ -61,3 +66,6 @@
 		/datum/advclass/mercenary/oathmarked/executor,
 		/datum/advclass/mercenary/newmoon,
 	)
+
+/datum/job/roguetown/mercenary/get_default_position_limit(latejoin = FALSE)
+	return clamp(floor(get_slot_scaling_population(latejoin) * MERCENARY_POPULATION_RATIO), MERCENARY_MIN_POSITIONS, MERCENARY_MAX_POSITIONS)

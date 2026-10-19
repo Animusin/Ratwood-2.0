@@ -414,27 +414,19 @@
 		return FALSE
 
 	AM.add_fingerprint(src)
+	changeNext_move(CLICK_CD_GRABBING)
+
+	var/mob/current_puller = AM.pulledby
+	if(current_puller && current_puller != src && current_puller.pulling != AM)
+		AM.pulledby = null
 
 	// If we're pulling something then drop what we're currently pulling and pull this instead.
 	if(pulling && AM != pulling)
 		stop_pulling()
-
-	changeNext_move(CLICK_CD_GRABBING)
-
-//	if(AM.pulledby && AM.pulledby != src)
-//		if(AM == src)
-//			to_chat(src, span_warning("I'm being grabbed by something!"))
-//			return FALSE
-//		else
-//			if(!supress_message)
-//				AM.visible_message(span_danger("[src] has pulled [AM] from [AM.pulledby]'s grip."), span_danger("[src] has pulled me from [AM.pulledby]'s grip."), null, null, src)
-//
-//				to_chat(src, span_notice("I pull [AM] from [AM.pulledby]'s grip!"))
-//			log_combat(AM, AM.pulledby, "pulled from", src)
-//			AM.pulledby.stop_pulling() //an object can't be pulled by two mobs at once.
 	if(AM != src)
 		pulling = AM
-		AM.pulledby = src
+		if(!AM.pulledby)
+			AM.pulledby = src
 	update_pull_hud_icon()
 
 	if(isliving(AM))
@@ -466,6 +458,15 @@
 					visible_message(span_warning("[target] slips away from [src]'s oily grasp!"), \
 							span_warning("[target.name] slips away from my grip - they're too oily!"))
 					log_combat(src, target, "failed to grab due to oil", addition="oiled skin")
+					var/has_held_grab = r_grab && !QDELETED(r_grab) && r_grab.grabbed == target
+					has_held_grab ||= l_grab && !QDELETED(l_grab) && l_grab.grabbed == target
+					if(iscarbon(src))
+						var/mob/living/carbon/carbon_grabber = src
+						if(istype(carbon_grabber.mouth, /obj/item/grabbing))
+							var/obj/item/grabbing/mouth_grab = carbon_grabber.mouth
+							has_held_grab ||= !QDELETED(mouth_grab) && mouth_grab.grabbed == target
+					if(!has_held_grab && pulling == target)
+						stop_pulling(FALSE)
 					return FALSE // Grab attempt fails
 
 		if(HAS_TRAIT(target, TRAIT_GRABIMMUNE) && target.stat == CONSCIOUS) // Grab immunity check
@@ -496,7 +497,8 @@
 			O.grabbed = C
 			O.grabbee = src
 			O.limb_grabbed = BP
-			LAZYADD(BP.grabbedby, O)
+			if(BP)
+				LAZYADD(BP.grabbedby, O)
 			if(item_override)
 				O.sublimb_grabbed = item_override
 			else
@@ -505,7 +507,8 @@
 			if(BP)
 				C.update_hud_hand_slot(BP.held_index)
 				C.mark_zone_selector_hud_dirty()
-			put_in_hands(O)
+			if(!put_in_hands(O))
+				return FALSE
 			O.update_hands(src)
 			if(HAS_TRAIT(src, TRAIT_STRONG_GRABBER) || item_override)
 				supress_message = TRUE
@@ -514,17 +517,20 @@
 				send_pull_message(target)
 			var/signal_result = SEND_SIGNAL(target, COMSIG_LIVING_GRAB_SELF_ATTEMPT, target, used_limb)
 			if(signal_result & COMPONENT_CANCEL_GRAB_ATTACK)
+				qdel(O)
 				return FALSE
 		else
 			var/obj/item/grabbing/O = new()
 			O.name = "[target.name]"
 			O.grabbed = target
 			O.grabbee = src
+			LAZYADD(target.grabbedby, O)
 			if(item_override)
 				O.sublimb_grabbed = item_override
 			else
 				O.sublimb_grabbed = target.simple_limb_hit(zone_selected)
-			put_in_hands(O)
+			if(!put_in_hands(O))
+				return FALSE
 			O.update_hands(src)
 			if(HAS_TRAIT(src, TRAIT_STRONG_GRABBER) || item_override)
 				supress_message = TRUE
@@ -533,6 +539,7 @@
 				send_pull_message(target)
 			var/signal_result = SEND_SIGNAL(target, COMSIG_LIVING_GRAB_SELF_ATTEMPT, target, zone_selected)
 			if(signal_result & COMPONENT_CANCEL_GRAB_ATTACK)
+				qdel(O)
 				return FALSE
 
 		update_pull_movespeed()
@@ -546,6 +553,7 @@
 		O.name = "[AM.name]"
 		O.grabbed = AM
 		O.grabbee = src
+		LAZYADD(AM.grabbedby, O)
 		src.put_in_hands(O)
 		O.update_hands(src)
 		update_grab_intents()
@@ -558,10 +566,135 @@
 // - Grabbing character skill at journeymen or lower(3).
 	if(isliving(AM))
 		var/mob/living/M = AM
-		if(M.mind)
+		if(M.pulledby == src && M.mind)
 			if(M.cmode && M.stat == CONSCIOUS && !M.restrained(ignore_grab = TRUE))
 				if(M.get_skill_level(/datum/skill/combat/wrestling) >= 5 || src.get_skill_level(/datum/skill/combat/wrestling) <= 3)
 					M.resist_grab(freeresist = TRUE) //Automatically attempt to break a passive grab if defender's combat mode is on. Anti-grabspam measure.
+
+/mob/living/can_move_with_contested_grab(atom/newloc)
+	pending_contested_pull_destination = null
+	if(moving_from_pull || !isliving(pulling))
+		return TRUE
+	var/mob/living/target = pulling
+	if(target.buckled == src)
+		if(!contest_target_grabbers(target, newloc))
+			return FALSE
+		target.pulledby = src
+		return TRUE
+	var/list/other_grabbers = list()
+	for(var/obj/item/grabbing/active_grab in target.grabbedby)
+		if(QDELETED(active_grab) || active_grab.grabbed != target)
+			continue
+		var/mob/living/carbon/other_grabber = active_grab.grabbee
+		if(!other_grabber || other_grabber == src || (other_grabber in other_grabbers))
+			continue
+		if(active_grab != other_grabber.r_grab && active_grab != other_grabber.l_grab)
+			continue
+		if(other_grabber.pulling != target || !other_grabber.Adjacent(target))
+			continue
+		other_grabbers += other_grabber
+	if(length(other_grabbers))
+		var/turf/shared_destination = find_shared_grab_destination(target, newloc, other_grabbers)
+		if(shared_destination)
+			pending_contested_pull_destination = shared_destination
+			target.pulledby = src
+			return TRUE
+	var/pull_dir = get_dir(newloc, target)
+	if(get_dist(newloc, target) <= 1 && !((pull_dir - 1) & pull_dir))
+		return TRUE
+	if(!contest_target_grabbers(target, get_turf(src)))
+		return FALSE
+	target.pulledby = src
+	return TRUE
+
+/mob/living/proc/find_shared_grab_destination(mob/living/target, atom/mover_location, list/other_grabbers)
+	var/turf/target_turf = get_turf(target)
+	var/turf/mover_turf = get_turf(mover_location)
+	if(!target_turf || !mover_turf)
+		return
+	var/turf/best_destination
+	var/best_score = INFINITY
+	for(var/turf/candidate in RANGE_TURFS(1, target_turf))
+		if(candidate == mover_turf || !mover_turf.Adjacent(candidate, target, src))
+			continue
+		if(candidate != target_turf && candidate.is_blocked_turf(FALSE, target, list(src)) && !CHECK_BITFIELD(target.movement_type, UNSTOPPABLE))
+			continue
+		var/valid_candidate = TRUE
+		var/score = ((candidate.x - mover_turf.x) ** 2) + ((candidate.y - mover_turf.y) ** 2)
+		for(var/mob/living/other_grabber in other_grabbers)
+			var/turf/other_turf = get_turf(other_grabber)
+			if(!other_turf || candidate == other_turf || !other_turf.Adjacent(candidate, target, other_grabber))
+				valid_candidate = FALSE
+				break
+			score += ((candidate.x - other_turf.x) ** 2) + ((candidate.y - other_turf.y) ** 2)
+		if(!valid_candidate)
+			continue
+		if(score < best_score || (score == best_score && candidate == target_turf))
+			best_destination = candidate
+			best_score = score
+	return best_destination
+
+/mob/living/proc/contest_target_grabbers(mob/living/target, atom/future_location, force_contest = FALSE, break_other_grabs = FALSE)
+	var/list/checked_grabbers = list()
+	for(var/obj/item/grabbing/active_grab in target.grabbedby)
+		if(QDELETED(active_grab) || active_grab.grabbed != target)
+			continue
+		var/mob/living/carbon/other_grabber = active_grab.grabbee
+		if(!other_grabber || other_grabber == src || (other_grabber in checked_grabbers))
+			continue
+		if(active_grab != other_grabber.r_grab && active_grab != other_grabber.l_grab)
+			continue
+		if(!other_grabber.cmode || !other_grabber.Adjacent(target))
+			continue
+		if(!force_contest && other_grabber.Adjacent(future_location))
+			continue
+		checked_grabbers += other_grabber
+		if(!try_pull_from_grip(other_grabber, target))
+			return FALSE
+	for(var/mob/living/current_puller in checked_grabbers)
+		visible_message(span_warning("[src] wrenches [target] away from [current_puller]'s grip!"), \
+			span_notice("I wrench [target] away from [current_puller]'s grip!"), ignored_mobs = list(current_puller))
+		to_chat(current_puller, span_danger("[src] wrenches [target] out of my grip!"))
+		log_combat(src, current_puller, "pulled [target] from grip")
+	if(break_other_grabs)
+		var/list/released_grabbers = list()
+		for(var/obj/item/grabbing/active_grab in target.grabbedby.Copy())
+			var/mob/living/carbon/other_grabber = active_grab.grabbee
+			if(!other_grabber || other_grabber == src)
+				continue
+			if(active_grab != other_grabber.r_grab && active_grab != other_grabber.l_grab)
+				continue
+			if(!(other_grabber in released_grabbers))
+				other_grabber.stop_pulling(FALSE)
+				released_grabbers += other_grabber
+			qdel(active_grab)
+		target.pulledby = src
+	return TRUE
+
+/mob/living/proc/try_pull_from_grip(mob/living/current_puller, atom/movable/target)
+	var/skill_difference = get_skill_level(/datum/skill/combat/wrestling) - current_puller.get_skill_level(/datum/skill/combat/wrestling)
+	var/takeover_chance = 50 + ((STASTR - current_puller.STASTR) * 5) + (skill_difference * 10)
+	takeover_chance -= current_puller.grab_state * 15
+	takeover_chance = clamp(takeover_chance, 5, 95)
+	stamina_add(rand(5, 15))
+	current_puller.stamina_add(rand(5, 15))
+	changeNext_move(CLICK_CD_RESIST)
+	current_puller.changeNext_move(CLICK_CD_RESIST)
+	if(client)
+		client.move_delay = max(client.move_delay, world.time + CLICK_CD_RESIST)
+	playsound(target, 'sound/combat/grabstruggle.ogg', 50, TRUE, -1)
+	play_overhead_indicator('icons/mob/overhead_effects.dmi', "clashtwo", 1 SECONDS, OBJ_LAYER, y_offset = 24)
+	current_puller.play_overhead_indicator('icons/mob/overhead_effects.dmi', "clashtwo", 1 SECONDS, OBJ_LAYER, y_offset = 24)
+
+	if(!prob(takeover_chance))
+		var/roll_message = client?.prefs.showrolls ? " ([takeover_chance]%)" : ""
+		visible_message(span_warning("[src] fails to wrench [target] from [current_puller]'s grip!"), \
+			span_warning("I fail to wrench [target] from [current_puller]'s grip![roll_message]"), ignored_mobs = list(current_puller))
+		to_chat(current_puller, span_warning("[src] fails to wrench [target] from my grip!"))
+		log_combat(src, current_puller, "failed to pull [target] from grip")
+		return FALSE
+
+	return TRUE
 
 /mob/living/proc/is_limb_covered(obj/item/bodypart/limb)
 	if(!limb)
@@ -646,18 +779,24 @@
 	else
 		stop_pulling()
 
+/// A garrote on the victim may belong to a different simultaneous grabber.
+/mob/living/proc/get_held_garrote_for(mob/living/victim)
+	for(var/obj/item/inqarticles/garrote/cord in held_items)
+		if(!QDELETED(cord) && cord.victim == victim)
+			return cord
+
 /mob/living/stop_pulling(forced = TRUE)
 	if(pulling)
 		if(ismob(pulling))
 			var/mob/living/M = pulling
-			M.reset_offsets("pulledby")
-			if(!M.is_shifted)
-				reset_pull_offsets(pulling)
+			if(M.pulledby == src)
+				M.reset_offsets("pulledby")
+				if(!M.is_shifted)
+					reset_pull_offsets(pulling)
 			if(HAS_TRAIT(M, TRAIT_GARROTED))
-				var/obj/item/inqarticles/garrote/gcord = src.get_active_held_item()
-				if(!gcord)
-					gcord = src.get_inactive_held_item()
-				gcord.wipeslate(src)
+				// Another grabber may own the garrote; only clean up our own cord and victim.
+				var/obj/item/inqarticles/garrote/gcord = get_held_garrote_for(M)
+				gcord?.wipeslate(src)
 
 		if(forced) //if false, called by the grab item itself, no reason to drop it again
 			if(istype(get_active_held_item(), /obj/item/grabbing))
@@ -675,12 +814,11 @@
 	update_pull_hud_icon()
 
 /mob/living/carbon/stop_pulling(forced = TRUE)
+	if(forced && istype(mouth, /obj/item/grabbing))
+		var/obj/item/grabbing/mouth_grab = mouth
+		if(mouth_grab.grabbed == pulling)
+			dropItemToGround(mouth_grab, silent = FALSE)
 	. = ..()
-	if(forced)
-		if(istype(mouth, /obj/item/grabbing))
-			var/obj/item/grabbing/I = mouth
-			if(I.grabbed == pulling)
-				dropItemToGround(I, silent = FALSE)
 
 
 /mob/living/verb/stop_pulling1()
@@ -1111,7 +1249,8 @@
 	var/olddir = dir
 	..()
 	if(olddir != dir)
-		stop_looking()
+		if(!upward_look_target)
+			stop_looking()
 		if(client)
 			update_vision_cone()
 
@@ -1308,6 +1447,7 @@
 	var/mob/living/L = pulledby
 	if(!L)
 		return TRUE
+	var/obj/item/inqarticles/garrote/gcord = HAS_TRAIT(src, TRAIT_GARROTED) ? L.get_held_garrote_for(src) : null
 	var/combat_modifier = 1
 	var/agg_grab = FALSE
 
@@ -1327,7 +1467,7 @@
 	else if(!cmode && L.cmode)
 		combat_modifier -= 0.3
 	if(agg_grab)
-		if(!HAS_TRAIT(src, TRAIT_GARROTED))
+		if(!gcord)
 			combat_modifier -= 0.3
 		else
 			if(!src.mind)
@@ -1341,7 +1481,7 @@
 			combat_modifier -= 0.15
 
 	resist_chance += max((wrestling_diff * 10), -20)
-	if(HAS_TRAIT(src, TRAIT_GARROTED))
+	if(gcord)
 		resist_chance += (STACON - L.STASPD) * 5
 	else
 		resist_chance += (STACON - (agg_grab ? L.STASTR : L.STAWIL)) * 5
@@ -1365,39 +1505,27 @@
 		var/rchance = ""
 		if(client?.prefs.showrolls)
 			rchance = " ([resist_chance]%)"
-		if(HAS_TRAIT(src, TRAIT_GARROTED))
-			var/obj/item/inqarticles/garrote/gcord = L.get_active_held_item()
-			if(!gcord)
-				gcord = L.get_inactive_held_item()
+		if(gcord)
 			to_chat(pulledby, span_warning("[src] struggles against the [gcord]!"))
-		if(!HAS_TRAIT(src, TRAIT_GARROTED))
+		if(!gcord)
 			visible_message(span_warning("[src] struggles to break free from [L]'s grip!"), \
 						span_warning("I struggle against [L]'s grip![rchance]"), null, null, L)
 		else
-			var/obj/item/inqarticles/garrote/gcord = L.get_active_held_item()
-			if(!gcord)
-				gcord = L.get_inactive_held_item()
 			visible_message(span_warning("[src] struggles to break free from [L]'s [gcord]!"), \
 						span_warning("I struggle against [L]'s [gcord]![rchance]"), null, null, L)
 		playsound(src.loc, 'sound/combat/grabstruggle.ogg', 50, TRUE, -1)
-		if(!HAS_TRAIT(src, TRAIT_GARROTED))
+		if(!gcord)
 			to_chat(pulledby, span_warning("[src] struggles against my grip!"))
 		return FALSE
-	if(!HAS_TRAIT(src, TRAIT_GARROTED))
+	if(!gcord)
 		visible_message(span_warning("[src] breaks free of [L]'s grip!"), \
 						span_notice("I break free of [L]'s grip!"), null, null, L)
 		to_chat(L, span_danger("[src] breaks free of my grip!"))
 	else
-		var/obj/item/inqarticles/garrote/gcord = L.get_active_held_item()
-		if(!gcord)
-			gcord = L.get_inactive_held_item()
 		visible_message(span_warning("[src] breaks free of [L]'s [gcord]!"), \
 						span_notice("I break free of [L]'s [gcord]!"), null, null, L)
 		to_chat(L, span_danger("[src] breaks free from my [gcord]!"))
-	if(HAS_TRAIT(src, TRAIT_GARROTED))
-		var/obj/item/inqarticles/garrote/gcord = L.get_active_held_item()
-		if(!gcord)
-			gcord = L.get_inactive_held_item()
+	if(gcord)
 		gcord.take_damage(100)//Two escapes to snap it.
 		gcord.wipeslate(src)
 	log_combat(L, src, "broke grab")
@@ -2198,7 +2326,17 @@
 					else
 						found_ping(get_turf(M), client, "hidden")
 
+		var/mob/living/carbon/human/tracking_investigator
+		if(ishuman(src))
+			tracking_investigator = src
+		var/list/blood_clue_turfs
+		var/new_tracking_clue_found = FALSE
 		for(var/obj/O in view(7,src))
+			if(tracking_investigator)
+				if(istype(O, /obj/effect/decal/cleanable/blood))
+					LAZYOR(blood_clue_turfs, get_turf(O))
+				else if(tracking_investigator.discover_tracking_clue(O, 7) == 2)
+					new_tracking_clue_found = TRUE
 			SEND_SIGNAL(O, COMSIG_LOOK_AROUND_SPOTTED, src)
 			if(istype(O, /obj/item/restraints/legcuffs/beartrap))
 				var/obj/item/restraints/legcuffs/beartrap/M = O
@@ -2219,6 +2357,12 @@
 			if(istype(O, /obj/item/bodypart/head)) // Bodies ping as mobs already, a loose head is an item and would be invisible otherwise
 				if(isturf(O.loc)) // Only one lying loose, not one in a bag or held
 					found_ping(get_turf(O), client, "hidden")
+		if(tracking_investigator)
+			for(var/turf/blood_turf as anything in blood_clue_turfs)
+				if(tracking_investigator.discover_tracking_clue(blood_turf, 7) == 2)
+					new_tracking_clue_found = TRUE
+			if(new_tracking_clue_found)
+				to_chat(src, span_notice("I notice evidence nearby. I can right-click its clue marker to investigate it."))
 			//Hearthstone port - Tracking
 		for(var/obj/effect/track/potential_track in orange(7, src)) //Can't use view because they're invisible by default.
 			if(!can_see(src, potential_track, 10))
@@ -2285,6 +2429,8 @@
 	if(client.pixel_x || client.pixel_y)
 		stop_looking()
 		return
+	if(upward_look_target)
+		return
 	if(!can_look_up())
 		return
 	changeNext_move(CLICK_CD_MELEE)
@@ -2316,7 +2462,12 @@
 		if(ttime < 0)
 			ttime = 0
 
+	upward_look_target = ceiling
 	if(!do_after(src, ttime, target = src))
+		if(upward_look_target == ceiling)
+			upward_look_target = null
+		return
+	if(upward_look_target != ceiling)
 		return
 	reset_perspective(ceiling)
 	update_cone_show()
@@ -2428,6 +2579,7 @@
 //	RegisterSignal(src, COMSIG_MOVABLE_PRE_MOVE, PROC_REF(stop_looking))
 
 /mob/living/proc/stop_looking()
+	upward_look_target = null
 	if(!client)
 		return
 	animate(client, pixel_x = 0, pixel_y = 0, 2, easing = SINE_EASING)
@@ -2535,6 +2687,9 @@
 	return TRUE
 
 /mob/living/proc/accept_offered_item(mob/living/offerer, obj/offered_item, stealthy)
+	if(!can_put_in_hand(offered_item, active_hand_index))
+		to_chat(src, span_warning("I need a free hand to take it!"))
+		return FALSE
 	transferItemToLoc(offered_item, src)
 	put_in_active_hand(offered_item)
 	if(stealthy)
@@ -2550,6 +2705,7 @@
 		)
 	SEND_SIGNAL(offered_item, COMSIG_OBJ_HANDED_OVER, src, offerer)
 	offerer.stop_offering_item()
+	return TRUE
 
 // Contract-spawned mobs: heads pay no HEADEATER bounty (the contract reward is the payment)
 // and the corpse dusts itself a while after death so cleared warbands don't litter the wilds.

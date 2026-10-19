@@ -263,11 +263,11 @@
 	if(target == user)
 		to_chat(user, span_alert("I shouldn't rip out my own lux! I need that."))
 		return
-	if(!target.mind)
-		to_chat(user, span_info("This one's lux is weak and insufficient. I need a victim with higher conscious!"))
-		return
 	if(target.stat == DEAD || !isliving(target))
 		to_chat(user, span_info("Only lyving creachers may have their lux torn."))
+		return
+	if(!target.mind)
+		to_chat(user, span_info("This one's lux is weak and insufficient. I need a victim with higher conscious!"))
 		return
 	if(!target.Adjacent(user))
 		to_chat(user, span_info("I need to be next to [target] to rip out their lux."))

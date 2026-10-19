@@ -521,6 +521,9 @@
 
 /datum/config_entry/flag/reopen_roundstart_suicide_roles_command_report
 
+/datum/config_entry/string/webhook_roundstart
+	protection = CONFIG_ENTRY_HIDDEN
+
 /// The minimum number of tallies a map vote entry can have.
 /datum/config_entry/number/map_vote_minimum_tallies
 	default = 1

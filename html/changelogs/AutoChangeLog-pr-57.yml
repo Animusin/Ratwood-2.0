@@ -1,0 +1,4 @@
+author: "sigmaboy124124"
+delete-after: True
+changes:
+  - bugfix: "Grand Mace is now actually given when choosing the \"Grand Mace + Longbow\" loadout"

@@ -1,0 +1,8 @@
+author: "Animusin"
+delete-after: True
+changes:
+  - bugfix: "Accepting an admin antagonist offer in the lobby now directly spawns the chosen role and opens its class selection where applicable."
+  - bugfix: "Explicit admin antagonist admission works at Zero Chaos and full capacity without consuming public extra slots."
+  - bugfix: "Back to Lobby clears the previous character's class selector and safely handles being used from the lobby."
+  - bugfix: "Lich and Methuselah spawn skills no longer add ranks on top of existing skills; lich spell points use a minimum of 27."
+  - bugfix: "Gnoll character creation no longer tries to reload its statpack without a savefile."

@@ -119,7 +119,8 @@
 
 		playsound(emotelocation, tmp_sound, snd_vol, FALSE, snd_range, soundping = soundping, animal_pref = animal)
 	if(!nomsg)
-		user.log_message(msg, LOG_EMOTE)
+		// Mark the executed datum, not the '*' input syntax (also used by built-ins).
+		user.log_message(msg, LOG_EMOTE, meta = list("herald_custom_emote" = intentional && istype(src, /datum/emote/living/custom)))
 		var/pre_color_msg = msg
 		if (use_params_for_runechat) // apply puncutation stripping here where appropriate
 			var/static/regex/regex = regex(@"[,.!?]", "g")

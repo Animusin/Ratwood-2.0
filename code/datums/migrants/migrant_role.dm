@@ -2,6 +2,7 @@
 	abstract_type = /datum/migrant_role
 	/// Name of the role
 	var/name = "MIGRANT ROLE"
+	var/triumph_entry_cost = 0
 	/// Umbrella category used by systems that group roles (e.g. talkstatue lists every "Adventurer" role together)
 	var/role_category = ""
 	/// Restricts species if the list is not null
@@ -16,6 +17,8 @@
 	var/outfit
 	/// Typepath of the antag datum for the migrant role
 	var/antag_datum
+	/// Capacity consumed from the storyteller antagonist cap when this role has an antag datum.
+	var/antag_cap_weight = 1
 	/// If defined they'll get adv class rolls
 	var/list/advclass_cat_rolls
 	/// Text to greet player of this role in the wave
@@ -26,6 +29,10 @@
 	var/show_wanderer_examine = TRUE
 	var/advjob_examine = TRUE
 	var/horse = FALSE
+
+/// Apply configuration after global role construction, once config is loaded.
+/datum/migrant_role/proc/apply_config()
+	return
 
 /datum/migrant_role/proc/after_spawn(mob/living/carbon/human/character)
 	var/turf/TU = get_turf(character)
@@ -41,6 +48,7 @@
 
 /datum/migrant_role/adventurer
 	name = "Adventurer"
+	triumph_entry_cost = ADVENTURER_MERCENARY_ENTRY_COST
 	advclass_cat_rolls = list(CTAG_ADVENTURER = 20)
 	role_category = "Adventurer"
 
@@ -54,7 +62,15 @@
 	name = "Assassin"
 	role_category = "Adventurer"
 	antag_datum = /datum/antagonist/assassin
+	antag_cap_weight = 0
 	advclass_cat_rolls = list(CTAG_ASSASSIN = 20)
+
+/datum/migrant_role/assassin/apply_config()
+	antag_datum = initial(antag_datum)
+	antag_cap_weight = initial(antag_cap_weight)
+	if(CONFIG_GET(string/round_modifier_policy) == "ratwood")
+		antag_datum = /datum/antagonist/assassin/ratwood
+		antag_cap_weight = 0.5
 
 /datum/migrant_role/gnoll
 	name = "Gnoll"
@@ -66,4 +82,3 @@
 
 /datum/outfit/job/roguetown/cloak/surcoat/pre_equip(mob/living/carbon/human/H)
 	cloak = /obj/item/clothing/cloak/stabard/surcoat
-

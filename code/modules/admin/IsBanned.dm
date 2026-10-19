@@ -35,17 +35,6 @@ GLOBAL_VAR(last_connection)
 
 	var/client/C = GLOB.directory[ckey]
 
-	//Whitelist
-	if(!real_bans_only && !C && CONFIG_GET(flag/usewhitelist))
-		if(!check_whitelist(ckey))
-			if (admin)
-				log_admin("The admin [key] has been allowed to bypass the whitelist")
-				if (message)
-					message_admins(span_adminnotice("The admin [key] has been allowed to bypass the whitelist"))
-					addclientmessage(ckey,span_adminnotice("I have been allowed to bypass the whitelist"))
-			else
-				log_access("Failed Login: [key] - Not on whitelist")
-				return list("reason"="whitelist", "desc" = "\nBecome whitelisted! discord.gg/NCFXUAgCPT")
 /*
 #ifdef MATURESERVER
 	if(!check_whitelist(ckey))
@@ -53,7 +42,7 @@ GLOBAL_VAR(last_connection)
 		if(num >= 10)
 			if(check_patreon_lvl(ckey) < 2)
 				log_access("Failed Login: [key] - TrialExpire")
-				return list("reason"="trialexpire", "desc" = "\nBecome whitelisted to continue playing here! discord.gg/6UzZQYqVHT")
+				return list("reason"="trialexpire", "desc" = "\nContact server staff to become whitelisted and continue playing here.")
 #endif
 */
 /*	//Blacklist
@@ -264,6 +253,8 @@ GLOBAL_VAR(last_connection)
 
 /proc/IsPatreon(ckey)
 	if(ckey in GLOB.allpatreons)
+		return TRUE
+	if(SSdonations?.is_donator_ckey(ckey))
 		return TRUE
 	else
 		return FALSE

@@ -25,7 +25,8 @@ GLOBAL_LIST_INIT(character_accents, list("No accent",
 	"Pui-Maen accent",
 	"Avar accent",
 	"Pirate accent",
-	"Low-Town accent"))
+	"Low-Town accent",
+	"West Kazengun accent"))
 
 GLOBAL_LIST_INIT(character_mannerisms, list(
 	"No mannerism",
@@ -33,6 +34,7 @@ GLOBAL_LIST_INIT(character_mannerisms, list(
 	"Stutter",
 	"Heavy Stutter",
 	"Lisp",
+	"Rhotacism",
 	"Hesitant"))
 
 // Global mapping of accent names to their font span lists

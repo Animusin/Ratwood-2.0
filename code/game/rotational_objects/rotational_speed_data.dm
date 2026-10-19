@@ -322,19 +322,25 @@
 	return surrounding
 
 /obj/structure/proc/return_connected(obj/structure/deleted, list/passed, datum/rotation_network/network)
-	var/list/surroundings = return_surrounding_rotation(network)
 	var/list/connected = list()
-	if(!length(passed))
-		passed = list()
-	passed |= src
-	if(deleted in surroundings)
-		surroundings -= deleted
+	if(!network || !(src in network.connected))
+		return connected
 
-	connected |= surroundings
-	for(var/obj/structure/surrounding in surroundings)
-		if(surrounding == src)
+	var/list/seen = list()
+	for(var/obj/structure/previously_seen as anything in passed)
+		seen[previously_seen] = TRUE
+
+	var/list/to_visit = list(src)
+	var/next_to_visit = 1
+	while(next_to_visit <= length(to_visit))
+		var/obj/structure/current = to_visit[next_to_visit]
+		next_to_visit++
+		if(current == deleted || seen[current] || !(current in network.connected))
 			continue
-		if(surrounding in passed)
-			continue
-		connected |= surrounding.return_connected(deleted, passed, network)
+		seen[current] = TRUE
+		connected += current
+
+		for(var/obj/structure/surrounding in current.return_surrounding_rotation(network))
+			if(surrounding != deleted && !seen[surrounding])
+				to_visit += surrounding
 	return connected

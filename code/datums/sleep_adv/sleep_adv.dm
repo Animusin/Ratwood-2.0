@@ -126,6 +126,8 @@ GLOBAL_LIST_INIT(cross_training_map, list(
 
 /datum/sleep_adv/proc/add_sleep_experience(skill, amt, silent = FALSE)
 	var/mob/living/L = mind.current
+	if(!L)
+		return
 	var/show_xp = TRUE
 	if(!(L.client?.prefs.floating_text_toggles & XP_TEXT))
 		show_xp = FALSE

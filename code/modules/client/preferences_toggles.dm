@@ -161,6 +161,12 @@
 		list("name" = "Audio", "entries" = audio_entries),
 		list("name" = "Content", "entries" = content_entries),
 	)
+	if(check_rights_for(owner, R_BUILD))
+		var/list/admin_entries = list(
+			list("id" = "buildmode_auto_open", "label" = "Автооткрытие спавн-меню (F7)", "enabled" = !!owner.prefs.buildmode_auto_open, "desc" = "Открывать каталог при включении режима строительства через F7. По умолчанию выключено."),
+		)
+		var/list/categories = data["categories"]
+		categories.Insert(1, list(list("name" = "Administration", "entries" = admin_entries)))
 	return data
 
 /datum/toggle_options_menu/ui_act(action, list/params, datum/tgui/ui, datum/ui_state/state)
@@ -173,6 +179,11 @@
 	if(action == "toggle")
 		var/id = params["id"]
 		switch(id)
+			if("buildmode_auto_open")
+				if(ui.user?.client != owner || !check_rights_for(owner, R_BUILD))
+					return FALSE
+				owner.prefs.buildmode_auto_open = !owner.prefs.buildmode_auto_open
+				owner.prefs.save_preferences()
 			if("fullscreen")
 				owner.toggle_fullscreen()
 			if("crt")
@@ -436,6 +447,11 @@
 	set name = "Toggle ERP Panel"
 	set hidden = 1
 	if(prefs)
+#ifdef MATURESERVER
+		if(!prefs.sexable && !check_agevet()) // can't enable the ERP panel without age verification
+			to_chat(src, span_warning("You must be age-verified (whitelisted) to enable the ERP panel. Open a ticket in the server's verification channel to get verified."))
+			return
+#endif
 		prefs.sexable = !prefs.sexable
 		prefs.save_preferences()
 		if(prefs.sexable)

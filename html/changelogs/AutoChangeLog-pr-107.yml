@@ -1,0 +1,4 @@
+author: "sigmaboy124124"
+delete-after: True
+changes:
+  - bugfix: "charcoal can now be ground into coal dust in an alchemical mortar, same as regular coal"

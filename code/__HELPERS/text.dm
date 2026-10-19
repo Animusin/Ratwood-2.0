@@ -47,12 +47,12 @@
 //Simply removes < and > and limits the length of the message
 /proc/strip_html_simple(t,limit=MAX_MESSAGE_LEN)
 	var/list/strip_chars = list("<",">")
-	t = copytext(t,1,limit)
+	t = copytext_char(t,1,limit)
 	for(var/char in strip_chars)
-		var/index = findtext(t, char)
+		var/index = findtext_char(t, char)
 		while(index)
-			t = copytext(t, 1, index) + copytext(t, index+1)
-			index = findtext(t, char)
+			t = copytext_char(t, 1, index) + copytext_char(t, index+1)
+			index = findtext_char(t, char)
 	return t
 
 
@@ -70,10 +70,10 @@
 //Removes a few problematic characters
 /proc/sanitize_simple(t,list/repl_chars = list("\n"="#","\t"="#"))
 	for(var/char in repl_chars)
-		var/index = findtext(t, char)
+		var/index = findtext_char(t, char)
 		while(index)
-			t = copytext(t, 1, index) + repl_chars[char] + copytext(t, index+1)
-			index = findtext(t, char, index+1)
+			t = copytext_char(t, 1, index) + repl_chars[char] + copytext_char(t, index+1)
+			index = findtext_char(t, char, index+1)
 	return t
 
 /proc/sanitize_filename(t)
@@ -108,12 +108,12 @@
 //Runs sanitize and strip_html_simple
 //I believe strip_html_simple() is required to run first to prevent '<' from displaying as '&lt;' after sanitize() calls byond's html_encode()
 /proc/strip_html(t,limit=MAX_MESSAGE_LEN)
-	return copytext((sanitize(strip_html_simple(t))),1,limit)
+	return copytext_char((sanitize(strip_html_simple(t))),1,limit)
 
 //Runs byond's sanitization proc along-side strip_html_simple
 //I believe strip_html_simple() is required to run first to prevent '<' from displaying as '&lt;' that html_encode() would cause
 /proc/adminscrub(t,limit=MAX_MESSAGE_LEN)
-	return copytext((html_encode(strip_html_simple(t))),1,limit)
+	return copytext_char((html_encode(strip_html_simple(t))),1,limit)
 
 /proc/remove_color_tags(html_text)
 	var/output = html_text
@@ -124,11 +124,11 @@
 
 //Returns null if there is any bad text in the string
 /proc/reject_bad_text(text, max_length=512)
-	if(length(text) > max_length)
+	if(length_char(text) > max_length)
 		return			//message too long
 	var/non_whitespace = 0
-	for(var/i=1, i<=length(text), i++)
-		switch(text2ascii(text,i))
+	for(var/i=1, i<=length_char(text), i++)
+		switch(text2ascii_char(text,i))
 			if(62,60,92,47)
 				return			//rejects the text if it contains these bad characters: <, >, \ or /
 			if(127 to 255)
@@ -147,7 +147,7 @@
 /proc/stripped_input(mob/user, message = "", title = "", default = "", max_length=MAX_MESSAGE_LEN, no_trim=FALSE)
 	var/name = input(user, message, title, default) as text|null
 	if(no_trim)
-		return copytext(html_encode(name), 1, max_length)
+		return copytext_char(html_encode(name), 1, max_length)
 	else
 		return trim(html_encode(name), max_length) //trim is "outside" because html_encode can expand single symbols into multiple symbols (such as turning < into &lt;)
 
@@ -155,21 +155,21 @@
 /proc/stripped_multiline_input(mob/user, message = "", title = "", default = "", max_length=MAX_MESSAGE_LEN, no_trim=FALSE)
 	var/name = input(user, message, title, default) as message|null
 	if(no_trim)
-		return copytext(html_encode(name), 1, max_length)
+		return copytext_char(html_encode(name), 1, max_length)
 	else
 		return trim(html_encode(name), max_length)
 
 //Filters out undesirable characters from names
 /proc/reject_bad_name(t_in, allow_numbers=0, max_length=MAX_NAME_LEN)
-	if(!t_in || length(t_in) > max_length)
+	if(!t_in || length_char(t_in) > max_length)
 		return //Rejects the input if it is null or if it is longer then the max length allowed
 
 	var/number_of_alphanumeric	= 0
 	var/last_char_group			= 0
 	var/t_out = ""
 
-	for(var/i=1, i<=length(t_in), i++)
-		var/ascii_char = text2ascii(t_in,i)
+	for(var/i=1, i<=length_char(t_in), i++)
+		var/ascii_char = text2ascii_char(t_in,i)
 		switch(ascii_char)
 			// A  .. Z
 			if(65 to 90)
@@ -184,7 +184,7 @@
 				last_char_group = 4
 
 			// special accented characters (diacritical)
-			if(192 to 383)
+			if(192 to 383, 1025, 1040 to 1103, 1105)
 				t_out+= ascii2text(ascii_char)
 				number_of_alphanumeric++
 				last_char_group = 4
@@ -223,7 +223,7 @@
 		return		//protects against tiny names like "A" and also names like "' ' ' ' ' ' ' '"
 
 	if(last_char_group == 1)
-		t_out = copytext(t_out,1,length(t_out))	//removes the last character (in this case a space)
+		t_out = copytext_char(t_out,1,length_char(t_out))	//removes the last character (in this case a space)
 
 	return t_out
 
@@ -244,30 +244,30 @@
 //Returns the position of the substring or 0 if it was not found
 /proc/dd_hasprefix(text, prefix)
 	var/start = 1
-	var/end = length(prefix) + 1
-	return findtext(text, prefix, start, end)
+	var/end = length_char(prefix) + 1
+	return findtext_char(text, prefix, start, end)
 
 //Checks the beginning of a string for a specified sub-string. This proc is case sensitive
 //Returns the position of the substring or 0 if it was not found
 /proc/dd_hasprefix_case(text, prefix)
 	var/start = 1
-	var/end = length(prefix) + 1
-	return findtextEx(text, prefix, start, end)
+	var/end = length_char(prefix) + 1
+	return findtextEx_char(text, prefix, start, end)
 
 //Checks the end of a string for a specified substring.
 //Returns the position of the substring or 0 if it was not found
 /proc/dd_hassuffix(text, suffix)
-	var/start = length(text) - length(suffix)
+	var/start = length_char(text) - length_char(suffix)
 	if(start)
-		return findtext(text, suffix, start, null)
+		return findtext_char(text, suffix, start, null)
 	return
 
 //Checks the end of a string for a specified substring. This proc is case sensitive
 //Returns the position of the substring or 0 if it was not found
 /proc/dd_hassuffix_case(text, suffix)
-	var/start = length(text) - length(suffix)
+	var/start = length_char(text) - length_char(suffix)
 	if(start)
-		return findtextEx(text, suffix, start, null)
+		return findtextEx_char(text, suffix, start, null)
 
 //Checks if any of a given list of needles is in the haystack
 /proc/text_in_list(haystack, list/needle_list, start=1, end=0)
@@ -303,38 +303,38 @@
 
 //Returns a string with reserved characters and spaces before the first letter removed
 /proc/trim_left(text)
-	for (var/i = 1 to length(text))
-		if (text2ascii(text, i) > 32)
-			return copytext(text, i)
+	for (var/i = 1 to length_char(text))
+		if (text2ascii_char(text, i) > 32)
+			return copytext_char(text, i)
 	return ""
 
 //Returns a string with reserved characters and spaces after the last letter removed
 /proc/trim_right(text)
-	for (var/i = length(text), i > 0, i--)
-		if (text2ascii(text, i) > 32)
-			return copytext(text, 1, i + 1)
+	for (var/i = length_char(text), i > 0, i--)
+		if (text2ascii_char(text, i) > 32)
+			return copytext_char(text, 1, i + 1)
 
 	return ""
 
 //Returns a string with reserved characters and spaces before the first word and after the last word removed.
 /proc/trim(text, max_length)
 	if(max_length)
-		text = copytext(text, 1, max_length)
+		text = copytext_char(text, 1, max_length)
 	return trim_left(trim_right(text))
 
 //Returns a string with the first element of the string capitalized.
 /proc/capitalize(t as text)
-	return uppertext(copytext(t, 1, 2)) + copytext(t, 2)
+	return uppertext(copytext_char(t, 1, 2)) + copytext_char(t, 2)
 
 //Centers text by adding spaces to either side of the string.
 /proc/dd_centertext(message, length)
 	var/new_message = message
-	var/size = length(message)
+	var/size = length_char(message)
 	var/delta = length - size
 	if(size == length)
 		return new_message
 	if(size > length)
-		return copytext(new_message, 1, length + 1)
+		return copytext_char(new_message, 1, length + 1)
 	if(delta == 1)
 		return new_message + " "
 	if(delta % 2)
@@ -345,10 +345,10 @@
 
 //Limits the length of the text. Note: MAX_MESSAGE_LEN and MAX_NAME_LEN are widely used for this purpose
 /proc/dd_limittext(message, length)
-	var/size = length(message)
+	var/size = length_char(message)
 	if(size <= length)
 		return message
-	return copytext(message, 1, length + 1)
+	return copytext_char(message, 1, length + 1)
 
 
 /proc/stringmerge(text,compare,replace = "*")
@@ -392,7 +392,7 @@
 
 GLOBAL_LIST_INIT(zero_character_only, list("0"))
 GLOBAL_LIST_INIT(hex_characters, list("0","1","2","3","4","5","6","7","8","9","a","b","c","d","e","f"))
-GLOBAL_LIST_INIT(alphabet, list("a","b","c","d","e","f","g","h","i","j","k","l","m","n","o","p","q","r","s","t","u","v","w","x","y","z"))
+GLOBAL_LIST_INIT(alphabet, list("a","b","c","d","e","f","g","h","i","j","k","l","m","n","o","p","q","r","s","t","u","v","w","x","y","z","а","б","в","г","д","е","ё","ж","з","и","й","к","л","м","н","о","п","р","с","т","у","ф","х","ц","ч","ш","щ","ъ","ы","ь","э","ю","я"))
 GLOBAL_LIST_INIT(binary, list("0","1"))
 /proc/random_string(length, list/characters)
 	. = ""
@@ -868,12 +868,12 @@ GLOBAL_LIST_INIT(binary, list("0","1"))
 	return uppertext(pick(GLOB.alphabet))
 
 /proc/unintelligize(message)
-	var/prefix=copytext(message,1,2)
+	var/prefix=copytext_char(message,1,2)
 	if(prefix == ";")
-		message = copytext(message,2)
+		message = copytext_char(message,2)
 	else if(prefix in list(":","#"))
-		prefix += copytext(message,2,3)
-		message = copytext(message,3)
+		prefix += copytext_char(message,2,3)
+		message = copytext_char(message,3)
 	else
 		prefix=""
 
@@ -882,11 +882,11 @@ GLOBAL_LIST_INIT(binary, list("0","1"))
 	for(var/i=1;i<=words.len;i++)
 		var/cword = pick(words)
 		words.Remove(cword)
-		var/suffix = copytext(cword,length(cword)-1,length(cword))
-		while(length(cword)>0 && (suffix in list(".",",",";","!",":","?")))
-			cword  = copytext(cword,1              ,length(cword)-1)
-			suffix = copytext(cword,length(cword)-1,length(cword)  )
-		if(length(cword))
+		var/suffix = copytext_char(cword,length_char(cword)-1,length_char(cword))
+		while(length_char(cword)>0 && (suffix in list(".",",",";","!",":","?")))
+			cword  = copytext_char(cword,1              ,length_char(cword)-1)
+			suffix = copytext_char(cword,length_char(cword)-1,length_char(cword)  )
+		if(length_char(cword))
 			rearranged += cword
 	message = "[prefix][jointext(rearranged," ")]"
 	. = message
@@ -897,10 +897,10 @@ GLOBAL_LIST_INIT(binary, list("0","1"))
 		message = pick("GHHHHHH...", "GLLLL...", "ZZRRRRR...")
 	else
 		var/new_message = ""
-		var/m_len = length(message)
+		var/m_len = length_char(message)
 		var/tracker = 1
 		while(tracker < m_len)
-			var/nletter = copytext(message, tracker, tracker + 1)
+			var/nletter = copytext_char(message, tracker, tracker + 1)
 			if(!(nletter in list("A", "E", "I", "O", "U", " ")) && (tracker % 2))
 				nletter = pick("GH", "SHK", "KSS", "SS", "GNHH")
 			else if((nletter == " ") && prob(50))

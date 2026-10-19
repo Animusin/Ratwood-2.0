@@ -8,15 +8,20 @@
 
 /obj/item/quest_writ/blockade
 	name = "blockade defense writ"
-	desc = "A writ calling for a blockade to be cleared blockade\
-	The bearer is enjoined to travel to the blockaded region and break three successive waves \
-	of raiders - each wave must fall within fifteen minutes, and the Steward may recall the \
-	writ should the bearer takes too long before  before reaching the blockade. Hand this writ over to a person] and they may initiate the contract; pin it to the Grand Contract Ledger and \
-	it will demand a Fellowship of three before it can be taken. Every additional person at the blockade, until the sixth, will attracts more enemies and rewards. \
-	If brigands are sitting on stolen Crown coins, breaking the blockade will seizes the hoard and have it taxed by the Crown as Recovered Spoils."
 	icon_state = "scroll_quest_info"
 	base_icon_state = "scroll_quest"
 	var/last_arrival_check = 0
+
+/obj/item/quest_writ/blockade/Initialize(mapload)
+	. = ..()
+	desc = "A writ calling for a blockade to be cleared. \
+	The bearer is enjoined to travel to the blockaded region and break three successive waves \
+	of raiders - each wave must fall within [BLOCKADE_WAVE_TIMER_DS / (1 MINUTES)] minutes. \
+	A trade-blockade writ expires if the fight has not begun within [BLOCKADE_ARM_TIMEOUT_DS / (1 MINUTES)] minutes of issue; \
+	the Steward may recall it after [BLOCKADE_RECALL_WINDOW_DS / (1 MINUTES)] minutes, provided the fight has not begun. \
+	Hand this writ directly to a bearer, or pin it to the Grand Contract Ledger to require a Fellowship of [BLOCKADE_FELLOWSHIP_REQUIREMENT]. \
+	Every additional person at the blockade, until the sixth, attracts more enemies and rewards. \
+	If brigands are sitting on stolen Crown coins, breaking the blockade seizes the hoard and has it taxed by the Crown as Recovered Spoils."
 
 /obj/item/quest_writ/blockade/attack_self(mob/user)
 	if(!assigned_quest)

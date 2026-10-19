@@ -11,8 +11,9 @@
 	shared_occurence_type = SHARED_MINOR_THREAT
 
 	restricted_roles = DEFAULT_ANTAG_BLACKLISTED_ROLES
-	base_antags = 5
+	base_antags = 2
 	maximum_antags = 10
+	denominator = 10
 
 	earliest_start = 0 SECONDS
 

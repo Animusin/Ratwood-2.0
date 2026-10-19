@@ -435,6 +435,7 @@
 		var/body_border_css = window_rim_style ? "box-sizing:border-box;[window_rim_style]" : ""
 		var/rendered_info = build_read_info(TRUE)
 		var/dat = {"<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\" \"http://www.w3.org/TR/html4/loose.dtd\">
+			<html><head><meta http-equiv="Content-Type" content="text/html; charset=utf-8"><style type=\"text/css\">
 			<html><head><meta charset=\"utf-8\"><style type=\"text/css\">
 			html, body { height:100%; margin:0; padding:0; }
 			body { background-image:url('book.png');background-repeat: repeat;[body_border_css] }</style></head><body scroll=yes>"}
@@ -449,6 +450,7 @@
 /obj/item/paper/proc/format_browse(t, mob/user)
 	user << browse_rsc('html/book.png')
 	var/dat = {"<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\" \"http://www.w3.org/TR/html4/loose.dtd\">
+			<html><head><meta http-equiv="Content-Type" content="text/html; charset=utf-8"><style type=\"text/css\">
 			<html><head><meta charset=\"utf-8\"><style type=\"text/css\">
 			body { background-image:url('book.png');background-repeat: repeat; }</style></head><body scroll=yes>"}
 	dat += "[t]<br>"
@@ -559,9 +561,9 @@
 	while(locid < 15)	//hey whoever decided a while(1) was a good idea here, i hate you
 		var/istart = 0
 		if(links)
-			istart = findtext(info_links, "<span class=\"paper_field\">", laststart)
+			istart = findtext_char(info_links, "<span class=\"paper_field\">", laststart)
 		else
-			istart = findtext(info, "<span class=\"paper_field\">", laststart)
+			istart = findtext_char(info, "<span class=\"paper_field\">", laststart)
 
 		if(istart == 0)
 			return	//No field found with matching id
@@ -571,21 +573,21 @@
 		if(locid == id)
 			var/iend = 1
 			if(links)
-				iend = findtext(info_links, "</span>", istart)
+				iend = findtext_char(info_links, "</span>", istart)
 			else
-				iend = findtext(info, "</span>", istart)
+				iend = findtext_char(info, "</span>", istart)
 
 			//textindex = istart+26
 			textindex = iend
 			break
 
 	if(links)
-		var/before = copytext(info_links, 1, textindex)
-		var/after = copytext(info_links, textindex)
+		var/before = copytext_char(info_links, 1, textindex)
+		var/after = copytext_char(info_links, textindex)
 		info_links = before + text + after
 	else
-		var/before = copytext(info, 1, textindex)
-		var/after = copytext(info, textindex)
+		var/before = copytext_char(info, 1, textindex)
+		var/after = copytext_char(info, textindex)
 		info = before + text + after
 		updateinfolinks()
 
@@ -630,7 +632,7 @@
 	// Count the fields
 	var/laststart = 1
 	while(fields < 15)
-		var/i = findtext(t, "<span class=\"paper_field\">", laststart)
+		var/i = findtext_char(t, "<span class=\"paper_field\">", laststart)
 		if(i == 0)
 			break
 		laststart = i+1
@@ -642,7 +644,7 @@
 	fields = 0
 	var/laststart = 1
 	while(fields < 15)
-		var/i = findtext(info, "<span class=\"paper_field\">", laststart)
+		var/i = findtext_char(info, "<span class=\"paper_field\">", laststart)
 		if(i == 0)
 			break
 		laststart = i+1

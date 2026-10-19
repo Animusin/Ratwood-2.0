@@ -1,0 +1,586 @@
+#define DONATION_TIER_NONE "none"
+#define DONATION_TIER_CARGO "cargo"
+#define DONATION_TIER_ENGINEER "engineer"
+#define DONATION_TIER_SCIENTIST "scientist"
+#define DONATION_TIER_HOS "hos"
+#define DONATION_TIER_CAPTAIN "captain"
+#define DONATION_TIER_WIZARD "wizard"
+#define DONATION_TIER_CULTIST "cultist"
+#define DONATION_TIER_ASSISTANT "assistant"
+
+#define DONATIONS_TRANSACTION_TYPE_PURCHASE "donation_store_purchase"
+
+SUBSYSTEM_DEF(donations)
+	name = "Donations"
+	flags = SS_BACKGROUND
+	wait = 1 MINUTES
+	runlevels = RUNLEVEL_LOBBY | RUNLEVEL_SETUP | RUNLEVEL_GAME | RUNLEVEL_POSTGAME
+	init_order = INIT_ORDER_DONATIONS
+
+	var/const/FAILED_DONATION_DB_CONNECTION_CUTOFF = 5
+	var/failed_connection_timeout = 0
+	var/failed_connections = 0
+	var/last_error
+	var/connection
+	var/list/currentrun = list()
+	/// Account-wide daily quotas, stored separately from importable character preferences.
+	var/list/migrant_call_usage = list()
+
+/datum/controller/subsystem/donations/Initialize()
+	if(!CONFIG_GET(flag/sql_enabled))
+		log_sql("Donations database is disabled because SQL is disabled.")
+		return ..()
+
+	if(!CONFIG_GET(flag/donations_enabled))
+		log_sql("Donations database is disabled by configuration.")
+		return ..()
+
+	if(Connect())
+		log_world("Donations database connection established.")
+		update_all_clients()
+	else
+		log_sql("Your server failed to establish a connection with the donations database.")
+
+	return ..()
+
+/datum/controller/subsystem/donations/Shutdown()
+	Disconnect()
+
+/datum/controller/subsystem/donations/fire(resumed = FALSE)
+	if(!IsConfigured())
+		return
+	if(!resumed)
+		currentrun = GLOB.clients.Copy()
+	while(length(currentrun))
+		var/client/player = currentrun[currentrun.len]
+		currentrun.len--
+		update_client(player)
+		if(MC_TICK_CHECK)
+			return
+
+/datum/controller/subsystem/donations/Recover()
+	connection = SSdonations.connection
+
+/datum/controller/subsystem/donations/proc/Connect()
+	if(IsConnected())
+		return TRUE
+
+	if(!IsConfigured())
+		return FALSE
+
+	if(failed_connection_timeout <= world.time)
+		failed_connections = 0
+
+	if(failed_connections > FAILED_DONATION_DB_CONNECTION_CUTOFF)
+		failed_connection_timeout = world.time + 50
+		return FALSE
+
+	var/timeout = max(CONFIG_GET(number/async_query_timeout), CONFIG_GET(number/blocking_query_timeout))
+	var/thread_limit = CONFIG_GET(number/bsql_thread_limit)
+
+	var/list/result = json_decode(rustg_sql_connect_pool(json_encode(list(
+		"host" = CONFIG_GET(string/donation_address),
+		"port" = CONFIG_GET(number/donation_port),
+		"user" = CONFIG_GET(string/donation_login),
+		"pass" = CONFIG_GET(string/donation_password),
+		"db_name" = CONFIG_GET(string/donation_database),
+		"read_timeout" = timeout,
+		"write_timeout" = timeout,
+		"max_threads" = thread_limit,
+	))))
+
+	. = (result["status"] == "ok")
+	if(.)
+		connection = result["handle"]
+	else
+		connection = null
+		last_error = result["data"]
+		log_sql("Donations Connect() failed | [last_error]")
+		++failed_connections
+
+/datum/controller/subsystem/donations/proc/Disconnect()
+	failed_connections = 0
+	if(connection)
+		rustg_sql_disconnect_pool(connection)
+	connection = null
+
+/datum/controller/subsystem/donations/proc/IsConnected()
+	if(!IsConfigured())
+		return FALSE
+	if(!connection)
+		return FALSE
+	return json_decode(rustg_sql_connected(connection))["status"] == "online"
+
+/datum/controller/subsystem/donations/proc/IsConfigured()
+	if(!CONFIG_GET(flag/sql_enabled))
+		last_error = "SQL is disabled."
+		return FALSE
+	if(!CONFIG_GET(flag/donations_enabled))
+		last_error = "Donations database is disabled."
+		return FALSE
+	if(!CONFIG_GET(string/donation_address) || !CONFIG_GET(number/donation_port) || !CONFIG_GET(string/donation_database) || !CONFIG_GET(string/donation_login) || !CONFIG_GET(string/donation_password))
+		last_error = "Donations database is not configured."
+		return FALSE
+	return TRUE
+
+/datum/controller/subsystem/donations/proc/IsAvailable()
+	if(!IsConfigured())
+		return FALSE
+	return IsConnected() || Connect()
+
+/datum/controller/subsystem/donations/proc/query(sql, list/arguments, async = TRUE, log_error = TRUE)
+	if(!Connect())
+		return
+
+	var/job_result_str
+	if(async)
+		var/job_id = rustg_sql_query_async(connection, sql, json_encode(arguments || list()))
+		UNTIL((job_result_str = rustg_sql_check_query(job_id)) != RUSTG_JOB_NO_RESULTS_YET)
+
+		if(job_result_str == RUSTG_JOB_ERROR)
+			last_error = job_result_str
+			return
+	else
+		job_result_str = rustg_sql_query_blocking(connection, sql, json_encode(arguments || list()))
+
+	var/list/result = json_decode(job_result_str)
+	switch(result["status"])
+		if("ok")
+			return result
+		if("err")
+			last_error = result["data"]
+		if("offline")
+			last_error = "offline"
+
+	if(log_error)
+		log_sql("[last_error] | Donations query used: [sql]")
+
+/datum/controller/subsystem/donations/proc/update_all_clients()
+	set waitfor = FALSE
+	for(var/client/player in GLOB.clients)
+		update_client(player)
+
+/datum/controller/subsystem/donations/proc/ensure_player(ckey)
+	if(!ckey)
+		return FALSE
+	var/list/result = query("INSERT IGNORE INTO players (ckey) VALUES (:ckey)", list("ckey" = ckey))
+	return !!result
+
+/datum/controller/subsystem/donations/proc/check_token(client/player, token)
+	if(!player?.ckey || !token)
+		return FALSE
+	if(!ensure_player(player.ckey))
+		return FALSE
+
+	var/list/token_result = query(
+		"SELECT discord FROM tokens WHERE token = :token LIMIT 1",
+		list("token" = token)
+	)
+	var/list/token_rows = token_result?["rows"]
+	if(!length(token_rows))
+		return FALSE
+
+	var/list/token_row = token_rows[1]
+	var/discord_id = token_row[1]
+	var/list/discord_player_result = query(
+		"SELECT id FROM players WHERE discord = :discord_id AND ckey IS NULL LIMIT 1",
+		list("discord_id" = discord_id)
+	)
+	if(!discord_player_result)
+		return FALSE
+
+	var/list/discord_player_rows = discord_player_result["rows"]
+	if(!length(discord_player_rows))
+		if(!query(
+			"UPDATE players SET discord = :discord_id WHERE ckey = :ckey",
+			list("discord_id" = discord_id, "ckey" = player.ckey)
+		))
+			return FALSE
+	else
+		var/list/discord_player_row = discord_player_rows[1]
+		var/discord_player_id = discord_player_row[1]
+		var/list/ckey_player_result = query(
+			"SELECT id FROM players WHERE ckey = :ckey LIMIT 1",
+			list("ckey" = player.ckey)
+		)
+		if(!ckey_player_result)
+			return FALSE
+
+		var/list/ckey_player_rows = ckey_player_result["rows"]
+		if(length(ckey_player_rows))
+			var/list/ckey_player_row = ckey_player_rows[1]
+			var/ckey_player_id = ckey_player_row[1]
+			if(!query(
+				"UPDATE points_transactions SET player = :discord_player_id WHERE player = :ckey_player_id",
+				list("discord_player_id" = discord_player_id, "ckey_player_id" = ckey_player_id)
+			))
+				return FALSE
+			if(!query(
+				"UPDATE money_transactions SET player = :discord_player_id WHERE player = :ckey_player_id",
+				list("discord_player_id" = discord_player_id, "ckey_player_id" = ckey_player_id)
+			))
+				return FALSE
+			if(!query(
+				"UPDATE store_players_items SET player = :discord_player_id WHERE player = :ckey_player_id",
+				list("discord_player_id" = discord_player_id, "ckey_player_id" = ckey_player_id)
+			))
+				return FALSE
+			if(!query(
+				"DELETE FROM players WHERE id = :ckey_player_id",
+				list("ckey_player_id" = ckey_player_id)
+			))
+				return FALSE
+
+		if(!query(
+			"UPDATE players SET ckey = :ckey WHERE discord = :discord_id",
+			list("ckey" = player.ckey, "discord_id" = discord_id)
+		))
+			return FALSE
+
+	if(!query("DELETE FROM tokens WHERE token = :token", list("token" = token)))
+		return FALSE
+
+	update_client(player)
+	return TRUE
+
+/datum/controller/subsystem/donations/proc/update_client(client/player)
+	if(!player?.ckey)
+		return FALSE
+	var/player_ckey = player.ckey
+	var/player_exists = ensure_player(player_ckey)
+	if(!player)
+		return FALSE
+	if(!player_exists)
+		player.donation_info_loaded = FALSE
+		return FALSE
+
+	var/list/tier_result = query({"
+		SELECT patron_types.type
+		FROM players
+		LEFT JOIN patron_types ON players.patron_type = patron_types.id
+		WHERE players.ckey = :ckey
+		LIMIT 1
+	"}, list("ckey" = player_ckey))
+
+	if(!player)
+		return FALSE
+	if(!tier_result)
+		player.donation_info_loaded = FALSE
+		return FALSE
+
+	var/tier = DONATION_TIER_NONE
+	var/list/tier_rows = tier_result?["rows"]
+	if(length(tier_rows))
+		var/list/tier_row = tier_rows[1]
+		if(tier_row[1])
+			tier = LOWER_TEXT(tier_row[1])
+
+	var/list/opyx_result = query({"
+		SELECT COALESCE(SUM(points_transactions.`change`), 0)
+		FROM points_transactions
+		JOIN players ON players.id = points_transactions.player
+		WHERE players.ckey = :ckey
+	"}, list("ckey" = player_ckey))
+
+	if(!opyx_result || !player)
+		if(player)
+			player.donation_info_loaded = FALSE
+		return FALSE
+
+	var/opyxes = 0
+	var/list/opyx_rows = opyx_result?["rows"]
+	if(length(opyx_rows))
+		var/list/opyx_row = opyx_rows[1]
+		opyxes = text2num(opyx_row[1])
+
+	player.donation_tier = tier
+	player.opyxes = opyxes
+	player.is_donator = (tier != DONATION_TIER_NONE) || (opyxes > 0)
+	player.donation_info_loaded = TRUE
+	player.patreonlevel = -1
+	return TRUE
+
+/datum/controller/subsystem/donations/proc/get_tier_for_ckey(ckey)
+	if(!ckey)
+		return DONATION_TIER_NONE
+
+	var/client/player = GLOB.directory[ckey]
+	if(player?.donation_info_loaded)
+		return player.donation_tier || DONATION_TIER_NONE
+
+	if(!ensure_player(ckey))
+		return DONATION_TIER_NONE
+
+	var/list/result = query({"
+		SELECT patron_types.type
+		FROM players
+		LEFT JOIN patron_types ON players.patron_type = patron_types.id
+		WHERE players.ckey = :ckey
+		LIMIT 1
+	"}, list("ckey" = ckey))
+	var/list/rows = result?["rows"]
+	if(!length(rows))
+		return DONATION_TIER_NONE
+	var/list/row = rows[1]
+	return row[1] ? LOWER_TEXT(row[1]) : DONATION_TIER_NONE
+
+/datum/controller/subsystem/donations/proc/get_patreon_level_for_ckey(ckey)
+	return donation_tier_to_patreon_level(get_tier_for_ckey(ckey))
+
+/datum/controller/subsystem/donations/proc/get_cached_tier_for_ckey(ckey)
+	if(!ckey)
+		return DONATION_TIER_NONE
+
+	var/client/player = GLOB.directory[ckey]
+	if(!player?.donation_info_loaded)
+		return DONATION_TIER_NONE
+
+	return player.donation_tier || DONATION_TIER_NONE
+
+/datum/controller/subsystem/donations/proc/get_cached_patreon_level_for_ckey(ckey)
+	return donation_tier_to_patreon_level(get_cached_tier_for_ckey(ckey))
+
+/datum/controller/subsystem/donations/proc/get_opyxes_for_ckey(ckey)
+	if(!ckey)
+		return 0
+
+	var/client/player = GLOB.directory[ckey]
+	if(player?.donation_info_loaded)
+		return player.opyxes
+
+	if(!ensure_player(ckey))
+		return 0
+
+	var/list/result = query({"
+		SELECT COALESCE(SUM(points_transactions.`change`), 0)
+		FROM points_transactions
+		JOIN players ON players.id = points_transactions.player
+		WHERE players.ckey = :ckey
+	"}, list("ckey" = ckey))
+	var/list/rows = result?["rows"]
+	if(!length(rows))
+		return 0
+	var/list/row = rows[1]
+	return text2num(row[1])
+
+/datum/controller/subsystem/donations/proc/is_donator_ckey(ckey)
+	return !!get_patreon_level_for_ckey(ckey) || get_opyxes_for_ckey(ckey) > 0
+
+/datum/controller/subsystem/donations/proc/create_transaction(client/player, change, type = DONATIONS_TRANSACTION_TYPE_PURCHASE, comment = "Ratwood donation transaction")
+	if(!player?.ckey || !isnum(change))
+		return FALSE
+	if(!ensure_player(player.ckey))
+		return FALSE
+
+	var/list/result = query({"
+		INSERT INTO points_transactions (player, type, datetime, `change`, comment)
+		SELECT players.id, points_transactions_types.id, NOW(), :change, :comment
+		FROM players
+		JOIN points_transactions_types ON points_transactions_types.type = :type
+		WHERE players.ckey = :ckey
+			AND (
+				SELECT COALESCE(SUM(existing_transactions.`change`), 0)
+				FROM points_transactions AS existing_transactions
+				WHERE existing_transactions.player = players.id
+			) + :change >= 0
+		LIMIT 1
+	"}, list("ckey" = player.ckey, "type" = type, "change" = change, "comment" = comment))
+
+	if(!result || text2num(result["affected"]) <= 0)
+		update_client(player)
+		return FALSE
+
+	update_client(player)
+	return text2num(result["last_insert_id"])
+
+/datum/controller/subsystem/donations/proc/spend_opyxes(client/player, amount, comment, type = DONATIONS_TRANSACTION_TYPE_PURCHASE)
+	if(!isnum(amount) || amount <= 0)
+		return FALSE
+	return create_transaction(player, -amount, type, comment)
+
+/proc/donation_tier_to_patreon_level(tier)
+	switch(LOWER_TEXT(tier))
+		if(DONATION_TIER_CARGO)
+			return 1
+		if(DONATION_TIER_ENGINEER)
+			return 2
+		if(DONATION_TIER_SCIENTIST)
+			return 3
+		if(DONATION_TIER_HOS)
+			return 4
+		if(DONATION_TIER_CAPTAIN)
+			return 5
+		if(DONATION_TIER_WIZARD)
+			return 6
+		if(DONATION_TIER_CULTIST)
+			return 7
+		if(DONATION_TIER_ASSISTANT)
+			return 8
+	return 0
+
+/proc/donation_tier_ooc_color(tier)
+	switch(LOWER_TEXT(tier))
+		if(DONATION_TIER_CARGO)
+			return "#5c72bc"
+		if(DONATION_TIER_ENGINEER)
+			return "#009cb7"
+		if(DONATION_TIER_SCIENTIST)
+			return "#b54a9d"
+		if(DONATION_TIER_HOS)
+			return "#e51919"
+		if(DONATION_TIER_CAPTAIN)
+			return "#e5b232"
+		if(DONATION_TIER_WIZARD)
+			return "#ed0776"
+		if(DONATION_TIER_CULTIST)
+			return "#ea4f07"
+		if(DONATION_TIER_ASSISTANT)
+			return "#74767a"
+
+/proc/donation_tier_ooc_font_size(tier)
+	var/patreon_level = donation_tier_to_patreon_level(tier)
+	if(!patreon_level)
+		return
+	return 100 + (patreon_level * 5)
+
+/proc/donation_tier_display_name(tier)
+	switch(LOWER_TEXT(tier))
+		if(DONATION_TIER_CARGO)
+			return "Cargo Technician"
+		if(DONATION_TIER_ENGINEER)
+			return "Engineer"
+		if(DONATION_TIER_SCIENTIST)
+			return "Scientist"
+		if(DONATION_TIER_HOS)
+			return "Head of Security"
+		if(DONATION_TIER_CAPTAIN)
+			return "Captain"
+		if(DONATION_TIER_WIZARD)
+			return "Wizard"
+		if(DONATION_TIER_CULTIST)
+			return "Cultist"
+		if(DONATION_TIER_ASSISTANT)
+			return "Assistant"
+	return "None"
+
+/client/proc/sync_donation_info()
+	if(!SSdonations)
+		return FALSE
+	return SSdonations.update_client(src)
+
+// Refresh at every cosmetic action so a downgrade cannot reuse a cached grant.
+/client/proc/can_use_donation_cosmetics(refresh = FALSE)
+	if(refresh && !sync_donation_info())
+		return FALSE
+	return has_scientist_subscription()
+
+/client/proc/has_scientist_subscription(refresh = FALSE)
+	if(refresh && !sync_donation_info())
+		return FALSE
+	return donation_info_loaded && donation_tier_to_patreon_level(donation_tier) >= donation_tier_to_patreon_level(DONATION_TIER_SCIENTIST)
+
+/datum/controller/subsystem/donations/proc/get_migrant_call_usage(target_ckey)
+	target_ckey = ckey(target_ckey)
+	if(!target_ckey)
+		return null
+	if(target_ckey in migrant_call_usage)
+		return migrant_call_usage[target_ckey]
+	var/path = "data/player_saves/[target_ckey[1]]/[target_ckey]/supporter_migrant_calls.json"
+	var/list/usage = list("day" = "", "used" = 0)
+	if(fexists(path))
+		try
+			usage = json_decode(file2text(path))
+		catch(var/exception/error)
+			log_game("Invalid supporter migrant quota for [target_ckey]: [error]")
+			return null
+	if(!islist(usage) || !istext(usage["day"]) || !isnum(usage["used"]) || usage["used"] < 0 || round(usage["used"]) != usage["used"])
+		return null
+	migrant_call_usage[target_ckey] = usage
+	return usage
+
+/// Calendar days are UTC, independent of round time and the host's local timezone.
+/datum/controller/subsystem/donations/proc/get_migrant_calls_remaining(target_ckey)
+	var/list/usage = get_migrant_call_usage(target_ckey)
+	if(!usage)
+		return 0
+	var/today = time2text(world.realtime, "YYYY-MM-DD", 0)
+	return usage["day"] == today ? max(0, SUPPORTER_MIGRANT_DAILY_LIMIT - usage["used"]) : SUPPORTER_MIGRANT_DAILY_LIMIT
+
+/// No yielding between quota validation, persistence and starting the wave.
+/datum/controller/subsystem/donations/proc/consume_migrant_call(target_ckey)
+	target_ckey = ckey(target_ckey)
+	var/remaining = get_migrant_calls_remaining(target_ckey)
+	if(remaining <= 0)
+		return FALSE
+	var/list/usage = list("day" = time2text(world.realtime, "YYYY-MM-DD", 0), "used" = SUPPORTER_MIGRANT_DAILY_LIMIT - remaining + 1)
+	var/path = "data/player_saves/[target_ckey[1]]/[target_ckey]/supporter_migrant_calls.json"
+	var/temporary_path = "[path].tmp"
+	if(fexists(temporary_path))
+		fdel(temporary_path)
+	WRITE_FILE(file(temporary_path), json_encode(usage))
+	if(!fcopy(temporary_path, path))
+		log_game("Failed to persist supporter migrant quota for [target_ckey].")
+		return FALSE
+	fdel(temporary_path)
+	migrant_call_usage[target_ckey] = usage
+	return TRUE
+
+/client/proc/get_opyxes(refresh = FALSE)
+	if(refresh)
+		sync_donation_info()
+	return opyxes
+
+/client/proc/donation_database_available()
+	return SSdonations?.IsAvailable()
+
+/client/proc/spend_opyxes(amount, comment, type = DONATIONS_TRANSACTION_TYPE_PURCHASE)
+	if(!SSdonations)
+		return FALSE
+	return SSdonations.spend_opyxes(src, amount, comment, type)
+
+/client/proc/link_chaotic_token(token)
+	token = trim(token)
+	if(!token)
+		to_chat(src, span_warning("Enter a valid Chaotic token."))
+		return
+
+	if(!CONFIG_GET(flag/sql_enabled))
+		to_chat(src, span_warning("This feature requires the SQL backend to be running."))
+		return
+
+	if(!CONFIG_GET(flag/donations_enabled))
+		to_chat(src, span_warning("The donations system is disabled."))
+		return
+
+	if(!SSdonations?.IsAvailable())
+		to_chat(src, span_warning("The donations database is currently unavailable. Please try again later."))
+		return
+
+	if(SSdonations.check_token(src, token))
+		to_chat(src, span_notice("Your Discord account was successfully linked to your BYOND ckey!"))
+	else
+		to_chat(src, span_warning("Failed to link your Discord account. Check the token and try again."))
+
+/client/verb/chaotic_token(token as text)
+	set name = "Chaotic Token"
+	set desc = "Link your Discord account using a Chaotic token."
+	set category = "OOC"
+
+	link_chaotic_token(token)
+
+/client/verb/chaotic_token_entrypoint(token as text)
+	set name = ".chaotic-token"
+	set desc = "Link your Discord account using a Chaotic token."
+	set hidden = TRUE
+
+	link_chaotic_token(token)
+
+#undef DONATION_TIER_NONE
+#undef DONATION_TIER_CARGO
+#undef DONATION_TIER_ENGINEER
+#undef DONATION_TIER_SCIENTIST
+#undef DONATION_TIER_HOS
+#undef DONATION_TIER_CAPTAIN
+#undef DONATION_TIER_WIZARD
+#undef DONATION_TIER_CULTIST
+#undef DONATION_TIER_ASSISTANT

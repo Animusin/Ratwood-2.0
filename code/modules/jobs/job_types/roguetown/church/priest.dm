@@ -26,7 +26,6 @@ GLOBAL_LIST_EMPTY(priest_swap_timers)
 	tutorial = "The Divine is all that matters in a world of the immoral. \
 	The Weeping God left his children to rule over us mortals--and you will preach their wisdom to any who still heed their will. \
 	The faithless are growing in number. It is up to you to shepard them toward a Gods-fearing future; for you are a Bishop of the Holy See."
-	whitelist_req = FALSE
 	cmode_music = 'sound/music/cmode/church/combat_astrata.ogg'
 
 	spells = list(/obj/effect/proc_holder/spell/invoked/cure_rot, /obj/effect/proc_holder/spell/self/convertrole/templar, /obj/effect/proc_holder/spell/self/convertrole/monk, /obj/effect/proc_holder/spell/invoked/projectile/divineblast, /obj/effect/proc_holder/spell/invoked/wound_heal, /obj/effect/proc_holder/spell/invoked/takeapprentice)

@@ -43,11 +43,6 @@
 	//render the steam over mobs and objects on the game plane
 	particle_effect.vis_flags &= ~VIS_INHERIT_PLANE
 
-
-/obj/effect/falling_leaves/New(loc, ...)
-	. = ..()
-	particles = new/particles/leaf
-
 /particles/maple
 	icon		= 'icons/effects/particles/particle.dmi'
 	icon_state	= list("leaf1"=5, "leaf2"=6, "leaf3"=5)

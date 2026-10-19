@@ -89,6 +89,9 @@
 	if(req_omen)
 		if(!GLOB.badomens.len)
 			return FALSE
+
+	if(checks_antag_cap && get_antag_amount() <= 0)
+		return FALSE
 	
 	if(!name)
 		return FALSE

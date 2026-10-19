@@ -123,4 +123,4 @@
 	return fieldset_block(title_text, returned_text, "boxed_message purple_box")
 
 /datum/vote/map_vote/finalize_vote(winning_option)
-	SSmap_vote.finalize_map_vote(src)
+	SSmap_vote.finalize_map_vote(src, winning_option)

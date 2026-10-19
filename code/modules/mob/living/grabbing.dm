@@ -1,18 +1,25 @@
-/// Applies a pin's hold, returning how far it actually pushed the stun and immobilise timers out.
-/mob/living/proc/apply_pin_hold(stun_amount, immobilize_amount)
-	var/stun_before = AmountStun()
-	var/immobilize_before = AmountImmobilized()
-	Stun(stun_amount)
-	Immobilize(immobilize_amount)
-	return list(AmountStun() - stun_before, AmountImmobilized() - immobilize_before)
+/// One pin's contribution to the existing control effects, independent of other sources.
+/datum/pin_hold
+	var/list/effects = list()
 
-/mob/living/proc/release_pin_hold(list/held)
+/datum/pin_hold/Destroy()
+	for(var/datum/status_effect/incapacitating/effect as anything in effects.Copy())
+		if(!QDELETED(effect))
+			effect.remove_pin_hold(src)
+	effects = null
+	return ..()
+
+/// Reuse the same source on refresh so releasing one pin cannot release another one.
+/mob/living/proc/apply_pin_hold(stun_amount, immobilize_amount, knockdown_amount, datum/pin_hold/held)
 	if(!held)
-		return
-	if(held[1] > 0)
-		SetStun(max(0, AmountStun() - held[1]))
-	if(held[2] > 0)
-		SetImmobilized(max(0, AmountImmobilized() - held[2]))
+		held = new
+	Stun(stun_amount, pin_source = held)
+	Immobilize(immobilize_amount, pin_source = held)
+	Knockdown(knockdown_amount, pin_source = held)
+	return held
+
+/mob/living/proc/release_pin_hold(datum/pin_hold/held)
+	qdel(held)
 
 ///////////OFFHAND///////////////
 /obj/item/grabbing
@@ -51,14 +58,46 @@
 	valid_check()
 
 /obj/item/grabbing/proc/valid_check()
-	if(!grabbee || !grabbed)
+	if(!grabbee || !ismovable(grabbed))
 		qdel(src)
 		return FALSE
-	if(grabbee.Adjacent(grabbed))
+	var/atom/movable/grabbed_movable = grabbed
+	if(grabbee.Adjacent(grabbed_movable))
 		return TRUE
-	grabbee.stop_pulling(FALSE)
+	release_pull()
 	qdel(src)
 	return FALSE
+
+/obj/item/grabbing/proc/release_pull()
+	if(!grabbee || !ismovable(grabbed))
+		return
+	var/atom/movable/grabbed_movable = grabbed
+	var/list/other_held_grabs = list(grabbee.r_grab, grabbee.l_grab, grabbee.mouth)
+	for(var/obj/item/grabbing/other_grab in other_held_grabs)
+		if(other_grab != src && !QDELETED(other_grab) && other_grab.grabbed == grabbed_movable)
+			return
+	var/was_active_puller = grabbed_movable.pulledby == grabbee
+	var/mob/living/carbon/replacement_puller
+	if(was_active_puller)
+		for(var/obj/item/grabbing/other_grab in grabbed_movable.grabbedby)
+			if(other_grab == src || QDELETED(other_grab) || other_grab.grabbed != grabbed_movable)
+				continue
+			var/mob/living/carbon/candidate = other_grab.grabbee
+			if(!candidate || candidate == grabbee || candidate.pulling != grabbed_movable || !candidate.Adjacent(grabbed_movable))
+				continue
+			if(other_grab != candidate.r_grab && other_grab != candidate.l_grab)
+				continue
+			replacement_puller = candidate
+			break
+	if(grabbee.pulling == grabbed_movable)
+		grabbee.stop_pulling(FALSE)
+	if(was_active_puller && replacement_puller && !grabbed_movable.pulledby)
+		grabbed_movable.pulledby = replacement_puller
+		if(isliving(grabbed_movable))
+			var/mob/living/target = grabbed_movable
+			target.update_mobility()
+			if(!target.is_shifted)
+				replacement_puller.set_pull_offsets(target, replacement_puller.grab_state)
 
 /obj/item/grabbing/Click(location, control, params)
 	var/list/modifiers = params2list(params)
@@ -109,6 +148,8 @@
 
 /obj/item/grabbing/Destroy()
 	STOP_PROCESSING(SSfastprocess, src)
+	var/mob/living/carbon/former_grabbee = grabbee
+	release_pull()
 	if(isobj(grabbed))
 		var/obj/I = grabbed
 		LAZYREMOVE(I.grabbedby, src)
@@ -141,6 +182,18 @@
 			grabbee.mouth = null
 			grabbee.update_action_buttons_icon()
 		grabbee = null
+	if(former_grabbee?.pulling)
+		var/highest_remaining_grab = GRAB_PASSIVE
+		var/list/remaining_grabs = list(former_grabbee.r_grab, former_grabbee.l_grab, former_grabbee.mouth)
+		for(var/obj/item/grabbing/remaining_grab in remaining_grabs)
+			if(!QDELETED(remaining_grab) && remaining_grab.grabbed == former_grabbee.pulling)
+				highest_remaining_grab = max(highest_remaining_grab, remaining_grab.grab_state)
+		former_grabbee.setGrabState(highest_remaining_grab)
+		former_grabbee.update_grab_intents()
+		if(isliving(former_grabbee.pulling))
+			var/mob/living/remaining_target = former_grabbee.pulling
+			if(!remaining_target.is_shifted)
+				former_grabbee.set_pull_offsets(remaining_target, highest_remaining_grab)
 	for(var/datum/D in dependents)
 		D.grabdropped(src)
 	return ..()
@@ -156,10 +209,9 @@
 		if(user.r_grab && user.r_grab.grabbed == user.l_grab.grabbed)
 			qdel(src)
 			return
-	if(grabbed == user.pulling)
-		user.stop_pulling(FALSE)
-	if(!user.pulling)
-		user.stop_pulling(FALSE)
+	var/atom/movable/grabbed_movable = grabbed
+	if(grabbed_movable && grabbed_movable == user.pulling)
+		release_pull()
 	for(var/mob/M in user.buckled_mobs)
 		if(M == grabbed)
 			user.unbuckle_mob(M, force = TRUE)
@@ -373,19 +425,24 @@
 					return
 				var/stun_dur = max(((65 + (skill_diff * 10) + (user.STASTR * 5) - (M.STASTR * 5)) * combat_modifier), 20)
 				var/pincount = 0
-				var/list/pin_hold
+				var/datum/pin_hold/pin_hold
 				user.stamina_add(rand(1,3))
 				while(M == grabbed && !(M.mobility_flags & MOBILITY_STAND) && (src in M.grabbedby))
 					if(M.IsStun())
 						if(!do_after(user, stun_dur + 1, needhand = 0, target = M) || !(src in M.grabbedby))
 							qdel(src)
 							break
-						pin_hold = M.apply_pin_hold(stun_dur - pincount * 2, stun_dur)	//Made immobile for the whole do_after duration, though
+						pin_hold = M.apply_pin_hold(stun_dur - pincount * 2, stun_dur, stun_dur, pin_hold)
+						// A rejected stun must not turn this into a loop without a do_after.
+						if(!M.IsStun())
+							break
 						user.stamina_add(rand(1,3) + abs(skill_diff) + stun_dur / 1.5)
 						M.visible_message(span_danger("[user] keeps [M] pinned to the ground!"))
 						pincount += 2
 					else if(src in M.grabbedby)
-						pin_hold = M.apply_pin_hold(stun_dur - 10, stun_dur)
+						pin_hold = M.apply_pin_hold(stun_dur - 10, stun_dur, stun_dur, pin_hold)
+						if(!M.IsStun())
+							break
 						user.stamina_add(rand(1,3) + abs(skill_diff) + stun_dur / 1.5)
 						pincount += 2
 						M.visible_message(span_danger("[user] pins [M] to the ground!"), \

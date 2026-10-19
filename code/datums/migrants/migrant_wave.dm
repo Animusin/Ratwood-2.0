@@ -36,6 +36,8 @@
 	var/greet_text
 	/// Whether this wave can roll at all. If not, it can still be forced to be ran.
 	var/can_roll = TRUE
+	/// Whether the wave participates in timed random rolls; manual calls remain available.
+	var/auto_roll = TRUE
 	/// If defined, this will be the wave type to increment for purposes of checking `max_spawns`
 	var/shared_wave_type = null
 	/// Whether we want to spawn people on the rolled location, this may not be desired for bandits or other things that set the location
@@ -45,7 +47,7 @@
 	/// Total triumph invested in this wave
 	var/triumph_total = 0
 	/// Threshold at which this wave is guaranteed to be next
-	var/triumph_threshold = 25
+	var/triumph_threshold = MIGRANT_TRIUMPH_THRESHOLD
 	/// Whether triumph contributions reset after wave spawns
 	var/reset_contributions_on_spawn = TRUE
 
@@ -56,6 +58,26 @@
 	for(var/role_type in optional_roles)
 		amount += optional_roles[role_type]
 	return amount
+
+/datum/migrant_wave/proc/get_minimum_players()
+	var/amount = min_optional_fills
+	for(var/role_type in required_roles)
+		amount += required_roles[role_type]
+	return max(1, amount)
+
+/// Total antagonist capacity required by the filled slots, or all slots when no assignments are supplied.
+/datum/migrant_wave/proc/get_antag_cap_weight(list/assignments)
+	. = 0
+	if(!isnull(assignments))
+		for(var/datum/migrant_assignment/assignment as anything in assignments)
+			var/datum/migrant_role/role = MIGRANT_ROLE(assignment.role_type)
+			if(role?.antag_datum)
+				. += role.antag_cap_weight
+		return
+	for(var/role_type in get_all_role_types())
+		var/datum/migrant_role/role = MIGRANT_ROLE(role_type)
+		if(role?.antag_datum)
+			. += (required_roles[role_type] + optional_roles[role_type]) * role.antag_cap_weight
 
 /datum/migrant_wave/proc/get_all_role_types()
 	. = list()
@@ -68,7 +90,6 @@
 	name = "Pilgrimage"
 	track = MIGRANT_TRACK_REGULAR
 	weight = 100 // It is a "default" wave
-	triumph_threshold = 10
 	required_roles = list(
 		/datum/migrant_role/pilgrim = 1,
 	)
@@ -80,8 +101,8 @@
 /datum/migrant_wave/adventurer
 	name = "Adventure Party"
 	track = MIGRANT_TRACK_REGULAR
-	weight = 100 // Adventurers is the default spillover role and instead of just setting adventurers slots up high at roundstart we'll let people join in gradually through the round
-	triumph_threshold = 15
+	auto_roll = FALSE
+	weight = 100
 	required_roles = list(
 		/datum/migrant_role/adventurer = 1,
 	)

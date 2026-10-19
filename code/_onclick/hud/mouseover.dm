@@ -22,6 +22,9 @@
 
 /atom/MouseEntered(location,control,params)
 	. = ..()
+	if(istype(usr?.client?.click_intercept, /datum/buildmode))
+		var/datum/buildmode/buildmode = usr.client.click_intercept
+		buildmode.update_spawn_preview(src)
 	if(!nomouseover && name && ismob(usr))
 		handle_mouseover(location, control, params)
 
@@ -204,7 +207,8 @@
 	if(voice_color && name == real_name)
 		mousecolor = "#[voice_color]"
 
-	if(viewer?.client?.prefs?.show_mouseover_role && get_face_name(""))
+	// Shapeshifted human bodies use stored_mob and visually represent animals.
+	if(viewer?.client?.prefs?.show_mouseover_role && !stored_mob && get_face_name(""))
 		var/role_text = get_mouseover_role_title()
 		if(role_text)
 			return list(

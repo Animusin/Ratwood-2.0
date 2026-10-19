@@ -1,6 +1,40 @@
 GLOBAL_VAR_INIT(OOC_COLOR, null)//If this is null, use the CSS for OOC. Otherwise, use a custom colour.
 GLOBAL_VAR_INIT(normal_ooc_colour, "#002eb8")
 
+/client/proc/get_donation_ooc_color()
+	if(!prefs?.donation_ooc_color_enabled)
+		return
+	if(ckey in GLOB.anonymize)
+		return
+	if(!donation_info_loaded)
+		return
+	return donation_tier_ooc_color(donation_tier)
+
+/client/proc/get_ooc_message_color(default_color, admin_recipient_color)
+	var/donation_color = get_donation_ooc_color()
+	if(donation_color)
+		return donation_color
+	if(holder)
+		return "#4972bc"
+	if(prefs?.unlock_content && prefs.ooccolor)
+		return prefs.ooccolor
+	return admin_recipient_color || default_color
+
+/client/proc/get_donation_ooc_font_size()
+	if(!prefs?.donation_ooc_font_size_enabled)
+		return
+	if(ckey in GLOB.anonymize)
+		return
+	if(!donation_info_loaded)
+		return
+	return donation_tier_ooc_font_size(donation_tier)
+
+/client/proc/apply_ooc_font_size(message)
+	var/font_size = get_donation_ooc_font_size()
+	if(!font_size)
+		return message
+	return "<span style='font-size:[font_size]%'>[message]</span>"
+
 //client/verb/ooc(msg as text)
 
 /client/verb/ooc(msg as text)
@@ -98,10 +132,9 @@ GLOBAL_VAR_INIT(normal_ooc_colour, "#002eb8")
 		var/real_key = C.holder ? "([key])" : ""
 		// Precedence: sender-admin (blue) > recipient-admin non-lobby (green/small) > default gray
 		var/is_admin_nonlobby = (C.holder && !istype(C.mob, /mob/dead/new_player) && !post_round)
-		var/sender_is_admin = holder
-		// Choose color: admin-sent stays blue; otherwise if admin recipient non-lobby, use green; else default gray
-		var/message_color = sender_is_admin ? "#4972bc" : (is_admin_nonlobby ? "#4CAF50" : chat_color)
+		var/message_color = get_ooc_message_color(chat_color, is_admin_nonlobby ? "#4CAF50" : null)
 		var/base_msg = "<font color='[color2use]'><EM>[keyname][real_key]:</EM></font> <font color='[message_color]'><span class='message linkify'>[msg]</span></font>"
+		base_msg = apply_ooc_font_size(base_msg)
 		// Apply size reduction only if recipient is admin spectating (not in lobby)
 		if(is_admin_nonlobby)
 			msg_to_send = "<span style='font-size:70%'>[base_msg]</span>"
@@ -216,9 +249,9 @@ GLOBAL_VAR_INIT(normal_ooc_colour, "#002eb8")
 		var/real_key = C.holder ? "([key])" : ""
 		// Precedence: sender-admin (blue) > recipient-admin non-lobby (green/small) > default gray
 		var/is_admin_nonlobby = (C.holder && !istype(C.mob, /mob/dead/new_player) && !post_round)
-		var/sender_is_admin = holder
-		var/message_color = sender_is_admin ? "#4972bc" : (is_admin_nonlobby ? "#4CAF50" : chat_color)
+		var/message_color = get_ooc_message_color(chat_color, is_admin_nonlobby ? "#4CAF50" : null)
 		var/base_msg = "<font color='[color2use]'><EM>[keyname][real_key]:</EM></font> <font color='[message_color]'><span class='message linkify'>[msg]</span></font>"
+		base_msg = apply_ooc_font_size(base_msg)
 		// Apply size reduction only if recipient is admin spectating (not in lobby)
 		if(is_admin_nonlobby)
 			msg_to_send = "<span style='font-size:70%'>[base_msg]</span>"
@@ -659,11 +692,10 @@ GLOBAL_VAR_INIT(normal_ooc_colour, "#002eb8")
 	// Flip preference
 	prefs.ghost_protection = !prefs.ghost_protection
 	prefs.save_preferences()
+	if(isliving(mob))
+		var/mob/living/living_mob = mob
+		living_mob.update_ghost_protection_visibility()
 	to_chat(src, span_notice("Ghost protection is now [prefs.ghost_protection ? "ENABLED (Ghosts can no longer see or orbit you)" : "DISABLED (Ghosts can now see and orbit you)"]."))
-
-// Currently ghost sprite not displaying
-// Can't return to afterlife or use for teleporting
-// Need to add hide emotes, etc
 
 /client/verb/map_vote_tally_count()
 	set name = "Show Map Vote Tallies"

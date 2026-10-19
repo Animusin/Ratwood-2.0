@@ -460,7 +460,7 @@
 /obj/item/melee/touch_attack/parlor_trick/dropped()
 	..()
 	disrupt()
-	if(!QDELETED(src))
+	if(!QDELING(src))
 		qdel(src)
 
 /obj/item/melee/touch_attack/parlor_trick/equipped()

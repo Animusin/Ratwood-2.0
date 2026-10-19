@@ -1,19 +1,19 @@
 
-/mob/living/carbon/human/Stun(amount, updating = TRUE, ignore_canstun = FALSE)
+/mob/living/carbon/human/Stun(amount, updating = TRUE, ignore_canstun = FALSE, datum/pin_hold/pin_source)
 	amount = dna.species.spec_stun(src,amount)
-	return ..()
+	return ..(amount, updating, ignore_canstun, pin_source)
 
-/mob/living/carbon/human/Knockdown(amount, updating = TRUE, ignore_canstun = FALSE)
+/mob/living/carbon/human/Knockdown(amount, updating = TRUE, ignore_canstun = FALSE, datum/pin_hold/pin_source)
 	amount = dna.species.spec_stun(src,amount)
-	return ..()
+	return ..(amount, updating, ignore_canstun, pin_source)
 
 /mob/living/carbon/human/Paralyze(amount, updating = TRUE, ignore_canstun = FALSE)
 	amount = dna.species.spec_stun(src, amount)
 	return ..()
 
-/mob/living/carbon/human/Immobilize(amount, updating = TRUE, ignore_canstun = FALSE)
+/mob/living/carbon/human/Immobilize(amount, updating = TRUE, ignore_canstun = FALSE, datum/pin_hold/pin_source)
 	amount = dna.species.spec_stun(src, amount)
-	return ..()
+	return ..(amount, updating, ignore_canstun, pin_source)
 
 /mob/living/carbon/human/Unconscious(amount, updating = 1, ignore_canstun = 0)
 	if(dna?.species)

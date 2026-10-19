@@ -66,6 +66,8 @@
 		dispel()
 
 /obj/item/clothing/suit/roguetown/dragonhide/attack_hand(mob/living/user)
+	if(QDELETED(src)) // a prior click already dispelled it; don't let the parent pickup forceMove() a dead item
+		return
 	. = ..()
 	if(!QDELETED(src))
 		dispel()

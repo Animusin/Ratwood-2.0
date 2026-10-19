@@ -1,0 +1,9 @@
+author: "Animusin"
+delete-after: True
+changes:
+  - rscadd: "Admins can open cap-exempt minor antagonist slots and change or reset the antagonist cap in the Storyteller panel."
+  - rscadd: "Admins can offer antagonist roles by ckey with player consent, including lobby reservations that apply after character setup."
+  - rscadd: "Explicit admin antagonist grants and extra slots work in Zero Chaos."
+  - bugfix: "Admin antagonist conversions apply role-specific skill floors instead of stacking skill ranks and lich spell-point budgets."
+  - bugfix: "Timed TGUI list prompts stop waiting when they expire."
+  - bugfix: "Antagonist removal and character deletion release phylactery, coven, language, skin-armor and HUD references that prevented clean garbage collection."

@@ -221,7 +221,7 @@
 		var/desire = input(src, "What is the desire?", "Desire") as null|text
 		if(isnull(desire)) return
 		var/message = "You [degree == "mild" ? "slightly" : degree == "moderate" ? "moderately" : "strongly"] want to help [src.real_name] fulfil their wish to [desire]"
-		if(!length(message) || copytext(message, length(message)) != ".")
+		if(!length_char(message) || copytext_char(message, length_char(message)) != ".")
 			message += "."
 		for(var/mob/living/carbon/human/H in viewers(src, null))
 			if(HAS_TRAIT(H, TRAIT_EMPATH))
@@ -233,7 +233,7 @@
 		var/dread = input(src, "What are you dreading?", "Dread") as null|text
 		if(isnull(dread)) return
 		var/message = "You feel [degree]ly negatively preoccupied with the prospect of [dread]."
-		if(!length(message) || copytext(message, length(message)) != ".")
+		if(!length_char(message) || copytext_char(message, length_char(message)) != ".")
 			message += "."
 		for(var/mob/living/carbon/human/H in viewers(src, null))
 			if(HAS_TRAIT(H, TRAIT_EMPATH))

@@ -159,6 +159,12 @@
 	grid_height = 96
 	grid_width = 96
 
+/obj/item/rotation_contraption/windmill
+	placed_type = /obj/structure/windmill
+
+	grid_height = 96
+	grid_width = 64
+
 
 /obj/item/rotation_contraption/minecart_rail
 	placed_type = /obj/structure/minecart_rail

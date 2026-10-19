@@ -936,11 +936,11 @@
 	ADD_TRAIT(harpy, TRAIT_SPELLCOCKBLOCK, TRAIT_STATUS_EFFECT(id))
 	harpy.flying = TRUE
 	init_signals()
-	if(isnull(harpy.buckled_mobs))
-		return
-	var/mob/buckled_rider = harpy.buckled_mobs[1]
-	buckled_mob = WEAKREF(buckled_rider)
-	buckled_rider.movement_type |= FLYING
+	if(LAZYLEN(harpy.buckled_mobs))
+		var/mob/buckled_rider = harpy.buckled_mobs[1]
+		if(!isnull(buckled_rider))
+			buckled_mob = WEAKREF(buckled_rider)
+			buckled_rider.movement_type |= FLYING
 
 /datum/status_effect/debuff/harpy_flight/tick()
 	. = ..()
@@ -1053,8 +1053,8 @@
 /// Updates flight when a mob is unbuckled as a harpy is already in flight
 /datum/status_effect/debuff/harpy_flight/proc/harpy_mob_unbuckle(datum/source, mob/living/M, force = FALSE)
 	SIGNAL_HANDLER
-	var/mob/living/unbuckling_mob = buckled_mob.resolve()
-	if(!unbuckling_mob && isnull(M))
+	var/mob/living/unbuckling_mob = buckled_mob?.resolve()
+	if(!unbuckling_mob)
 		buckled_mob = null
 		return
 	unbuckling_mob.movement_type &= ~FLYING

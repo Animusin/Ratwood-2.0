@@ -1,0 +1,4 @@
+author: "Animusin"
+delete-after: True
+changes:
+  - balance: "Custom music uploads now require Scientist patron tier or higher, or active admin permissions."

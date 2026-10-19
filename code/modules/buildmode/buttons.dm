@@ -59,7 +59,7 @@
 
 /atom/movable/screen/buildmode/modeswitch/New(bld, mt)
 	modetype = mt
-	icon_state = "buildmode_[initial(modetype.key)]"
+	icon_state = ispath(mt, /datum/buildmode_mode/catalog) ? "buildmode_advanced" : "buildmode_[initial(modetype.key)]"
 	name = initial(modetype.key)
 	return ..(bld)
 
@@ -88,3 +88,12 @@
 /atom/movable/screen/buildmode/quit/Click()
 	bd.quit()
 	return 1
+
+/atom/movable/screen/buildmode/catalog
+	icon_state = "buildmode_advanced"
+	screen_loc = "NORTH,WEST+4"
+	name = "Каталог спавна (F7)"
+
+/atom/movable/screen/buildmode/catalog/Click()
+	bd.ui_interact(usr)
+	return TRUE

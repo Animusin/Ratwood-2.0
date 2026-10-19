@@ -21,6 +21,13 @@
 
 	register_to_availability_signals()
 
+/datum/action/coven/Destroy()
+	end_targeting()
+	if(coven?.coven_action == src)
+		coven.coven_action = null
+	coven = null
+	return ..()
+
 /datum/action/coven/proc/register_to_availability_signals()
 	//this should only go through if it's the first Coven gained by the mob
 	for (var/datum/action/action in owner.actions)

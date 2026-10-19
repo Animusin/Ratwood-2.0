@@ -16,6 +16,8 @@
 	var/die_with_shapeshifted_form = TRUE
 	var/knockout_on_death = 0 // we will apply this value (as deciseconds) to our host mob as a knockout effect when punted out of the form
 	var/convert_damage = TRUE //If you want to convert the caster's health to the shift, and vice versa.
+	/// Keep existing injuries and only add damage taken while shifted when restoring.
+	var/preserve_injuries = TRUE
 	var/convert_damage_type = BRUTE //Since simplemobs don't have advanced damagetypes, what to convert damage back into.
 	var/do_gib = TRUE
 
@@ -36,10 +38,10 @@
 	var/datum/antagonist/vampire/VD = user?.mind?.has_antag_datum(/datum/antagonist/vampire)
 	if(VD && SEND_SIGNAL(user, COMSIG_DISGUISE_STATUS))
 		to_chat(user, span_warning("My curse is hidden."))
-		return FALSE
+		return
 	if(user.restrained(ignore_grab = FALSE))
 		to_chat(user, span_warn("I am restrained, I can't shapeshift!"))
-		return FALSE
+		return
 	if(src in user.mob_spell_list)
 		user.mob_spell_list.Remove(src)
 		user.mind.AddSpell(src)
@@ -58,9 +60,8 @@
 
 		var/obj/shapeshift_holder/S = locate() in M
 		if(S)
-			Restore(M)
-			continue
-		if(shapeshift_type)
+			return Restore(M)
+		else if(shapeshift_type)
 			if(shapeshift_type == /mob/living/simple_animal/hostile/retaliate/gaseousform)
 				addtimer(CALLBACK(src, PROC_REF(Restore), M), 100)
 			if(M.buckled)
@@ -115,3 +116,4 @@
 
 	clothes_req = initial(clothes_req)
 	human_req = initial(human_req)
+	return TRUE

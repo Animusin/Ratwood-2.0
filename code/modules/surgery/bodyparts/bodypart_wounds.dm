@@ -608,11 +608,12 @@
 		return FALSE
 	LAZYREMOVE(embedded_objects, embedder)
 	embedder.is_embedded = FALSE
-	var/drop_location = owner?.drop_location() || drop_location()
-	if(drop_location)
-		embedder.forceMove(drop_location)
-	else
-		qdel(embedder)
+	if(!QDELETED(embedder)) // embedder may be unlinking us from inside its own Destroy()
+		var/drop_location = owner?.drop_location() || drop_location()
+		if(drop_location)
+			embedder.forceMove(drop_location)
+		else
+			qdel(embedder)
 	if(owner)
 		if(!owner.has_embedded_objects())
 			owner.clear_alert("embeddedobject")

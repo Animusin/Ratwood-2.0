@@ -3,8 +3,9 @@
 	flag = CHURCHLING
 	department_flag = YOUNGFOLK
 	faction = "Station"
-	total_positions = 4
-	spawn_positions = 4
+	total_positions = 2
+	spawn_positions = 2
+	whitelist_req = FALSE
 
 	allowed_races = ACCEPTED_RACES
 	allowed_sexes = list(MALE, FEMALE)
@@ -211,6 +212,7 @@
 			H.adjust_skillrank_up_to(/datum/skill/combat/axes, SKILL_LEVEL_JOURNEYMAN, TRUE)
 			r_hand = /obj/item/rogueweapon/stoneaxe/woodcut
 	H.set_blindness(0)
+
 
 /datum/outfit/job/roguetown/churchling/neophyte/post_equip(mob/living/carbon/human/H, visualsOnly)
 	. = ..()

@@ -60,6 +60,7 @@ GLOBAL_LIST_EMPTY(chosen_names)
 	var/tgui_theme = "azure_default"
 	var/parchment_skin = "leatherbound"
 	var/windowflashing = TRUE
+	var/buildmode_auto_open = FALSE
 	var/toggles = TOGGLES_DEFAULT
 	var/floating_text_toggles = TOGGLES_TEXT_DEFAULT
 	var/admin_chat_toggles = TOGGLES_DEFAULT_CHAT_ADMIN
@@ -360,6 +361,8 @@ GLOBAL_LIST_EMPTY(chosen_names)
 	// Vrell - I fucking hate how inconsistent the variable style is for this shit. underscores? all lowercase? camelcase?
 	var/patreon_say_color = "ff7a05"
 	var/patreon_say_color_enabled = FALSE
+	var/donation_ooc_color_enabled = TRUE
+	var/donation_ooc_font_size_enabled = TRUE
 	// END PATREON
 
 
@@ -600,6 +603,25 @@ GLOBAL_LIST_EMPTY(chosen_names)
 			if(SStriumphs.triumph_buys_enabled)
 				dat += "<a style='white-space:nowrap;' href='?_src_=prefs;preference=triumph_buy_menu'>Triumph Buy</a>"
 			dat += "</td>"
+
+			dat += "<td style='width:33%;text-align:right'>"
+			var/client/player_client = user.client
+			if(player_client?.donation_database_available())
+				if(!player_client.donation_info_loaded)
+					player_client.sync_donation_info()
+				if(player_client.donation_info_loaded)
+					dat += "<b>DONATOR TIER:</b> [donation_tier_display_name(player_client.donation_tier)]<br>"
+					dat += "<b>OPYXES:</b> [player_client.opyxes]<br>"
+					dat += "<a style='white-space:nowrap;' href='?_src_=prefs;preference=donation_store;task=menu'>Donation Store</a>"
+				else
+					dat += "<b>DONATIONS:</b> DB not connected<br>"
+					dat += "<a style='white-space:nowrap;' href='?_src_=prefs;preference=donation_store;task=menu'>Donation Store</a>"
+			else
+				dat += "<b>DONATIONS:</b> DB not connected<br>"
+				dat += "<a style='white-space:nowrap;' href='?_src_=prefs;preference=donation_store;task=menu'>Donation Store</a>"
+			dat += "</td>"
+			dat += "</tr>"
+			dat += "</table>"
 
 			if(CONFIG_GET(flag/roundstart_traits))
 				dat += "<center><h2>Quirk Setup</h2>"
@@ -1101,7 +1123,10 @@ GLOBAL_LIST_EMPTY(chosen_names)
 				dat += "<a class='linkOff' href='byond://?src=[REF(N)];late_join=1'>JOINLATE</a>"
 			dat += " - <a href='?_src_=prefs;preference=migrants'>MIGRATION</a>"
 			dat += "<br><a href='?_src_=prefs;preference=manifest'>ACTORS</a>"
-			dat += " - <a href='?_src_=prefs;preference=observe'>SPECTATE</a>"
+			if(user.client?.has_whitelist_access())
+				dat += " - <a href='?_src_=prefs;preference=observe'>SPECTATE</a>"
+			else
+				dat += " - <span class='linkOff'>SPECTATE (WL ONLY)</span>"
 			dat += "<br><a href='byond://?src=[REF(N)];villains=1'><b><font color='red'>VILLAINS</font></b></a>"
 	else
 		dat += "<a href='?_src_=prefs;preference=finished'>DONE</a>"
@@ -1224,6 +1249,11 @@ GLOBAL_LIST_EMPTY(chosen_names)
 			var/used_name = job.display_title || job.title
 			if((pronouns == SHE_HER || pronouns == THEY_THEM_F) && job.f_title)
 				used_name = "[job.f_title]"
+			if(job.triumph_entry_cost)
+				used_name += " ([job.triumph_entry_cost] Triumphs)"
+				if(SStriumphs.get_triumphs(user.ckey) < job.triumph_entry_cost)
+					HTML += "[used_name]</td><td><font color=red>Not enough Triumphs</font></td></tr>"
+					continue
 			lastJob = job
 			if(is_banned_from(user.ckey, rank))
 				HTML += "[used_name]</td> <td><a href='?_src_=prefs;bancheck=[rank]'> BANNED</a></td></tr>"
@@ -1576,6 +1606,85 @@ Slots: [job.spawn_positions] [job.round_contrib_points ? "RCP: +[job.round_contr
 	popup.set_content(dat.Join())
 	popup.open(FALSE)
 
+/datum/preferences/proc/ShowDonationStore(mob/user)
+	if(!user?.client)
+		return
+
+	var/client/player_client = user.client
+	var/list/dat = list()
+	dat += "<center><h2>Donation Store</h2></center>"
+	dat += "<b>OOC Tier Color:</b> <a href='?_src_=prefs;preference=donation_store;task=toggle_ooc_color'>[donation_ooc_color_enabled ? "Enabled" : "Disabled"]</a><br>"
+	dat += "<b>OOC Tier Font Size:</b> <a href='?_src_=prefs;preference=donation_store;task=toggle_ooc_font_size'>[donation_ooc_font_size_enabled ? "Enabled" : "Disabled"]</a><br>"
+
+	if(!player_client.donation_database_available() || !player_client.sync_donation_info())
+		dat += "<br><center><b>Donation DB is not connected.</b></center>"
+	else
+		dat += "<b>Donator Tier:</b> [donation_tier_display_name(player_client.donation_tier)]<br>"
+		var/donation_color = donation_tier_ooc_color(player_client.donation_tier)
+		if(donation_color)
+			dat += "<b>Tier Color:</b> <span style='border: 1px solid #161616; background-color: [donation_color];'>&nbsp;&nbsp;&nbsp;</span><br>"
+		var/donation_font_size = donation_tier_ooc_font_size(player_client.donation_tier)
+		if(donation_font_size)
+			dat += "<b>Tier Font Size:</b> [donation_font_size]%<br>"
+		dat += "<b>Opyxes:</b> [player_client.opyxes]<hr>"
+		dat += "<b>1 Opyx</b> -> <b>[TRIUMPHS_PER_OPYX] Triumphs</b><br>"
+		if(player_client.opyxes >= 1)
+			dat += "<a href='?_src_=prefs;preference=donation_store;task=buy_triumphs'>Exchange</a>"
+		else
+			dat += "Not enough Opyxes."
+
+	var/datum/browser/noclose/popup = new(user, "donation_store", "<div align='center'>Donation Store</div>", 320, 220)
+	popup.set_content(dat.Join())
+	popup.open(FALSE)
+
+/datum/preferences/proc/BuyDonationTriumphs(mob/user)
+	if(!user?.client)
+		return
+
+	var/client/player_client = user.client
+	if(!player_client.donation_database_available() || !player_client.sync_donation_info())
+		to_chat(user, span_warning("Donation DB is not connected."))
+		ShowDonationStore(user)
+		ShowChoices(user)
+		return
+
+	if(player_client.opyxes < 1)
+		to_chat(user, span_warning("Not enough Opyxes."))
+		ShowDonationStore(user)
+		ShowChoices(user)
+		return
+
+	var/buyer_ckey = player_client.ckey
+	// Load the persistent balance before the donation query can yield or disconnect the buyer.
+	SStriumphs.get_triumphs(buyer_ckey)
+	if(!player_client.spend_opyxes(1, "Ratwood triumph exchange: 1 opyx for [TRIUMPHS_PER_OPYX] triumphs"))
+		to_chat(user, span_warning("Unable to exchange Opyxes right now."))
+		ShowDonationStore(user)
+		ShowChoices(user)
+		return
+
+	if(player_client)
+		player_client.adjust_triumphs(TRIUMPHS_PER_OPYX)
+	else
+		SStriumphs.triumph_adjust(TRIUMPHS_PER_OPYX, buyer_ckey)
+	if(QDELETED(user) || !user.client)
+		return
+	to_chat(user, span_notice("Exchanged 1 Opyx for [TRIUMPHS_PER_OPYX] Triumphs."))
+	ShowDonationStore(user)
+	ShowChoices(user)
+
+/datum/preferences/proc/ToggleDonationOOCColor(mob/user)
+	donation_ooc_color_enabled = !donation_ooc_color_enabled
+	save_preferences()
+	to_chat(user, span_notice("OOC tier color is now [donation_ooc_color_enabled ? "enabled" : "disabled"]."))
+	ShowDonationStore(user)
+
+/datum/preferences/proc/ToggleDonationOOCFontSize(mob/user)
+	donation_ooc_font_size_enabled = !donation_ooc_font_size_enabled
+	save_preferences()
+	to_chat(user, span_notice("OOC tier font size is now [donation_ooc_font_size_enabled ? "enabled" : "disabled"]."))
+	ShowDonationStore(user)
+
 
 /datum/preferences/Topic(href, href_list, hsrc)			//yeah, gotta do this I guess..
 	. = ..()
@@ -1679,7 +1788,7 @@ Slots: [job.spawn_positions] [job.round_contrib_points ? "RCP: +[job.round_contr
 
 	else if(href_list["preference"] == "agevet")
 		if(!user.check_agevet())
-			to_chat(usr, span_info("- You are a whitelisted player with full access to the server's features. If you'd also like to show others that you've been <b>AGE-VERIFIED</b> with a censored ID, you can open a ticket in Azure Peak's <b>#vet-here</b> channel. Note that this is a purely optional process, and - besides awarding a special header for your flavortext - doesn't affect you in any other way."))
+			to_chat(usr, span_info("- You are a whitelisted player with full access to the server's features. If you'd also like to show others that you've been <b>AGE-VERIFIED</b> with a censored ID, you can open a ticket in the server's verification channel. Note that this is a purely optional process, and - besides awarding a special header for your flavortext - doesn't affect you in any other way."))
 		else
 			to_chat(usr, span_love("- You have been successfully <b>AGE-VERIFIED!</b>"))
 
@@ -1707,6 +1816,17 @@ Slots: [job.spawn_positions] [job.round_contrib_points ? "RCP: +[job.round_contr
 		return
 	else if(href_list["preference"] == "triumph_buy_menu")
 		SStriumphs.startup_triumphs_menu(user.client)
+
+	else if(href_list["preference"] == "donation_store")
+		switch(href_list["task"])
+			if("buy_triumphs")
+				BuyDonationTriumphs(user)
+			if("toggle_ooc_color")
+				ToggleDonationOOCColor(user)
+			if("toggle_ooc_font_size")
+				ToggleDonationOOCFontSize(user)
+			else
+				ShowDonationStore(user)
 
 	else if(href_list["preference"] == "keybinds")
 		switch(href_list["task"])
@@ -2732,6 +2852,7 @@ Slots: [job.spawn_positions] [job.round_contrib_points ? "RCP: +[job.round_contr
 					if(selected_mannerism)
 						char_mannerism = selected_mannerism
 						var/test_message = "Hello friend, yes this is good. My Lord rides through the Duchy with servants and soldiers; the captain and sergeant guard the church while archers and cavalry hold the north road. My sword and shield are sharp, the water flows refreshingly, and we thank the Duke before saying goodbye."
+						test_message += " Привет, друг! Рыжий рыцарь стоит у ворот. Здесь слышны голоса стражи, звон мечей и шелест листвы."
 						var/accent_preview = apply_accent_preview(char_accent, test_message)
 						var/preview_message = accent_preview ? "[accent_preview]" : test_message
 						var/preview_text = apply_mannerism_preview(selected_mannerism, preview_message)

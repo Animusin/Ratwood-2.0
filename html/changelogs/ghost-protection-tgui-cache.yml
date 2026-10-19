@@ -1,0 +1,5 @@
+author: "Animusin"
+delete-after: true
+changes:
+  - bugfix: "Ghost protection no longer disappears for everyone when one observing ghost is deleted."
+  - bugfix: "TGUI bundles use content-based URLs on non-TGS servers to avoid reusing outdated interfaces after updates."

@@ -51,7 +51,7 @@
 /// Reset all non stress generators. Re-propagate from stress generators.
 /datum/rotation_network/proc/rebuild_group()
 	rebuilding = TRUE
-	var/list/producers = list()
+	var/obj/structure/driver
 	for(var/obj/structure/child in connected)
 		if(!child.stress_generator)
 			child.rotation_direction = null
@@ -60,21 +60,28 @@
 			child.set_stress_use(0)
 			child.set_stress_use(old_stress_use, check_network = FALSE)
 			continue
-		producers |= child
+		if(!child.rotation_direction || !child.rotations_per_minute)
+			continue
+		if(!driver || child.rotations_per_minute > driver.rotations_per_minute)
+			driver = child
 
-	for(var/obj/structure/producer in producers)
-		producer.find_and_propagate(list(), TRUE)
+	// A connected drivetrain has one effective RPM. Propagating once from the fastest active
+	// source avoids traversing the entire network once per generator whenever it is rebuilt.
+	if(driver)
+		driver.find_and_propagate(list(), TRUE)
 	rebuilding = FALSE
 	check_stress()
 
 /datum/rotation_network/proc/reassess_group(obj/structure/deleted)
 	var/list/returned_nearbys = deleted.return_surrounding_rotation(src)
-	var/list/connected_copy = connected.Copy()
 
 	for(var/obj/structure/near in returned_nearbys)
+		if(!(near in connected))
+			continue
 		var/list/returned = near.return_connected(deleted, list(), src)
-		connected_copy -= deleted
-		if(length(connected_copy) == length(returned))
+		if(!length(returned))
+			continue
+		if(length(connected) == length(returned))
 			rebuild_group()
 			return
 		var/datum/rotation_network/new_network = new

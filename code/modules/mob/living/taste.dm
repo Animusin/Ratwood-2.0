@@ -16,6 +16,8 @@
 
 // non destructively tastes a reagent container
 /mob/living/proc/taste(datum/reagents/from)
+	if(!from) // reagents holder was stripped/qdeleted before we got here
+		return
 	if(last_taste_time + 50 < world.time)
 		var/taste_sensitivity = get_taste_sensitivity()
 		var/text_output = from.generate_taste_message(taste_sensitivity)

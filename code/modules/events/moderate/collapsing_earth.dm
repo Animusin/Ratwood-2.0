@@ -25,6 +25,8 @@ GLOBAL_LIST_INIT(mined_resource_loc, list())
 
 /datum/round_event/collapsing_earth/start()
 	. = ..()
+	if(!length(GLOB.mined_resource_loc)) // nothing has been mined yet, nowhere to collapse
+		return
 	for(var/i = 1 to rand(1, 25))
 		var/turf/open/turf = pick(GLOB.mined_resource_loc)
 		turf.try_respawn_mined_chunks(150, weighted_rocks)

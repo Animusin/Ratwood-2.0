@@ -2,6 +2,8 @@
 /datum/job/roguetown/wretch
 	title = "Wretch"
 	flag = WRETCH
+	antag_job = TRUE
+	admin_slot_antag_type = /datum/antagonist/wretch
 	department_flag = WANDERERS
 	faction = "Station"
 	total_positions = 9
@@ -56,6 +58,12 @@
 		/datum/advclass/wretch/wretchedtoiler,
 		/datum/advclass/wretch/ancientchampion,
 	)
+
+/datum/job/roguetown/wretch/New()
+	. = ..()
+	if(CONFIG_GET(string/round_modifier_policy) == "ratwood")
+		total_positions = -1
+		spawn_positions = -1
 
 /datum/job/roguetown/wretch/after_spawn(mob/living/L, mob/M, latejoin = TRUE)
 	..()

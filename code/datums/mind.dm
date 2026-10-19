@@ -33,6 +33,12 @@ GLOBAL_LIST_EMPTY(personal_objective_minds)
 
 
 /datum/mind
+	/// Pending exemption from an admin-created latejoin slot, limited to its minor role.
+	var/admin_slot_antag_type
+	/// A consented lobby offer, transferred with this character's mind and consumed after setup.
+	var/datum/antagonist/queued_admin_antag
+	var/queued_admin_antag_ckey
+	var/queued_admin_antag_author
 	var/key
 	var/name				//replaces mob/var/original_name
 	var/ghostname			//replaces name for observers name if set
@@ -128,6 +134,7 @@ GLOBAL_LIST_EMPTY(personal_objective_minds)
 	sleep_adv = new /datum/sleep_adv(src)
 
 /datum/mind/Destroy()
+	clear_queued_admin_antag()
 	SSticker.minds -= src
 	GLOB.personal_objective_minds -= src
 	QDEL_NULL(player_card)
@@ -418,6 +425,9 @@ GLOBAL_LIST_EMPTY(personal_objective_minds)
 		qdel(A)
 		return
 	A.owner = src
+	if(admin_slot_antag_type && A.type == admin_slot_antag_type)
+		A.antag_flags |= FLAG_ANTAG_CAP_IGNORE
+		admin_slot_antag_type = null
 	LAZYADD(antag_datums, A)
 	A.create_team(team)
 	var/datum/team/antag_team = A.get_team()
@@ -427,6 +437,8 @@ GLOBAL_LIST_EMPTY(personal_objective_minds)
 		A.on_gain(TRUE)
 	else
 		A.on_gain()
+	if(A.preserve_character)
+		A.apply_admin_skill_profile()
 	log_game("[key_name(src)] has gained antag datum [A.name]([A.type])")
 	var/client/picked_client = src.current?.client
 	picked_client?.mob?.mind.picking = FALSE
@@ -510,7 +522,7 @@ GLOBAL_LIST_EMPTY(personal_objective_minds)
 			antag_obj_count++
 
 	if(window)
-		recipient << browse(output,"window=memory")
+		recipient << browse("<!DOCTYPE html><html><head><meta charset='UTF-8'></head><body>[output]</body></html>", "window=memory")
 	else if(all_objectives.len || memory || personal_objectives.len)
 		to_chat(recipient, "<i>[output]</i>")
 
@@ -990,6 +1002,13 @@ GLOBAL_LIST_EMPTY(personal_objective_minds)
 				if(user.Adjacent(host_object))
 					if(user.mind.special_items[item])
 						var/path2item = user.mind.special_items[item]
+						if(ispath(path2item, /obj/item/enchantingkit))
+							if(!user.client?.can_use_donation_cosmetics(TRUE))
+								to_chat(user, span_warning("Donator cosmetics require an active Scientist tier or higher."))
+								return
+							// The database check yields; revalidate the stash before consuming it.
+							if(!user.Adjacent(host_object) || user.mind?.special_items[item] != path2item)
+								return
 						user.mind.special_items -= item
 						var/obj/item/I = new path2item(user.loc)
 

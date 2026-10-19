@@ -70,6 +70,9 @@
 		to_chat(user, span_warning("The carriageman does not acknowledge the living."))
 	var/mob/living/carbon/spirit/ghost = user
 	if(istype(W, /obj/item/underworld/coin))
+		if(!istype(ghost)) // the living can't pay the toll; only spirits carry the 'paid' var
+			to_chat(user, span_warning("The carriageman does not acknowledge the living."))
+			return
 		if(!ghost.paid)
 			qdel(W)
 			to_chat(ghost, "<br><font color=purple><span class='bold'>THE TOLL IS PAID, THROUGH THE CARRIAGE THE UNDERMAIDEN WAITS.</span></font>")
@@ -119,6 +122,8 @@
 	set_light(5, 3, 30, l_color = LIGHT_COLOR_BLUE)
 
 /obj/structure/underworld/carriage/attack_hand(mob/living/carbon/spirit/user)
+	if(!istype(user)) // non-spirits don't have the 'paid' var
+		return ..()
 	if(user.paid)
 		switch(alert("Are you ready to be judged?",,"Yes","No"))
 			if("Yes")

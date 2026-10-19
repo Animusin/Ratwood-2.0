@@ -1,0 +1,4 @@
+author: "Animusin"
+delete-after: true
+changes:
+  - balance: "Adventurer slots now scale at 18% of the population and Mercenary slots at 8%, down from 20% and 10%. Minimums and maximums are unchanged."

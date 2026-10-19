@@ -383,7 +383,8 @@
 	return ..()
 
 /obj/structure/closet/dirthole/Destroy()
-	abovemob = null // don't qdel a mutable appearance
+	cut_overlay(abovemob)
+	abovemob = null // a mutable_appearance, not a qdel-able datum - qdel() trips the CRASH() in /image/Destroy
 	if(mastert && mastert.holie == src)
 		mastert.holie = null
 	return ..()

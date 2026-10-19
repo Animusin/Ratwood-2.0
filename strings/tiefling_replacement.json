@@ -1,0 +1,75 @@
+{
+    "full": {
+        "goodbye": "adiós",
+        "bye": "adiós",
+        "my": "mi",
+        "it": "et",
+        "is": "es",
+        "in": "en",
+        "of": "de",
+        "the": "el",
+        "yes": "sí",
+        "thanks": "gracias",
+        "form of": "forma de",
+        "shape of": "forma de",
+        "bean": "frijol",
+        "beans": "frijoles",
+        "cat": "gato",
+        "friend": "amigo",
+
+        "прощай": "adiós",
+        "мой": "ми",
+        "моя": "ми",
+        "мое": "ми",
+        "моё": "ми",
+        "мои": "ми",
+        "оно": "эт",
+        "есть": "эс",
+        "в": "эт",
+        "от": "де",
+        "из": "де",
+        "да": "sí",
+        "спасибо": "грациас",
+        "фигура": "forma de",
+        "форма": "forma de",
+        "фасоль": "frijol",
+        "бобы": "frijoles",
+        "кот": "гато",
+        "кошка": "гата",
+        "друг": "amigo",
+        "подруга": "amiga"
+    },
+    "start": {
+        "tomato": "tomate",
+        "whore": "puta",
+        "cheese": "queso",
+
+        "томат": "tomate",
+        "помидор": "tomate",
+        "шлюха": "puta",
+        "шлюхо": "puta",
+        "сыр": "кьесо"
+    },
+    "end": {},
+    "multiword": {
+        "до свидания": "adiós"
+	},
+    "syllable": {
+        "thi": "thee",
+        "fish": "feesh",
+        "ish": "eesh",
+        "is": "es",
+        "in": "en",
+        "r": "rr",
+        "shi": "chee",
+        "sh": "ch",
+
+        "рыб": "рииб",
+        "иш": "ииш",
+        "ис": "эс",
+        "ин": "эн",
+        "р": "рр",
+        "ши": "чии",
+        "ш": "ч"
+    }
+}

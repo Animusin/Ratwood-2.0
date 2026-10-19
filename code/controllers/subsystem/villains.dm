@@ -8,12 +8,85 @@
 		if(queued_villains[ckey] == job_title)
 			.++
 
+/datum/controller/subsystem/gamemode/proc/get_queued_villain_weight()
+	. = 0
+	for(var/ckey in queued_villains)
+		var/job_title = queued_villains[ckey]
+		var/datum/job/job = SSjob.GetJob(job_title)
+		if(!job || job.antag_cap_weight <= 0)
+			continue
+		. += job.antag_cap_weight
+
+/datum/controller/subsystem/gamemode/proc/get_planned_villain_count(datum/round_event_control/event)
+	if(!event || !(event in planned_villain_counts))
+		return null
+	return planned_villain_counts[event]
+
+/datum/controller/subsystem/gamemode/proc/get_planned_villain_weight(datum/round_event_control/event)
+	if(!event || !(event in planned_villain_weights))
+		return null
+	return planned_villain_weights[event]
+
+/// Clip a plan to the candidates that actually exist and immediately release the unused reserve.
+/datum/controller/subsystem/gamemode/proc/reduce_planned_villain_event(datum/round_event_control/antagonist/solo/event, new_count)
+	if(!event || !(event in planned_villain_counts))
+		return
+	new_count = max(min(new_count, planned_villain_counts[event]), 0)
+	var/new_weight = 0
+	for(var/index in 1 to new_count)
+		new_weight += event.get_antag_cap_weight(index)
+	var/released_weight = max(planned_villain_weights[event] - new_weight, 0)
+	planned_villain_counts[event] = new_count
+	planned_villain_weights[event] = new_weight
+	roundstart_reserved_antag_weight = max(roundstart_reserved_antag_weight - released_weight, 0)
+
+/// Convert one participant's reservation immediately before their job or antagonist datum is assigned.
+/// This keeps the reservation from blocking cap-aware assignment while preserving the combined total.
+/datum/controller/subsystem/gamemode/proc/consume_planned_villain_reservation(datum/round_event_control/antagonist/solo/event, participant_index)
+	if(!event || !(event in planned_villain_weights))
+		return
+	var/participant_weight = max(event.get_antag_cap_weight(participant_index), 0)
+	var/consumed_weight = min(participant_weight, planned_villain_weights[event])
+	planned_villain_weights[event] = max(planned_villain_weights[event] - consumed_weight, 0)
+	roundstart_reserved_antag_weight = max(roundstart_reserved_antag_weight - consumed_weight, 0)
+
+/// Release any unconsumed part of a start-event reservation after setup finishes.
+/datum/controller/subsystem/gamemode/proc/complete_planned_villain_event(datum/round_event_control/event)
+	if(!event || !(event in planned_villain_counts))
+		return
+	roundstart_reserved_antag_weight = max(roundstart_reserved_antag_weight - planned_villain_weights[event], 0)
+	planned_villain_counts -= event
+	planned_villain_weights -= event
+	maybe_complete_roundstart_antag_allocation()
+
+/datum/controller/subsystem/gamemode/proc/maybe_complete_roundstart_antag_allocation()
+	if(round_modifier_policy_name != "ratwood" || roundstart_antag_allocation_complete)
+		return
+	if(length(planned_villain_counts) || length(queued_villains))
+		return
+	roundstart_reserved_antag_weight = 0
+	roundstart_antag_allocation_complete = TRUE
+	message_admins("Ratwood roundstart antagonist allocation completed; dynamic antagonist cap is now active.")
+
+/// Safety valve for a cancelled or deleted event datum. No modifiers are rerolled.
+/datum/controller/subsystem/gamemode/proc/finish_stale_roundstart_antag_reservations()
+	if(roundstart_antag_allocation_complete)
+		return
+	if(length(planned_villain_counts))
+		message_admins("Ratwood released stale roundstart antagonist reservations: [roundstart_reserved_antag_weight].")
+	planned_villain_counts = list()
+	planned_villain_weights = list()
+	roundstart_reserved_antag_weight = 0
+	maybe_complete_roundstart_antag_allocation()
+
 /datum/controller/subsystem/gamemode/proc/open_villain_signups()
 	if(current_storyteller)
 		current_storyteller.guarantees_roundstart_roleset = FALSE
 		current_storyteller.roundstart_prob = 0
 	for(var/datum/round_event_control/event as anything in rolled_villain_events)
-		TriggerEvent(event, TRUE)
+		var/event_result = TriggerEvent(event, TRUE)
+		if(event_result != EVENT_READY)
+			complete_planned_villain_event(event)
 	rolled_villain_events = list()
 	for(var/datum/round_modifier/M in active_modifiers)
 		for(var/event_type in M.trigger_events)
@@ -27,6 +100,9 @@
 		to_chat(player, span_boldwarning("You have been chosen for villainy as a [job_title]!"))
 		player.AttemptLateSpawn(job_title)
 	queued_villains = list()
+	maybe_complete_roundstart_antag_allocation()
+	if(!roundstart_antag_allocation_complete)
+		addtimer(CALLBACK(src, PROC_REF(finish_stale_roundstart_antag_reservations)), 2 MINUTES)
 
 /mob/dead/new_player/proc/VillainChoices()
 	var/list/dat = list()
@@ -34,6 +110,12 @@
 	if(!SSgamemode.modifiers_rolled)
 		dat += "Wait."
 	else
+		dat += "<b>Mode:</b> [SSgamemode.chaos_mode_name]<br>"
+		if(!SSgamemode.roundstart_antag_allocation_complete)
+			dat += "<b>Roundstart cap:</b> [SSgamemode.roundstart_cap_snapshot]; <b>greater reserve:</b> [SSgamemode.roundstart_reserved_antag_weight]<br><br>"
+		else
+			dat += "<b>Dynamic cap:</b> [SSgamemode.get_antag_count()] / [SSgamemode.get_antag_cap()]"
+			dat += "<br><br>"
 		dat += "<b>Greater Villains:</b><br>"
 		if(!length(SSgamemode.rolled_villain_events))
 			dat += "None.<br>"
@@ -41,19 +123,25 @@
 			var/slots = 1
 			if(istype(event, /datum/round_event_control/antagonist/solo))
 				var/datum/round_event_control/antagonist/solo/solo_event = event
-				slots = solo_event.get_antag_amount()
-			dat += "<b>[event.name]</b> ([slots] slots)<br>"
+				var/planned_slots = SSgamemode.get_planned_villain_count(solo_event)
+				slots = isnull(planned_slots) ? solo_event.get_antag_amount() : planned_slots
+			var/reserved_weight = SSgamemode.get_planned_villain_weight(event)
+			var/event_label = event.round_modifier_label || event.name
+			dat += "<b>[event_label]</b> ([slots] slots[isnull(reserved_weight) ? "" : ", [reserved_weight] reserved"])<br>"
 		if(length(SSgamemode.rolled_villain_events))
 			dat += "<i>These roll at roundstart from your antag preferences.</i><br>"
 
 		dat += "<br><b>Lesser Villains:</b><br>"
 		var/found = FALSE
+		var/round_is_pregame = SSticker.current_state <= GAME_STATE_PREGAME
+		var/remaining_antag_capacity = round_is_pregame ? null : SSgamemode.get_remaining_antag_capacity()
 		for(var/job_title in GLOB.villain_positions)
 			var/datum/job/J = SSjob.GetJob(job_title)
+			var/effective_limit = J ? SSjob.get_latejoin_position_limit(J, remaining_antag_capacity) : 0
 			if(!J || !J.total_positions)
 				continue
 			found = TRUE
-			if(SSticker.current_state <= GAME_STATE_PREGAME)
+			if(round_is_pregame)
 				var/pref_label = "NEVER"
 				var/pref_color = "red"
 				var/next_level = 3
@@ -70,9 +158,12 @@
 						pref_label = "Low"
 						pref_color = "orange"
 						next_level = 2
-				dat += "<a href='?src=[REF(J)];explainjob=1'><font>[J.title]</font></a>([J.total_positions] slots) - <a href='byond://?src=[REF(src)];villain_pref=[J.title];level=[next_level]'><font color=[pref_color]>[pref_label]</font></a><br>"
+				var/slot_text = J.spawn_positions < 0 ? "dynamic slots" : "[J.spawn_positions] slots"
+				dat += "<a href='?src=[REF(J)];explainjob=1'><font>[J.title]</font></a>([slot_text]) - <a href='byond://?src=[REF(src)];villain_pref=[J.title];level=[next_level]'><font color=[pref_color]>[pref_label]</font></a><br>"
 			else
-				dat += "<a href='?src=[REF(J)];explainjob=1'><font>[J.title]</font></a><a href='byond://?src=[REF(src)];SelectedJob=[J.title]'>([J.current_positions]/[J.total_positions])</a><a href='?src=[REF(J)];jobsubclassinfo=1'><b><font color = '#6b6743'>(!)</font></b></a><br>"
+				var/slot_display = "([J.current_positions]/[effective_limit])"
+				var/slot_link = J.current_positions < effective_limit ? "<a href='byond://?src=[REF(src)];SelectedJob=[J.title]'>[slot_display]</a>" : "<font color='gray'>[slot_display] FULL</font>"
+				dat += "<a href='?src=[REF(J)];explainjob=1'><font>[J.title]</font></a>[slot_link]<a href='?src=[REF(J)];jobsubclassinfo=1'><b><font color = '#6b6743'>(!)</font></b></a><br>"
 
 		if(!found)
 			dat += "No villain roles this round."
@@ -81,7 +172,6 @@
 	popup.add_stylesheet("playeroptions", 'html/browser/playeroptions.css')
 	popup.set_content(jointext(dat, ""))
 	popup.open(FALSE)
-
 // this menu allows players 2 boost their stats to wretch tier (+12 weight) & choose between DE / Heavy Armor
 /mob/living/carbon/human/var/datum/antag_setup/antag_setup
 
@@ -167,4 +257,3 @@
 		user.antag_setup = null
 		user << browse(null, "window=antagsetup")
 		qdel(src)
-

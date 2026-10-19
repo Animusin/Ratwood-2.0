@@ -1,0 +1,4 @@
+author: "Animusin"
+delete-after: true
+changes:
+  - bugfix: "Manage Job Slots can override population-scaled Adventurer and Mercenary limits. Reset restores automatic limits."

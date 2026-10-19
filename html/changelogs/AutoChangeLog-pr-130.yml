@@ -1,0 +1,4 @@
+author: "sigmaboy124124"
+delete-after: True
+changes:
+  - bugfix: "Ooze puddles no longer leave intact humanoid corpses when they rot."

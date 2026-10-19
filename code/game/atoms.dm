@@ -396,6 +396,10 @@
 /atom/proc/get_inspect_button()
 	return ""
 
+/// Whether this atom should appear in an adjacent turf's Alt-right-click contents list.
+/atom/proc/is_turf_list_visible_to(mob/viewer)
+	return invisibility <= viewer.see_invisible
+
 /**
  * Called when a mob examines (shift click or verb) this atom
  *
@@ -600,6 +604,7 @@
 	var/list/blood_dna = M.get_blood_dna_list()
 	if(!blood_dna)
 		return FALSE
+	register_forensic_blood_identity(M)
 	return add_blood_DNA(blood_dna)
 
 ///Called when gravity returns after floating I think

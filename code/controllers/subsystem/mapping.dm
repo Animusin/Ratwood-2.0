@@ -71,6 +71,8 @@ SUBSYSTEM_DEF(mapping)
 		map_adjustment = new each_adjust() // map_adjustment has multiple procs that'll be called from needed places (i.e. job_change)
 		log_world("Loaded '[current_map.map_file]' map adjustment.")
 		break
+	if(!map_adjustment) // no map-specific adjustment matched; use the base default so realm_name etc. are never null
+		map_adjustment = new /datum/map_adjustment()
 	return ..()
 
 /datum/controller/subsystem/mapping/Initialize(timeofday)

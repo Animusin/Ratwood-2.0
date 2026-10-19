@@ -2271,7 +2271,9 @@ GLOBAL_VAR_INIT(cold_breath_overlay, mutable_appearance(
 			else
 				// Residual heat damage scaling with temp
 				firemodifier = min(firemodifier, 0)
-				burn_damage = round(max(log(2-firemodifier,max(H.bodytemperature-BODYTEMP_NORMAL, 1))-5,0))
+				var/temp_over_normal = H.bodytemperature - BODYTEMP_NORMAL
+				// log() of a non-positive number isn't computable; a body at/below normal takes no residual heat damage
+				burn_damage = temp_over_normal > 0 ? round(max(log(2-firemodifier, temp_over_normal)-5,0)) : 0
 
 		if(burn_damage > 0)
 			switch(burn_damage)

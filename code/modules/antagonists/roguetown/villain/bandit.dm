@@ -23,14 +23,15 @@
 	//owner.assigned_role = "Bandit"
 	forge_objectives()
 	. = ..()
-	equip_bandit()
+	if(!preserve_character)
+		equip_bandit()
 	finalize_bandit()
 
 /datum/antagonist/bandit/proc/finalize_bandit()
 	owner.current.playsound_local(get_turf(owner.current), 'sound/music/traitor2.ogg', 60, FALSE, pressure_affected = FALSE)
 	var/mob/living/carbon/human/H = owner.current
-	if(!istype(H.patron, /datum/patron/inhumen))
-		H.set_patron(/datum/patron/inhumen/matthios)//If you're not of the Inhumen, we force you to worship Matthios.
+	if(H.patron?.type != /datum/patron/inhumen/matthios)
+		H.set_patron(/datum/patron/inhumen/matthios) // Bandits always worship Matthios.
 	H.verbs |= /mob/proc/haltyell_exhausting
 	ADD_TRAIT(H, TRAIT_BANDITCAMP, TRAIT_GENERIC)
 	ADD_TRAIT(H, TRAIT_SEEPRICES, TRAIT_GENERIC)

@@ -265,6 +265,9 @@ All foods are distributed among various categories. Use common sense.
 	if(!eater)
 		return
 
+	if(!reagents) // food already had its reagents stripped/qdeleted; nothing left to consume
+		return
+
 	if(HAS_TRAIT(eater, TRAIT_HEMOPHAGE)) //trait desc states that normal food would make them ill, adjusted accordingly
 		eater.adjustToxLoss(2)
 
@@ -360,7 +363,7 @@ All foods are distributed among various categories. Use common sense.
 			eater.apply_status_effect(extra_eat_effect)
 	eater.taste(reagents)
 
-	if(!reagents.total_volume)
+	if(!reagents || !reagents.total_volume) // reagents may have been qdeleted by an effect applied above
 		if(eat_effect == /datum/status_effect/debuff/rotfood)
 			SEND_SIGNAL(eater, COMSIG_ROTTEN_FOOD_EATEN, src)
 		var/mob/living/location = loc
@@ -514,7 +517,7 @@ All foods are distributed among various categories. Use common sense.
 
 /obj/item/reagent_containers/food/snacks/proc/rotprocess_to_text()
 	var/rot_text = ""
-	if(!rotprocess)
+	if(!rotprocess || !initial(rotprocess)) // initial() is used as a divisor below, so it must be non-zero
 		return "This food does not rot."
 	var/shelf_life = initial(rotprocess) || rotprocess
 	switch(shelf_life)

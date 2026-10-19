@@ -24,3 +24,4 @@
 /datum/migrant_role/lich
 	name = "Lich"
 	antag_datum = /datum/antagonist/lich
+	antag_cap_weight = 3

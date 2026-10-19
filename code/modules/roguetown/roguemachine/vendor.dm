@@ -74,6 +74,9 @@
 	if(istype(P, /obj/item/roguecoin/inqcoin))
 		return
 	if(istype(P, /obj/item/roguecoin))
+		if(!locked)
+			to_chat(user, span_warning("The Peddler is closed for purchases."))
+			return
 		budget += P.get_real_price()
 		qdel(P)
 		update_icon()
@@ -81,7 +84,7 @@
 		return attack_hand(user)
 	if(istype(P, /obj/item/roguekey))
 		var/obj/item/roguekey/K = P
-		if(K.lockid == keycontrol)
+		if(matches_lock_key(K, keycontrol))
 			locked = !locked
 			playsound(loc, 'sound/misc/beep.ogg', 100, FALSE, -1)
 			update_icon()
@@ -95,7 +98,7 @@
 	if(istype(P, /obj/item/storage/keyring))
 		var/obj/item/storage/keyring/K = P
 		for(var/obj/item/roguekey/KE in K)
-			if(KE.lockid == keycontrol)
+			if(matches_lock_key(KE, keycontrol))
 				locked = !locked
 				playsound(loc, 'sound/misc/beep.ogg', 100, FALSE, -1)
 				update_icon()

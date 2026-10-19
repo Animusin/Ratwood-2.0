@@ -6,20 +6,20 @@
 </p>
 
 <p align="center">
-    <a href="https://github.com/Rotwood-Vale/Ratwood-2.0/graphs/contributors">
-      <img alt="GitHub Contributors" src="https://img.shields.io/github/contributors/Rotwood-Vale/Ratwood-2.0" />
+    <a href="https://github.com/Animusin/Ratwood-2.0/graphs/contributors">
+      <img alt="GitHub Contributors" src="https://img.shields.io/github/contributors/Animusin/Ratwood-2.0" />
     </a>
-    <a href="https://github.com/Rotwood-Vale/Ratwood-2.0/issues">
-      <img alt="Issues" src="https://img.shields.io/github/issues/Rotwood-Vale/Ratwood-2.0?color=0088ff" />
+    <a href="https://github.com/Animusin/Ratwood-2.0/issues">
+      <img alt="Issues" src="https://img.shields.io/github/issues/Animusin/Ratwood-2.0?color=0088ff" />
     </a>
-    <a href="https://github.com/Rotwood-Vale/Ratwood-2.0/pulls">
-      <img alt="GitHub pull requests" src="https://img.shields.io/github/issues-pr/Rotwood-Vale/Ratwood-2.0?color=0088ff" />
+    <a href="https://github.com/Animusin/Ratwood-2.0/pulls">
+      <img alt="GitHub pull requests" src="https://img.shields.io/github/issues-pr/Animusin/Ratwood-2.0?color=0088ff" />
     </a>
 </p>
 
 <p align="center">
-	<a href="https://github.com/Rotwood-Vale/Ratwood-2.0/actions/workflows/ci_suite.yml">
-      <img alt="BYOND Build" src="https://github.com/Rotwood-Vale/Ratwood-2.0/actions/workflows/ci_suite.yml/badge.svg" />
+	<a href="https://github.com/Animusin/Ratwood-2.0/actions/workflows/ci_suite.yml">
+      <img alt="BYOND Build" src="https://github.com/Animusin/Ratwood-2.0/actions/workflows/ci_suite.yml/badge.svg" />
     </a>
 </p>
 
@@ -27,13 +27,13 @@
 
 | Website                   | Link                                           |
 |---------------------------|------------------------------------------------|
-| Discord          | [discord.gg/nQDetK6ktR](https://discord.gg/nQDetK6ktR) |
-| Wiki                      | [wiki.ratwood.rip](https://wiki.ratwood.rip/index.php/Main_Page) |
+| Discord          | Add your invite in `config/config.txt` |
+| Wiki                      | Add your wiki URL in `config/config.txt` |
 
 </div>
 
 <h1>
-	<a href="https://github.com/Rotwood-Vale/Ratwood-Keep/blob/main/CONTRIBUTING.md">
+	<a href="https://github.com/Animusin/Ratwood-2.0/blob/main/CONTRIBUTING.md">
 		Contribution Guidelines
 	</a>
 </h1>

@@ -493,6 +493,9 @@ JOIN_WITH_MUTANT_HUMANS
 ##Overflow job. Default is assistant
 OVERFLOW_JOB SFGSFgsfgsdfs
 
+## Round modifier implementation. Use "ratwood" in production or "upstream" for emergency testing.
+ROUND_MODIFIER_POLICY ratwood
+
 ## Overflow slot cap. Set to -1 for unlimited. If limited, it will still open up if every other job is full.
 OVERFLOW_CAP -1
 
@@ -584,3 +587,17 @@ MONKEYCAP 64
 
 ## Enable the capitalist agenda on your server.
 ECONOMY
+
+## Optional Herald integration. Both settings may instead be added directly to config.txt.
+## Keep actual values private; do NOT use the Discord bot token or the roundstart webhook.
+# WEBHOOK_ADMINHELP https://discord.com/api/webhooks/WEBHOOK_ID/WEBHOOK_TOKEN
+# HERALD_READONLY_KEY REPLACE_WITH_A_RANDOM_SECRET_OF_64_TO_128_CHARACTERS
+
+## Custom emote triggers a 3-minute window of the same character's emotes/IC speech.
+## Separate PRIVATE moderation channel webhook, never reuse either webhook above.
+# WEBHOOK_CUSTOM_EMOTES https://discord.com/api/webhooks/WEBHOOK_ID/WEBHOOK_TOKEN
+
+## Optional fixed admin actions using the SAME HERALD_READONLY_KEY (legacy name).
+## Additional opt-in mapping, not another key. Checked against actual game rights.
+# HERALD_ADMIN_OPERATOR_IDS DISCORD_OWNER_ID
+# HERALD_ADMIN_CKEY YOUR_NORMALIZED_BYOND_ADMIN_CKEY

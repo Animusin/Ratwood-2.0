@@ -12,13 +12,16 @@
 
 /datum/migrant_pref/proc/queue_for(wave_type, role_type)
 	var/datum/migrant_wave/wave = MIGRANT_WAVE(wave_type)
-	if(!wave)
+	if(!wave || (role_type && !(role_type in wave.get_all_role_types())))
+		return
+	var/mob/dead/new_player/new_player = prefs.parent?.mob
+	if(istype(new_player) && !new_player.check_respawn_cooldown())
 		return
 	// Hidden waves are only queueable while an admin has them forced and forming.
 	if(wave.hidden && !SSmigrants.is_forced_forming(wave_type))
 		return
 	if(role_type && !SSmigrants.can_be_role(prefs.parent, role_type))
-		to_chat(prefs.parent, span_warning("You can't be this role. (Wrong species, gender, or age.)"))
+		to_chat(prefs.parent, span_warning("You can't be this role. Check species, gender, age and the required entry Triumphs."))
 		return
 	queued_wave = wave_type
 	queued_role = role_type
@@ -42,6 +45,11 @@
 	return GLOB.always_state
 
 /datum/migrant_pref/ui_interact(mob/user, datum/tgui/ui)
+	if(!user?.client || user.client != prefs.parent)
+		return
+	user.client.sync_donation_info()
+	if(QDELETED(user) || user.client != prefs.parent)
+		return
 	ui = SStgui.try_update_ui(user, src, ui)
 	if(!ui)
 		ui = new(user, src, "MigrantPanel")
@@ -57,6 +65,9 @@
 	data["server_time"] = world.time
 	data["wave_number"] = SSmigrants.wave_number
 	data["player_triumph"] = client ? SStriumphs.get_triumphs(client.ckey) : 0
+	data["supporter_can_call"] = !!client?.has_scientist_subscription()
+	data["admin_can_call"] = !!client?.holder
+	data["supporter_calls_remaining"] = client ? SSdonations.get_migrant_calls_remaining(client.ckey) : 0
 	data["active_migrants"] = SSmigrants.get_active_migrant_amount()
 	data["round_time"] = world.time - SSticker.round_start_time
 	data["queued_wave"] = queued_wave ? "[queued_wave]" : null
@@ -79,6 +90,8 @@
 			"arrival_at" = SSmigrants.track_arrival[track],
 			"queued" = (queued_wave == wave_type),
 			"min_optional_fills" = wave.min_optional_fills,
+			"minimum_players" = wave.get_minimum_players(),
+			"maximum_players" = wave.get_roles_amount(),
 			"roles" = build_role_data(wave),
 		))
 	data["forming"] = forming
@@ -88,7 +101,7 @@
 	var/list/track_total_weight = list()
 	for(var/wave_type in GLOB.migrant_waves)
 		var/datum/migrant_wave/wave = MIGRANT_WAVE(wave_type)
-		if(wave.hidden || !wave.can_roll || wave.is_raid)
+		if(wave.hidden || !wave.can_roll || wave.is_raid || !wave.auto_roll)
 			continue
 		track_total_weight[wave.track] += SSmigrants.calculate_triumph_weight(wave)
 
@@ -106,20 +119,24 @@
 		if(wave.min_round_time && (world.time - SSticker.round_start_time) < wave.min_round_time)
 			locked_until = SSticker.round_start_time + wave.min_round_time
 		var/total = track_total_weight[wave.track]
-		var/roll_chance = total ? round((SSmigrants.calculate_triumph_weight(wave) / total) * 100, 0.1) : 0
+		var/roll_chance = total && wave.auto_roll ? round((SSmigrants.calculate_triumph_weight(wave) / total) * 100, 0.1) : 0
 		waves += list(list(
 			"ref" = "[wave_type]",
 			"name" = wave.name,
 			"track" = wave.track,
 			"weight" = wave.weight,
 			"roll_chance" = roll_chance,
+			"auto_roll" = wave.auto_roll,
 			"triumph_total" = wave.triumph_total,
 			"triumph_threshold" = wave.triumph_threshold,
+			"supporter_callable" = SSmigrants.can_call_supporter_wave(wave),
 			"my_contribution" = client ? (wave.triumph_contributions[client.ckey] || 0) : 0,
 			"maxed" = maxed,
 			"locked_until" = locked_until,
 			"queued" = (queued_wave == wave_type),
 			"min_optional_fills" = wave.min_optional_fills,
+			"minimum_players" = wave.get_minimum_players(),
+			"maximum_players" = wave.get_roles_amount(),
 			"roles" = build_role_data(wave),
 		))
 	data["waves"] = waves
@@ -138,6 +155,7 @@
 	return list(
 		"ref" = "[role_type]",
 		"name" = role.name,
+		"entry_cost" = role.triumph_entry_cost,
 		"amount" = amount,
 		"kind" = kind,
 		"stars" = SSmigrants.get_stars_on_role(role_type),
@@ -150,6 +168,8 @@
 	. = ..()
 	if(.)
 		return
+	if(!usr?.client || usr.client != prefs.parent)
+		return FALSE
 	switch(action)
 		if("queue_role")
 			var/wave_type = text2path(params["wave"])
@@ -169,6 +189,18 @@
 			if(wave_type)
 				handle_triumph_contribution(wave_type)
 			return TRUE
+		if("supporter_wave")
+			var/wave_type = text2path(params["wave"])
+			var/datum/migrant_wave/wave = MIGRANT_WAVE(wave_type)
+			if(!SSmigrants.is_purchasable_wave(wave))
+				return FALSE
+			var/client/player = prefs.parent
+			var/call_details = player?.holder ? "Admin calls are free and do not use the daily subscription quota." : "This uses one of your two daily calls when formation begins. Resets at midnight UTC."
+			if(tgui_alert(player, "Call [wave.name] without spending Triumphs? [call_details] Normal wave requirements still apply.", "Call Migrant Wave", list("Call wave", "Cancel")) != "Call wave")
+				return TRUE
+			if(player && usr?.client == player)
+				SSmigrants.call_supporter_wave(player, wave_type)
+			return TRUE
 
 /datum/migrant_pref/proc/handle_triumph_contribution(wave_type)
 	var/client/client = prefs.parent
@@ -182,7 +214,7 @@
 		to_chat(client, span_warning("You don't have any triumph to contribute!"))
 		return
 	var/player_contribution = wave.triumph_contributions[client.ckey] ? wave.triumph_contributions[client.ckey] : 0
-	var/max_contribute = min(current_triumph, 25)
+	var/max_contribute = min(current_triumph, MIGRANT_TRIUMPH_THRESHOLD)
 	var/amount = tgui_input_number(client, "Contribute triumph to '[wave.name]'?\n\nYour triumph: [current_triumph]\nYour contribution: [player_contribution]\nWave total: [wave.triumph_total]/[wave.triumph_threshold]", "Triumph Contribution", max_value = max_contribute, min_value = 1)
 	if(!amount || amount <= 0 || amount > max_contribute)
 		return

@@ -211,6 +211,9 @@
 /datum/status_effect/debuff/pomegranate_aura/on_creation(mob/living/carbon/owner, tree)
 	if(!owner)
 		return ..()
+	if(!iscarbon(owner))
+		qdel(src)
+		return FALSE
 
 	source_ref = WEAKREF(tree)
 	var/str_change = -8

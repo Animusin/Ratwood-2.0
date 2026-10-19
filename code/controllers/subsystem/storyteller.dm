@@ -162,8 +162,30 @@ SUBSYSTEM_DEF(gamemode)
 	var/constructor = 0
 	var/garrison = 0
 	var/holy_warrior = 0
-	/// Calculated effective pop after weighing garrison & holy warriors at 2x
+	/// Active adventurers and inhumen worshippers excluded from antagonist cap population.
+	var/antag_cap_excluded_players = 0
+	/// Population used by the antagonist cap after exclusions and combatant bonuses.
+	var/antag_cap_population = 0
+	/// Full town strength used by class requirements such as the Necromancer gate.
 	var/effective_pop = 0
+
+	/// Ratwood chaos settings and the hand-off between the fixed roundstart budget and the live cap.
+	var/round_modifier_policy_name = "upstream"
+	var/chaos_mode_name = "Low Chaos"
+	var/chaos_divisor = ANTAG_CAP_DENOMINATOR
+	/// Whether the selected chaos mode prevents all automatic antagonist assignment and injection.
+	var/antagonists_disabled = FALSE
+	/// Null follows the population formula; a number overrides the cap for this round.
+	var/admin_antag_cap = null
+	/// One outstanding consent request per character, shared by all admins.
+	var/list/pending_admin_antags = list()
+	/// Connected clients used to calculate the fixed Ratwood roundstart cap.
+	var/roundstart_population_snapshot = 0
+	var/roundstart_cap_snapshot = 0
+	var/roundstart_antag_allocation_complete = TRUE
+	var/roundstart_reserved_antag_weight = 0
+	var/list/planned_villain_counts = list()
+	var/list/planned_villain_weights = list()
 
 	var/storyteller_name = "Unknown"
 
@@ -218,6 +240,8 @@ SUBSYSTEM_DEF(gamemode)
 
 	///Seeding events into track event pools needs to happen after event config vars are loaded
 	for(var/datum/round_event_control/event as anything in control)
+		if(event.round_modifier_only)
+			continue
 		if(event.holidayID || event.wizardevent)
 			uncategorized += event
 			continue
@@ -277,10 +301,28 @@ SUBSYSTEM_DEF(gamemode)
 
 /// Gets the number of antagonists the antagonist injection events will stop rolling after.
 /datum/controller/subsystem/gamemode/proc/get_antag_cap()
-	var/total_number = get_correct_popcount() + (garrison * TOWN_COMBATANT_ADDITIONAL_WEIGHT) + (holy_warrior * TOWN_COMBATANT_ADDITIONAL_WEIGHT)
-	effective_pop = total_number // For panel tracking
-	var/cap = FLOOR((total_number / ANTAG_CAP_DENOMINATOR), 1) + ANTAG_CAP_FLAT
-	return cap
+	if(!isnull(admin_antag_cap))
+		return admin_antag_cap
+	if(antagonists_disabled)
+		return 0
+	if(round_modifier_policy_name == "ratwood" && !roundstart_antag_allocation_complete)
+		return roundstart_cap_snapshot
+	var/cap_population = get_antag_cap_population()
+	if(round_modifier_policy_name == "ratwood")
+		return calculate_ratwood_antag_cap(cap_population, chaos_divisor)
+	return calculate_antag_cap_from_population(cap_population, ANTAG_CAP_DENOMINATOR)
+
+/// Gets the population used by the live antagonist cap after roundstart allocation.
+/datum/controller/subsystem/gamemode/proc/get_antag_cap_population()
+	var/town_strength = get_town_strength()
+	antag_cap_population = max(town_strength - antag_cap_excluded_players, 0)
+	return antag_cap_population
+
+/// Gets the effective town strength after weighing garrison and holy warriors more heavily.
+/datum/controller/subsystem/gamemode/proc/get_town_strength()
+	var/town_strength = get_correct_popcount() + (garrison * TOWN_COMBATANT_ADDITIONAL_WEIGHT) + (holy_warrior * TOWN_COMBATANT_ADDITIONAL_WEIGHT)
+	effective_pop = town_strength // For panel tracking
+	return town_strength
 
 /datum/controller/subsystem/gamemode/proc/get_antag_count()
 	. = 0
@@ -310,7 +352,26 @@ SUBSYSTEM_DEF(gamemode)
 
 /// Whether events can inject more antagonists into the round
 /datum/controller/subsystem/gamemode/proc/can_inject_antags()
-	return (get_antag_cap() > get_antag_count())
+	return !antagonists_disabled && (get_antag_cap() > get_antag_count())
+
+/// Remaining antagonist capacity. An explicit current weight is used while roundstart jobs are
+/// being assigned, before those players have antagonist datums that get_antag_count() can see.
+/datum/controller/subsystem/gamemode/proc/get_remaining_antag_capacity(current_weight = null, include_roundstart_reservations = TRUE)
+	// Zero Chaos stops automatic assignments, but not explicit admin slots or ckey grants.
+	if(antagonists_disabled)
+		return 0
+	if(isnull(current_weight))
+		current_weight = get_antag_count()
+	var/reserved_weight = 0
+	if(include_roundstart_reservations && !roundstart_antag_allocation_complete)
+		reserved_weight += roundstart_reserved_antag_weight
+	return max(get_antag_cap() - current_weight - reserved_weight, 0)
+
+/// Whether an antagonist of the supplied weight fits under the current cap.
+/datum/controller/subsystem/gamemode/proc/can_add_antag_weight(weight = 1, current_weight = null)
+	if(antagonists_disabled)
+		return FALSE
+	return max(weight, 0) <= get_remaining_antag_capacity(current_weight)
 
 /// Gets candidates for antagonist roles.
 /datum/controller/subsystem/gamemode/proc/get_candidates(be_special, job_ban, observers, ready_newplayers, living_players, required_time, inherit_required_time = TRUE, midround_antag_pref, no_antags = TRUE, list/restricted_roles, list/required_roles)
@@ -318,7 +379,7 @@ SUBSYSTEM_DEF(gamemode)
 	var/list/candidate_candidates = list() //lol
 
 	for(var/mob/player as anything in GLOB.player_list)
-		if(QDELETED(player) || player.mind?.picking)
+		if(QDELETED(player) || player.mind?.picking || player.mind?.queued_admin_antag)
 			continue
 		if(ready_newplayers && isnewplayer(player))
 			var/mob/dead/new_player/new_player = player
@@ -384,9 +445,40 @@ SUBSYSTEM_DEF(gamemode)
 /// We need to calculate ready players for the sake of roundstart events becoming eligible.
 /datum/controller/subsystem/gamemode/proc/calculate_ready_players()
 	ready_players = 0
+	antag_cap_excluded_players = 0
+	garrison = 0
+	holy_warrior = 0
+	// Jobs are assigned after storyteller pre-setup. Reserve the maximum number of still-possible
+	// adventurers so roundstart antagonist assignments use the projected town population.
+	var/unassigned_adventurer_candidates = 0
+	var/assigned_adventurers = 0
+	var/datum/job/adventurer_job = SSjob.GetJobType(/datum/job/roguetown/adventurer)
 	for(var/mob/dead/new_player/player as anything in GLOB.new_player_list)
-		if(player.ready == PLAYER_READY_TO_PLAY)
-			ready_players++
+		if(player.ready != PLAYER_READY_TO_PLAY)
+			continue
+		ready_players++
+		var/is_inhumen = istype(player.client?.prefs?.selected_patron, /datum/patron/inhumen)
+		var/datum/job/assigned_job = SSjob.GetJob(player.mind?.assigned_role)
+		var/is_adventurer = assigned_job?.type == /datum/job/roguetown/adventurer
+		var/datum/outfit/job/roguetown/assigned_outfit
+		if(assigned_job)
+			assigned_outfit = initial(assigned_job.outfit)
+		if(ispath(assigned_outfit, /datum/outfit/job/roguetown))
+			var/assigned_job_bitflag = initial(assigned_outfit.job_bitflag)
+			if(assigned_job_bitflag & BITFLAG_GARRISON)
+				garrison++
+			if(assigned_job_bitflag & BITFLAG_HOLY_WARRIOR)
+				holy_warrior++
+		if(is_inhumen || is_adventurer)
+			antag_cap_excluded_players++
+		if(is_adventurer)
+			assigned_adventurers++
+		else if(adventurer_job && !assigned_job && !is_inhumen && player.client?.prefs?.job_preferences[adventurer_job.title])
+			unassigned_adventurer_candidates++
+	if(adventurer_job)
+		var/adventurer_limit = adventurer_job.get_position_limit(FALSE)
+		var/remaining_adventurer_slots = max(adventurer_limit - assigned_adventurers, 0)
+		antag_cap_excluded_players += min(unassigned_adventurer_candidates, remaining_adventurer_slots)
 
 /// We roll points to be spent for roundstart events, including antagonists.
 /datum/controller/subsystem/gamemode/proc/roll_pre_setup_points()
@@ -483,6 +575,7 @@ SUBSYSTEM_DEF(gamemode)
 	constructor = 0
 	holy_warrior = 0
 	garrison = 0
+	antag_cap_excluded_players = 0
 	for(var/mob/player_mob as anything in GLOB.player_list)
 		if(!player_mob?.client)
 			continue
@@ -492,7 +585,11 @@ SUBSYSTEM_DEF(gamemode)
 			continue
 		if(!ishuman(player_mob))
 			continue
+		var/mob/living/carbon/human/human_player = player_mob
 		active_players++
+		var/datum/job/player_job = SSjob.GetJob(player_mob.mind?.assigned_role)
+		if(player_job?.type == /datum/job/roguetown/adventurer || istype(human_player.patron, /datum/patron/inhumen))
+			antag_cap_excluded_players++
 		if(player_mob.mind?.assigned_role)
 			if(player_mob.mind.job_bitflag & BITFLAG_ROYALTY)
 				royalty++
@@ -538,6 +635,8 @@ SUBSYSTEM_DEF(gamemode)
 
 ///Attempts to select players for special roles the mode might have.
 /datum/controller/subsystem/gamemode/proc/pre_setup()
+	// Finalize a still-open chaos vote before jobs are divided so its lesser slots and snapshot are real roundstart state.
+	roll_round_modifiers()
 	if(!length(storytellers))
 		for(var/type in subtypesof(/datum/storyteller))
 			storytellers[type] = new type()
@@ -724,16 +823,34 @@ SUBSYSTEM_DEF(gamemode)
 /// Panel containing information, variables and controls about the gamemode and scheduled event
 /datum/controller/subsystem/gamemode/proc/admin_panel(mob/user)
 	update_crew_infos()
+	var/antag_cap = get_antag_cap()
 	var/round_started = SSticker.HasRoundStarted()
 	var/list/dat = list()
 	dat += "Storyteller: [current_storyteller ? "[current_storyteller.name]" : "None"] "
 	dat += " <a href='byond://?src=[REF(src)];panel=main;action=halt_storyteller' [halted_storyteller ? "class='linkOn'" : ""]>HALT Storyteller</a> <a href='byond://?src=[REF(src)];panel=main;action=open_stats'>Event Panel</a> <a href='byond://?src=[REF(src)];panel=main;action=set_storyteller'>Set Storyteller</a> <a href='byond://?src=[REF(user.client)];panel=main;viewinfluences=1'>View Influences</a> <a href='byond://?src=[REF(src)];panel=main'>Refresh</a>"
 	dat += "<BR><font color='#888888'><i>Storyteller determines points gained, event chances, and is the entity responsible for rolling events.</i></font>"
 	dat += "<BR>Active Players: [active_players]   (Royalty: [royalty], Garrison: [garrison], Town Workers: [constructor], Holy Warriors: [holy_warrior])"
-	dat += "<BR>Effective Population: [effective_pop] (Total: [active_players] + Garrison Bonus: [garrison * 2] + Holy Warrior Bonus: [holy_warrior * 2])"
-	dat += "<BR>Antagonist Count vs Maximum: [get_antag_count()] / [get_antag_cap()]"
+	dat += "<BR>Town Strength: [effective_pop] (Total: [active_players] + Garrison Bonus: [garrison * TOWN_COMBATANT_ADDITIONAL_WEIGHT] + Holy Warrior Bonus: [holy_warrior * TOWN_COMBATANT_ADDITIONAL_WEIGHT])"
+	dat += "<BR>Antagonist Cap Population: [antag_cap_population] (Town Strength: [effective_pop] - Adventurers/Inhumen: [antag_cap_excluded_players])"
+	dat += "<BR>Antagonist Count vs Maximum: [get_antag_count()] / [antag_cap]"
+	dat += " <a href='byond://?src=[REF(src)];panel=main;action=set_antag_cap'>Set Cap</a> <a href='byond://?src=[REF(src)];panel=main;action=reset_antag_cap'>Automatic Cap</a> ([isnull(admin_antag_cap) ? "automatic" : "admin override: [admin_antag_cap]"])"
+	dat += "<BR><a href='byond://?src=[REF(src)];panel=main;action=add_minor_slots'>Add Cap-Exempt Minor Slots</a> <a href='byond://?src=[REF(src)];panel=main;action=assign_antag_ckey'>Offer Antagonist by Ckey</a>"
+	for(var/datum/job/job as anything in SSjob.occupations)
+		if(job.admin_slot_antag_type)
+			dat += "<BR>[job.title]: [job.admin_antag_slots] unclaimed cap-exempt slots"
+	dat += "<BR>Round Modifier Policy: [round_modifier_policy_name]"
+	if(round_modifier_policy_name == "ratwood")
+		dat += "<BR>Chaos Mode / Divisor: [chaos_mode_name] / [antagonists_disabled ? "disabled" : chaos_divisor]"
+		if(antagonists_disabled)
+			dat += "<BR>Roundstart Snapshot: [roundstart_population_snapshot] online; antagonists disabled = 0"
+		else
+			dat += "<BR>Roundstart Snapshot: [roundstart_population_snapshot] online / [chaos_divisor] + [ANTAG_CAP_FLAT] = [roundstart_cap_snapshot]"
+		dat += "<BR>Roundstart Allocation Complete: [roundstart_antag_allocation_complete ? "Yes" : "No"]"
+		dat += "<BR>Outstanding Major Reserve: [roundstart_reserved_antag_weight]"
 	var/chaos_name = "Medium"
 	switch(level)
+		if(0)
+			chaos_name = "Zero"
 		if(1)
 			chaos_name = "Low"
 		if(3)
@@ -949,6 +1066,21 @@ SUBSYSTEM_DEF(gamemode)
 	switch(href_list["panel"])
 		if("main")
 			switch(href_list["action"])
+				if("set_antag_cap")
+					var/new_cap = input(user, "Set the antagonist cap for this round (0 or greater). Lowering it does not remove existing antagonists. Zero Chaos stops automatic selection, but admin slots and offers still work.", "Antagonist Cap", get_antag_cap()) as num|null
+					if(isnull(new_cap) || new_cap < 0 || !check_rights_for(user?.client, R_ADMIN))
+						return
+					admin_antag_cap = round(new_cap)
+					log_admin("[key_name(user)] set the antagonist cap to [admin_antag_cap].")
+					message_admins("[key_name_admin(user)] set the antagonist cap to [admin_antag_cap].")
+				if("reset_antag_cap")
+					admin_antag_cap = null
+					log_admin("[key_name(user)] restored the automatic antagonist cap.")
+					message_admins("[key_name_admin(user)] restored the automatic antagonist cap.")
+				if("add_minor_slots")
+					admin_add_minor_slots(user)
+				if("assign_antag_ckey")
+					admin_offer_antag(user)
 				if("set_storyteller")
 					message_admins("[key_name_admin(usr)] is picking a new Storyteller.")
 					var/list/name_list = list()

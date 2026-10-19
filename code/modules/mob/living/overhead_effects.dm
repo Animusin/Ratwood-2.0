@@ -127,6 +127,9 @@
 /mob/living/proc/clear_overhead_indicator(appearance, layer = OBJ_LAYER)
 	remove_overlay(layer)
 	cut_overlay(appearance, TRUE)
+	// appearance is a mutable_appearance, not a qdel-able datum; qdel() trips the CRASH() in /image/Destroy
+	if(overlays_standing[layer] == appearance)
+		overlays_standing[layer] = null
 	update_icon()
 	update_overlays()
 	return

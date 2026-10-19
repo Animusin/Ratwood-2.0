@@ -14,6 +14,11 @@
 	initialize_dirs = CONN_DIR_FORWARD | CONN_DIR_FLIP
 	debris = list(/obj/item/magic/infernal/core = 1)
 
+/obj/structure/infernalengine/OnCrafted(dirin, mob/user)
+	. = ..()
+	// Crafting changes dir after LateInitialize; rebuild connections for the crafted facing.
+	setDir(dirin)
+
 /obj/structure/infernalengine/examine(mob/user)
 	. = ..()
 	. += span_info("This engine generates rotational power continuously for connected machinery while it remains active.")

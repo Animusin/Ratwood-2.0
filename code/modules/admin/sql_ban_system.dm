@@ -113,7 +113,7 @@
 	panel.add_stylesheet("banpanelcss", 'html/admin/banpanel.css')
 	panel.add_stylesheet("admin_panelscss3", 'html/admin/admin_panels_css3.css')
 	panel.add_script("banpaneljs", 'html/admin/banpanel.js')
-	var/list/output = list("<form method='get' action='?src=[REF(src)]'>[HrefTokenFormField()]")
+	var/list/output = list("<form method='get' action='?src=[REF(src)]' accept-charset='UTF-8'>[HrefTokenFormField()]")
 	output += {"<input type='hidden' name='src' value='[REF(src)]'>
 	<label class='inputlabel checkbox'>Key:
 	<input type='checkbox' id='keycheck' name='keycheck' value='1'[player_key ? " checked": ""]>
@@ -259,7 +259,7 @@
 									"Yeomen" = GLOB.yeoman_positions,
 									"Youngfolk" = GLOB.youngfolk_positions,
 									"Ghost and Other Roles" = list(ROLE_NECRO_SKELETON, ROLE_LICH_SKELETON),
-									"Antagonist Positions" = list(ROLE_MANIAC, ROLE_WEREWOLF,
+									"Antagonist Positions" = list(ROLE_MANIAC, ROLE_WEREWOLF, ROLE_GNOLL,
 									ROLE_VAMPIRE, ROLE_NBEAST, ROLE_BANDIT,
 									ROLE_DELF, ROLE_PREBEL, ROLE_ASPIRANT,
 									ROLE_LICH, ROLE_ASCENDANT, ROLE_WRETCH, ROLE_UNBOUND_DEATHKNIGHT))

@@ -1,0 +1,7 @@
+author: "Animusin"
+delete-after: True
+changes:
+  - bugfix: "Blob Form now channels for five seconds in both directions and starts its cooldown after changing form."
+  - bugfix: "Repeated ooze transformations preserve injuries and no longer refresh blob health."
+  - bugfix: "Slain ooze blobs require revival, and killing or deleting their remains cannot grant a free living body."
+  - bugfix: "Ooze werewolves can be killed without escaping their vulnerable remains or breaking werewolf body cleanup."

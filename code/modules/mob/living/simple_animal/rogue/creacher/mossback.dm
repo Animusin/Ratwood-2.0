@@ -60,6 +60,7 @@
 		if (townercrab)
 			faction = list("neutral", "[summoner]_faction")
 			tamed(user)
+			ai_controller.max_target_distance = 30
 
 /mob/living/simple_animal/hostile/retaliate/rogue/mossback/get_sound(input)
 	switch(input)

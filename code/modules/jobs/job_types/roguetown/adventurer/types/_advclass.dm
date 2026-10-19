@@ -13,6 +13,12 @@
 	var/maximum_possible_slots = -1
 	var/total_slots_occupied = 0
 	var/min_pq = -100
+	/// Minimum storyteller chaos level required before this class can be selected.
+	var/minimum_chaos = 0
+	/// Minimum effective town strength required before this class can be selected.
+	var/minimum_town_strength = 0
+	/// Weight contributed by this class when represented by the Wretch antagonist datum.
+	var/wretch_antag_cap_weight = 1
 	var/class_select_category
 
 	var/horse = FALSE
@@ -71,12 +77,15 @@
 	set waitfor = FALSE
 	if(!H)
 		return FALSE
+	var/client/equipping_player = H.client
 
 	if(outfit)
 		H.equipOutfit(outfit, dummy)
 
 		if(dummy)	//This means we're doing a Char Sheet preview. We don't need to equip the dummy with anything else, the outfits are likely to runtime on their own.
 			return
+	if(QDELETED(H) || (equipping_player && equipping_player.mob != H))
+		return FALSE
 
 	post_equip(H)
 
@@ -137,16 +146,16 @@
 			H.apply_gnoll_preferences(FALSE)
 		else
 			apply_character_post_equipment(H)
+	H.finish_admin_antag_setup()
 
 /datum/advclass/proc/post_equip(mob/living/carbon/human/H)
 	addtimer(CALLBACK(H,TYPE_PROC_REF(/mob/living/carbon/human, add_credit), TRUE), 20)
 	if(cmode_music)
 		H.cmode_music = cmode_music
 
-	//OV edit
 	if(isooze(H))
 		H.mind.AddSpell(new /obj/effect/proc_holder/spell/targeted/shapeshift/ooze)
-	//OV edit end
+		H.mind.AddSpell(new /obj/effect/proc_holder/spell/invoked/mirror_transform/ooze)
 
 /*
 	Whoa! we are checking requirements here!
@@ -179,9 +188,19 @@
 
 	if(length(allowed_patrons) && !(H.patron.type in allowed_patrons))
 		return FALSE
+	if(H.admin_antag_spawn && !vampcompat && H.mind?.has_antag_datum(/datum/antagonist/vampire))
+		return FALSE
 
-	if(maximum_possible_slots > -1)
+	if(!H.admin_antag_spawn && maximum_possible_slots > -1)
 		if(total_slots_occupied >= maximum_possible_slots)
+			return FALSE
+
+	if(!H.admin_antag_spawn && minimum_chaos > 0)
+		if(SSgamemode.level < minimum_chaos)
+			return FALSE
+
+	if(!H.admin_antag_spawn && minimum_town_strength > 0)
+		if(SSgamemode.get_town_strength() < minimum_town_strength)
 			return FALSE
 
 	if(length(virtue_restrictions) && H.client)
@@ -190,7 +209,7 @@
 				return FALSE
 
 	#ifdef USES_PQ
-	if(min_pq != -100) // If someone sets this we actually do the check.
+	if(!H.admin_antag_spawn && min_pq != -100) // Explicit admin admission already approved the player.
 		if(!(get_playerquality(H.client.ckey) >= min_pq))
 			return FALSE
 	#endif
@@ -207,4 +226,3 @@
 
 //Final proc in the set for really silly shit
 ///datum/advclass/proc/extra_slop_proc_ending(mob/living/carbon/human/H)
-

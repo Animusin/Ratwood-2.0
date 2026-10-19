@@ -299,7 +299,7 @@
 	if(HAS_TRAIT(user, TRAIT_LUX_FREAK) && zcross_trigger) // LUX ABOMINATIONS WONT STOP SO EASLY!!! Kind of redoundant here since this is absolver special and he alwys has it, but futureprofing
 		user.visible_message(span_warning("[user] shuddered but they eyes flash silver and they keep on going."), span_userdanger("Cold shoots through my spine and dark laughs resounds, but i focus on my lux and ENDURE."))
 		zcross_trigger = FALSE
-	
+
 	if(zcross_trigger)
 		user.visible_message(span_warning("[user] shuddered. Something's very wrong."), span_userdanger("Cold shoots through my spine. Something laughs at me for trying."))
 		user.playsound_local(user, 'sound/misc/zizo.ogg', 25, FALSE)
@@ -319,7 +319,7 @@
 		cast(user)
 		return TRUE
 	else
-		to_chat(H, span_warning("I lose my focus and control over my lux escapes me."))  
+		to_chat(H, span_warning("I lose my focus and control over my lux escapes me."))
 		return FALSE
 
 
@@ -340,7 +340,7 @@
 	invocation_type = "none"
 	associated_skill = /datum/skill/magic/holy
 	antimagic_allowed = FALSE
-	recharge_time = 30 SECONDS 
+	recharge_time = 30 SECONDS
 	miracle = TRUE
 	devotion_cost = 80
 
@@ -368,7 +368,7 @@
 			return FALSE
 		to_chat(user, span_warning("You attempt to revive [H] by ABSOLVING them!"))
 		// Dramatic effect
-		user.visible_message(span_danger("[user] grabs [H] by the wrists, silvery lux thread pouring from their hands!"))  
+		user.visible_message(span_danger("[user] grabs [H] by the wrists, silvery lux thread pouring from their hands!"))
 
 		if(alert(H, "They want to ABSOLVE you. Will you let them?", "ABSOLUTION", "I'll allow it", "I refuse") != "I'll allow it")
 			H.visible_message(span_notice("Nothing happens."))
@@ -389,7 +389,7 @@
 		ADD_TRAIT(H, TRAIT_IWASREVIVED, "[type]")
 		H.apply_status_effect(/datum/status_effect/buff/psyvived)
 		user.apply_status_effect(/datum/status_effect/buff/psyvived)
-		H.visible_message(span_notice("[H] is ABSOLVED!"), span_green("I awake from the void, covered in inert silver threads."))  
+		H.visible_message(span_notice("[H] is ABSOLVED!"), span_green("I awake from the void, covered in inert silver threads."))
 		H.mind.remove_antag_datum(/datum/antagonist/zombie)
 		H.remove_status_effect(/datum/status_effect/debuff/rotted_zombie)	//Removes the rotted-zombie debuff if they have it - Failsafe for it.
 		H.apply_status_effect(/datum/status_effect/debuff/revived)	//Temp debuff on revive, your stats get hit temporarily. Doubly so if having rotted.
@@ -433,7 +433,7 @@
 	if(HAS_TRAIT(H, TRAIT_INQUISITION)) // inqusition is used to it
 		to_chat(user, span_notice("You feel pull on your soul as [user], ABSOLVES you of your suferring."))
 	else
-		to_chat(H, span_danger("You feel a terrible tear as a part of your soul is torn away by silver thread!")) // Someone just tore away something from your lux, that isn't calm  
+		to_chat(H, span_danger("You feel a terrible tear as a part of your soul is torn away by silver thread!")) // Someone just tore away something from your lux, that isn't calm
 		to_chat(H, span_notice("Your wounds seem to mysteriously vanish and your burderns lighten."))
 	return TRUE
 
@@ -455,7 +455,7 @@
 	invocation_type = "none"
 	associated_skill = /datum/skill/magic/holy
 	antimagic_allowed = FALSE
-	recharge_time = 30 SECONDS 
+	recharge_time = 30 SECONDS
 	miracle = TRUE
 	devotion_cost = 80
 

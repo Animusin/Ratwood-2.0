@@ -53,7 +53,7 @@
 	backpack_contents = list(
 		/obj/item/flashlight/flare/torch/lantern = 1,
 		/obj/item/rogueweapon/huntingknife/idagger/steel/special = 1,
-		/obj/item/rogueweapon/scabbard/sheath/noble = 1, 
+		/obj/item/rogueweapon/scabbard/sheath/noble = 1,
 		/obj/item/natural/feather = 1,
 		/obj/item/paper/scroll = 1,
 		/obj/item/storage/belt/rogue/pouch/coins/rich = 1,

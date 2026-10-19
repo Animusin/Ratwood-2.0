@@ -26,15 +26,27 @@
 
 	//How many players can be this job
 	var/total_positions = 0
+	/// Explicit limit from Manage Job Slots, including zero and -1 (unlimited).
+	var/admin_position_limit = null
+	/// Preserve the configured total when temporarily overriding a job's limit.
+	var/admin_position_limit_backup = null
 
 	//How many players can spawn in as this job
 	var/spawn_positions = 0
 
 	//How many players have this job
 	var/current_positions = 0
+	/// Special jobs such as migrant waves assign their own roster and do not use latejoin slots.
+	var/bypass_latejoin_position_limit = FALSE
 
 	//Whether this job clears a slot when you get a rename prompt.
 	var/antag_job = FALSE
+	/// How much capacity this job consumes from the storyteller antagonist cap when latejoining.
+	var/antag_cap_weight = 1
+	/// Antagonist granted by an admin-created, cap-exempt latejoin slot.
+	var/admin_slot_antag_type
+	/// Unclaimed admin slots; consumed before normal latejoin slots.
+	var/admin_antag_slots = 0
 
 	//Supervisors, who this person answers to directly
 	var/supervisors = ""
@@ -83,7 +95,9 @@
 	var/job_greet_text = TRUE
 	var/tutorial = null
 
-	var/whitelist_req = FALSE
+	/// Whether this role is unavailable to players outside the server whitelist.
+	/// Keep this enabled by default so newly added roles do not accidentally become public.
+	var/whitelist_req = TRUE
 
 	var/bypass_jobban = FALSE
 	var/bypass_lastclass = TRUE
@@ -92,6 +106,8 @@
 	var/list/peopleknowme = list()
 
 	var/plevel_req = 0
+	/// Paid once when a character is created, not when preferences or slots are selected.
+	var/triumph_entry_cost = 0
 	var/min_pq = 0
 	var/max_pq = 0
 	var/round_contrib_points = 0 //Each 10 contributor points counts as 1 PQ, up to 10 PQ.
@@ -179,6 +195,8 @@
 	var/no_virtue = FALSE
 
 /datum/job/proc/special_job_check(mob/dead/new_player/player)
+	if(antag_job && SSjob && !SSjob.can_assign_antag_job(src))
+		return FALSE
 	return TRUE
 
 /datum/job/proc/get_used_title(mob/player)
@@ -336,7 +354,53 @@
 
 //Used for a special check of whether to allow a client to latejoin as this job.
 /datum/job/proc/special_check_latejoin(client/C)
+	if(antag_job && SSjob && !SSjob.can_assign_antag_job(src))
+		return FALSE
 	return TRUE
+
+/// Returns the live slot cap used for availability, assignment, and display.
+/datum/job/proc/get_position_limit(latejoin = FALSE)
+	if(!isnull(admin_position_limit))
+		return admin_position_limit
+	return get_default_position_limit(latejoin)
+
+/// Automatic/configured limit before any administrator override.
+/datum/job/proc/get_default_position_limit(latejoin = FALSE)
+	return latejoin ? total_positions : spawn_positions
+
+/// Exact job types only: Court Agent and other descendants do not inherit this perk.
+/datum/job/proc/supports_scientist_slot_bypass()
+	return type == /datum/job/roguetown/adventurer || type == /datum/job/roguetown/mercenary
+
+/datum/job/proc/can_bypass_position_limit(client/player, refresh = FALSE)
+	return supports_scientist_slot_bypass() && player?.has_scientist_subscription(refresh)
+
+/datum/job/proc/set_admin_position_limit(new_limit)
+	if(!isnum(new_limit))
+		return FALSE
+	if(isnull(admin_position_limit))
+		admin_position_limit_backup = total_positions
+	admin_position_limit = max(-1, FLOOR(new_limit, 1))
+	// Keep legacy readers in sync with the explicit limit.
+	total_positions = admin_position_limit
+	return TRUE
+
+/datum/job/proc/reset_admin_position_limit()
+	if(isnull(admin_position_limit))
+		return
+	total_positions = admin_position_limit_backup
+	admin_position_limit = null
+	admin_position_limit_backup = null
+
+/// Returns the population used to scale dynamic job slots.
+/// Roundstart uses players ready to spawn; latejoin uses players currently alive.
+/datum/job/proc/get_slot_scaling_population(latejoin = FALSE)
+	if(latejoin)
+		return living_player_count()
+	. = 0
+	for(var/mob/dead/new_player/player as anything in GLOB.new_player_list)
+		if(player.ready == PLAYER_READY_TO_PLAY)
+			.++
 
 /datum/job/proc/GetAntagRep()
 	. = CONFIG_GET(keyed_list/antag_rep)[LOWER_TEXT(title)]
@@ -562,10 +626,11 @@
 					dat += "<td width = 50%; style='text-align:right'>"
 					var/list/notable_skills = list()
 					for(var/sk in adv_ref.subclass_skills)
-						if(adv_ref.subclass_skills[sk] >= SKILL_LEVEL_JOURNEYMAN)
-							notable_skills[sk] = adv_ref.subclass_skills[sk]
+						var/sk_level = adv_ref.subclass_skills[sk]
+						if(isnum(sk_level) && sk_level >= SKILL_LEVEL_JOURNEYMAN) // guard against malformed (non-numeric) skill entries
+							notable_skills[sk] = sk_level
 						else if(ispath(sk, /datum/skill/combat))
-							notable_skills[sk] = adv_ref.subclass_skills[sk]
+							notable_skills[sk] = sk_level
 					if(!length(notable_skills))	//Nothing above Jman AND no Combat skills.
 						dat += "<i>This subclass has no notable skills.</i>"
 					else

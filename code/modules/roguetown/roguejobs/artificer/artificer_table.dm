@@ -34,16 +34,18 @@
 		if(material.artrecipe.hammered || material.artrecipe.progress == 100)
 			playsound(src,'sound/combat/hits/onmetal/sheet (2).ogg', 100, TRUE)
 			shake_camera(user, 1, 1)
-		var/datum/effect_system/spark_spread/S = new()
-		var/turf/front = get_turf(src)
-		S.set_up(1, 1, front)
-		S.start()
+		MakeParticleEmitter(/particles/sparks, FALSE, 1 SECONDS)
 		var/skill = user.get_skill_level(material.artrecipe.appro_skill)
 		if(material.artrecipe.progress == 100)
 			if(islist(material.artrecipe.created_item))
 				var/list/L = material.artrecipe.created_item
+				var/list/created_counts = list()
+				for(var/CT in L)
+					created_counts[CT] += 1
 				for(var/IT in L)
-					new IT(get_turf(src))
+					var/obj/item/new_item = new IT(get_turf(src))
+					if(created_counts[IT] > 1 && new_item.smeltresult)
+						new_item.smelt_batch_num = created_counts[IT]
 			else
 				new material.artrecipe.created_item(get_turf(src))
 			var/obj/item/created_item_instance = new(material.artrecipe.created_item)

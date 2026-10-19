@@ -5,7 +5,7 @@ GLOBAL_LIST_INIT(laws_of_the_land, initialize_laws_of_the_land())
 GLOBAL_VAR_INIT(last_crown_announcement_time, -1000)
 
 /proc/initialize_laws_of_the_land()
-	var/list/laws = strings("laws_of_the_land.json", "lawsets")
+	var/list/laws = strings("laws_of_the_land.json", "lawsets", directory = "strings/russian")
 	var/list/lawsets_weighted = list()
 	for(var/lawset_name as anything in laws)
 		var/list/lawset = laws[lawset_name]

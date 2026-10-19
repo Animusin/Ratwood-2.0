@@ -403,6 +403,16 @@ GLOBAL_LIST_EMPTY(external_rsc_urls)
 		player_details = new(ckey)
 		player_details.byond_version = full_version
 		GLOB.player_details[ckey] = player_details
+#ifdef MATURESERVER
+	var/is_agevetted = check_agevet()
+	// The enable toggle is age-gated, but older saves may already have ERP enabled.
+	// Revalidate the persisted preference on login so it cannot bypass the gate.
+	if(prefs.sexable && !is_agevetted)
+		prefs.sexable = FALSE
+		prefs.save_preferences()
+#else
+	check_agevet()
+#endif
 
 
 	. = ..()	//calls mob.Login()
@@ -1220,7 +1230,7 @@ GLOBAL_LIST_EMPTY(external_rsc_urls)
 	if(whitelisted != 2)
 		return whitelisted
 	else
-		if(BC_IsKeyWhitelisted(ckey))
+		if(check_whitelist(ckey))
 			whitelisted = 1
 		else
 			whitelisted = 0

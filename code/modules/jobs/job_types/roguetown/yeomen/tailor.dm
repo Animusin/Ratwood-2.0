@@ -6,6 +6,7 @@
 	tutorial = "You have worked sleepless nights on honing your craft. From sacks, to tapestry and luxurious clothing, there is little you cannot sew into existence. Use your storefront to turn even the ugliest peasant into a proper gentleman; who knows, even the nobility may pay you a visit."
 	total_positions = 1
 	spawn_positions = 1
+	whitelist_req = FALSE
 	display_order = 6
 	min_pq = 0
 	selection_color = JCOLOR_YEOMAN

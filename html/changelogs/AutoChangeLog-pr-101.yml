@@ -1,0 +1,7 @@
+author: "sigmaboy124124"
+delete-after: True
+changes:
+  - bugfix: "Folding tables no longer explode when hammered and no longer eat cogs."
+  - bugfix: "Contraption failure chance is now shown on examine for legendary engineers too."
+  - bugfix: "Voltic contraption gauntlets now show charge and failure chance on examine."
+  - qol: "Stable and unstable cogs can now be inserted into voltic gauntlets to change their failure chance."

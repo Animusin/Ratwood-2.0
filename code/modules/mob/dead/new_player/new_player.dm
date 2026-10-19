@@ -4,6 +4,7 @@ GLOBAL_LIST_INIT(roleplay_readme, world.file2list("strings/rt/rp_prompt.txt"))
 /mob/dead/new_player
 	var/ready = 0
 	var/spawning = 0//Referenced when you want to delete the new_player later on in the code.
+	var/join_attempt_in_progress = FALSE
 	var/topjob = "Hero!"
 	flags_1 = NONE
 
@@ -37,6 +38,8 @@ GLOBAL_LIST_INIT(roleplay_readme, world.file2list("strings/rt/rp_prompt.txt"))
 	GLOB.new_player_list += src
 
 /mob/dead/new_player/Destroy()
+	// During normal spawning the mind has already transferred to the new character.
+	mind?.clear_queued_admin_antag()
 	GLOB.new_player_list -= src
 	return ..()
 
@@ -114,6 +117,29 @@ GLOBAL_LIST_INIT(roleplay_readme, world.file2list("strings/rt/rp_prompt.txt"))
 		if(client.prefs)
 			client.prefs.ShowChoices(src, 4)
 
+/// Returns the remaining respawn cooldown, preserving the longer delay for untrusted players.
+/mob/dead/new_player/proc/get_respawn_time_left()
+	if(!ckey)
+		return 0
+	if(GLOB.admin_datums[ckey] || GLOB.deadmins[ckey])
+		return 0
+	var/respawn_started_at = GLOB.respawntimes[ckey]
+	if(!respawn_started_at)
+		return 0
+	var/respawn_delay = RESPAWNTIME
+	if(!client?.has_whitelist_access())
+		respawn_delay = max(respawn_delay, NON_WHITELISTED_RESPAWNTIME)
+	return max(respawn_started_at + respawn_delay - world.time, 0)
+
+/// Authoritative guard used by every path that can create a latejoin character.
+/mob/dead/new_player/proc/check_respawn_cooldown(show_message = TRUE)
+	var/time_left = get_respawn_time_left()
+	if(time_left <= 0)
+		return TRUE
+	if(show_message)
+		to_chat(src, span_warning("I can return in [DisplayTimeText(time_left)]."))
+	return FALSE
+
 /mob/dead/new_player/Topic(href, href_list[])
 	if(src != usr)
 		return 0
@@ -143,12 +169,9 @@ GLOBAL_LIST_INIT(roleplay_readme, world.file2list("strings/rt/rp_prompt.txt"))
 		return 1
 
 	if(href_list["join_server"])
-		var/target_server
-		switch(href_list["join_server"])
-			if("primary")
-				target_server = "byond://ratwood.rip:22096"
-			if("secondary")
-				target_server = "byond://ratwood.rip:22099"
+		var/target_server = CONFIG_GET(string/server)
+		if(target_server && !findtext(target_server, "byond://"))
+			target_server = "byond://[target_server]"
 
 		if(!target_server)
 			return 1
@@ -213,14 +236,12 @@ GLOBAL_LIST_INIT(roleplay_readme, world.file2list("strings/rt/rp_prompt.txt"))
 			to_chat(usr, span_boldwarning("You are in the migrant queue."))
 			return
 
+		if(!check_respawn_cooldown())
+			return
+
 		if(href_list["late_join"] == "override")
 			LateChoices()
 			return
-/*#ifdef MATURESERVER
-		if(key && (world.time < GLOB.respawntimes[key] + RESPAWNTIME))
-			to_chat(usr, span_warning("I can return in [GLOB.respawntimes[key] + RESPAWNTIME - world.time]."))
-			return
-#else*/
 
 
 		var/timetojoin = 5 MINUTES
@@ -344,6 +365,10 @@ GLOBAL_LIST_INIT(roleplay_readme, world.file2list("strings/rt/rp_prompt.txt"))
 	if(QDELETED(src) || !src.client)
 		ready = PLAYER_NOT_READY
 		return FALSE
+	if(!client.has_whitelist_access())
+		ready = PLAYER_NOT_READY
+		to_chat(src, span_warning("Only whitelisted players may observe."))
+		return FALSE
 
 	var/this_is_like_playing_right = alert(src,"Are you sure you wish to observe? Playing is a lot more fun.","SPECTATE","Yes","No")
 
@@ -422,6 +447,9 @@ GLOBAL_LIST_INIT(roleplay_readme, world.file2list("strings/rt/rp_prompt.txt"))
 				var/player_pq = get_playerquality(usr?.ckey)
 				return "You exceed the Player Quality requirement for [jobtitle]. (Maximum: [job.max_pq], Your PQ: [player_pq])"
 			return "You do not meet the Player Quality requirement for [jobtitle]."
+		if(JOB_UNAVAILABLE_TRIUMPHS)
+			var/datum/job/job = SSjob.GetJob(jobtitle)
+			return "Joining as [jobtitle] costs [job.triumph_entry_cost] Triumphs. You do not have enough."
 	return "Error: Unknown job availability."
 
 //used for latejoining
@@ -449,8 +477,10 @@ GLOBAL_LIST_INIT(roleplay_readme, world.file2list("strings/rt/rp_prompt.txt"))
 	var/datum/job/job = SSjob.GetJob(rank)
 	if(!job)
 		return JOB_UNAVAILABLE_GENERIC
+	if(job.triumph_entry_cost && SStriumphs.get_triumphs(ckey) < job.triumph_entry_cost)
+		return JOB_UNAVAILABLE_TRIUMPHS
 	if(CONFIG_GET(flag/usewhitelist))
-		if(job.whitelist_req && !client.whitelisted())
+		if(job.whitelist_req && !client.has_whitelist_access())
 			return JOB_UNAVAILABLE_GENERIC
 	if(!job.bypass_jobban)
 		if(is_banned_from(ckey, rank))
@@ -498,7 +528,8 @@ GLOBAL_LIST_INIT(roleplay_readme, world.file2list("strings/rt/rp_prompt.txt"))
 	if((job.same_job_respawn_delay) && (ckey in GLOB.job_respawn_delays))
 		if(world.time < GLOB.job_respawn_delays[ckey])
 			return JOB_UNAVAILABLE_JOB_COOLDOWN
-	if((job.current_positions >= job.total_positions) && job.total_positions != -1)
+	var/position_limit = latejoin ? SSjob.get_latejoin_position_limit(job) : job.get_position_limit(FALSE)
+	if((job.current_positions >= position_limit) && position_limit != -1 && !(position_limit > 0 && job.can_bypass_position_limit(client)))
 		if(job.title == "Assistant")
 			if(isnum(client.player_age) && client.player_age <= 14) //Newbies can always be assistants
 				return JOB_AVAILABLE
@@ -523,11 +554,27 @@ GLOBAL_LIST_INIT(roleplay_readme, world.file2list("strings/rt/rp_prompt.txt"))
 	return JOB_AVAILABLE
 
 /mob/dead/new_player/proc/AttemptLateSpawn(rank)
+	if(spawning || join_attempt_in_progress)
+		return FALSE
+	join_attempt_in_progress = TRUE
+	. = attempt_late_spawn(rank)
+	if(!QDELETED(src))
+		join_attempt_in_progress = FALSE
+
+/mob/dead/new_player/proc/attempt_late_spawn(rank)
+	if(!check_respawn_cooldown())
+		return FALSE
+	var/datum/job/entry_job = SSjob.GetJob(rank)
+	if(entry_job?.supports_scientist_slot_bypass())
+		client?.sync_donation_info()
+		if(QDELETED(src) || !client)
+			return FALSE
+
 	if(rank == "Enslaved Adventurer" && istype(SSmapping?.map_adjustment, /datum/map_adjustment/template/rockhill))
 		to_chat(src, span_warning("Enslaved Adventurer is roundstart-only on Rockhill."))
 		return FALSE
 
-	var/error = IsJobUnavailable(rank)
+	var/error = IsJobUnavailable(rank, latejoin = TRUE)
 	if(error != JOB_AVAILABLE)
 		to_chat(src, span_warning("[get_job_unavailable_error_message(error, rank)]"))
 		return FALSE
@@ -548,15 +595,25 @@ GLOBAL_LIST_INIT(roleplay_readme, world.file2list("strings/rt/rp_prompt.txt"))
 		arrivals_docked = SSshuttle.arrivals.mode != SHUTTLE_CALL
 */
 
-	//Remove the player from the join queue if he was in one and reset the timer
+	testing("basedtest 1")
+
+	// Recheck during assignment: another latejoiner may have consumed the last slot
+	// or antagonist-cap capacity after IsJobUnavailable() ran.
+	if(!SSjob.AssignRole(src, rank, TRUE))
+		to_chat(src, span_warning("[rank] is no longer available."))
+		return FALSE
+
+	// Remove the player from the join queue only after the role was assigned.
 	SSticker.queued_players -= src
 	SSticker.queue_delay = 4
 
-	testing("basedtest 1")
-
-	SSjob.AssignRole(src, rank, 1)
 	testing("basedtest 2")
 	var/mob/living/character = create_character(TRUE)	//creates the human and transfers vars and mind
+	if(!character)
+		SSjob.release_failed_spawn(src)
+		if(!QDELETED(src))
+			new_player_panel()
+		return FALSE
 	testing("basedtest 3")
 	character.islatejoin = TRUE
 	var/equip = SSjob.EquipRank(character, rank, TRUE)
@@ -637,9 +694,16 @@ GLOBAL_LIST_INIT(roleplay_readme, world.file2list("strings/rt/rp_prompt.txt"))
 		character.client.update_ooc_verb_visibility()
 
 /mob/dead/new_player/proc/LateChoices()
-	var/list/dat = list("<div class='notice' style='font-style: normal; font-size: 14px; margin-bottom: 2px; padding-bottom: 0px'>Round Duration: [DisplayTimeText(world.time - SSticker.round_start_time, 1)]</div>")
+	if(!check_respawn_cooldown())
+		return
+	client?.sync_donation_info()
+	if(QDELETED(src) || !client)
+		return
+
+	var/list/dat = list("<div class='notice' style='font-style: normal; font-size: 14px; margin-bottom: 2px; padding-bottom: 0px'>Round Duration: [DisplayTimeText(world.time - SSticker.round_start_time, 1)] &mdash; <a href='byond://?src=[REF(src)];late_join=1'>Refresh slots</a></div>")
 	for(var/datum/job/prioritized_job in SSjob.prioritized_jobs)
-		if(prioritized_job.current_positions >= prioritized_job.total_positions)
+		var/prioritized_position_limit = SSjob.get_latejoin_position_limit(prioritized_job)
+		if(prioritized_position_limit != -1 && prioritized_job.current_positions >= prioritized_position_limit)
 			SSjob.prioritized_jobs -= prioritized_job
 	dat += "<table><tr><td valign='top'>"
 	var/column_counter = 0
@@ -655,6 +719,7 @@ GLOBAL_LIST_INIT(roleplay_readme, world.file2list("strings/rt/rp_prompt.txt"))
 	omegalist += list(GLOB.wanderer_positions)
 	omegalist += list(GLOB.youngfolk_positions)
 	omegalist += list(GLOB.tribal_positions)
+	var/remaining_antag_capacity = SSgamemode ? SSgamemode.get_remaining_antag_capacity() : null
 
 	for(var/list/category in omegalist)
 		if(!SSjob.name_occupations[category[1]])
@@ -666,7 +731,8 @@ GLOBAL_LIST_INIT(roleplay_readme, world.file2list("strings/rt/rp_prompt.txt"))
 			var/datum/job/job_datum = SSjob.name_occupations[job]
 			if(!job_datum)
 				continue
-			// Make sure hiv+ jobs always appear on list, even if unavailable
+			// Persistent jobs stay visible even when unavailable. Capped antagonist jobs
+			// are rendered below with a dynamic limit and without an active join link.
 			var/is_job_available = (IsJobUnavailable(job_datum.title, TRUE) == JOB_AVAILABLE)
 			if(job_datum.always_show_on_latechoices)
 				is_job_available = TRUE
@@ -725,13 +791,26 @@ GLOBAL_LIST_INIT(roleplay_readme, world.file2list("strings/rt/rp_prompt.txt"))
 					var/command_bold = FALSE
 					if(job in GLOB.noble_positions)
 						command_bold = TRUE
+					var/display_position_limit = SSjob.get_latejoin_position_limit(job_datum, remaining_antag_capacity)
+					var/subscriber_slot = display_position_limit > 0 && job_datum.can_bypass_position_limit(client)
+					var/position_full = display_position_limit != -1 && display_position_limit <= job_datum.current_positions && !subscriber_slot
 					var/used_name = job_datum.display_title || job_datum.title
 					if(client.prefs.pronouns == SHE_HER && job_datum.f_title)
 						used_name = job_datum.f_title
-					if(job_datum in SSjob.prioritized_jobs)
-						dat += "<a class='job[command_bold]' href='byond://?src=[REF(src)];SelectedJob=[job_datum.title]'><span class='priority'>[used_name] ([job_datum.current_positions])</span></a>"
+					if(job_datum.triumph_entry_cost)
+						used_name += " - [job_datum.triumph_entry_cost] Triumphs"
+					if(subscriber_slot)
+						used_name += " - Scientist+ slot access"
+					if(job_datum in SSjob.prioritized_jobs && !job_datum.antag_job && !position_full)
+						dat += "<a class='job[command_bold]' href='byond://?src=[REF(src)];SelectedJob=[job_datum.title]'><span class='priority'>[used_name] ([job_datum.current_positions]/[display_position_limit])</span></a>"
 					else
-						dat += "<font size = 3>[incompatible_href][do_elaborate ? "<a href='?src=[REF(job_datum)];jobsubclassinfo=1'><b><font color = '#6b6743'>(!)</font></b></a>" : ""]<a href='byond://?src=[REF(src)];SelectedJob=[job_datum.title]'>[command_bold ? "<b>" : ""][used_name] ([job_datum.current_positions]/[job_datum.total_positions])[command_bold ? "</b>" : ""]</a></font>"
+						var/subclass_info = do_elaborate ? "<a href='?src=[REF(job_datum)];jobsubclassinfo=1'><b><font color='#6b6743'>(!)</font></b></a>" : ""
+						var/job_label = "[command_bold ? "<b>" : ""][used_name] ([job_datum.current_positions]/[display_position_limit])[command_bold ? "</b>" : ""]"
+						if(position_full)
+							var/full_reason = job_datum.antag_job && job_datum.antag_cap_weight > 0 ? "Antagonist capacity or job slots are full" : "Job slots are full"
+							dat += "<font size=3 color='#777777'>[incompatible_href][subclass_info]<span title='[full_reason]'>[job_label]</span></font>"
+						else
+							dat += "<font size=3>[incompatible_href][subclass_info]<a href='byond://?src=[REF(src)];SelectedJob=[job_datum.title]'>[job_label]</a></font>"
 						dat += "<br>"
 
 			dat += "</fieldset><br>"
@@ -745,17 +824,27 @@ GLOBAL_LIST_INIT(roleplay_readme, world.file2list("strings/rt/rp_prompt.txt"))
 	popup.set_content(jointext(dat, ""))
 	popup.open(FALSE) // 0 is passed to open so that it doesn't use the onclose() proc
 
-/mob/dead/new_player/proc/create_character(transfer_after)
-	spawning = 1
-	close_spawn_windows()
-
-	var/mob/living/carbon/human/H = new(loc)
-
+/mob/dead/new_player/proc/create_character(transfer_after, entry_cost = null)
+	spawning = TRUE
 	var/frn = CONFIG_GET(flag/force_random_names)
 	if(!frn)
 		frn = is_banned_from(ckey, "Appearance")
 		if(QDELETED(src))
 			return
+	// Ban/database checks above may yield. Debit only after them and before creating a body.
+	var/datum/job/entry_job = SSjob.GetJob(mind?.assigned_role)
+	if(isnull(entry_cost))
+		entry_cost = entry_job?.triumph_entry_cost || 0
+	if(entry_cost && !SStriumphs.try_spend_triumphs(ckey, entry_cost))
+		spawning = FALSE
+		to_chat(src, span_warning("Joining costs [entry_cost] Triumphs. Your balance is too low."))
+		return
+	if(entry_cost)
+		log_game("TRIUMPH: [ckey] paid [entry_cost] to join as [mind?.assigned_role].")
+	close_spawn_windows()
+	var/mob/living/carbon/human/H = new(loc)
+	H.admin_antag_setup_pending = TRUE
+
 	if(frn)
 		client.prefs.random_character()
 

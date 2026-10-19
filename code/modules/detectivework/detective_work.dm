@@ -1,5 +1,46 @@
 //CONTAINS: Suit fibers and Detective's Scanning Computer
 
+GLOBAL_LIST_EMPTY(forensic_blood_species)
+GLOBAL_LIST_EMPTY(forensic_blood_owner_refs)
+GLOBAL_VAR_INIT(active_forensic_blood_decals, 0)
+GLOBAL_VAR_INIT(next_forensic_blood_decal_warning, 0)
+
+/// Stores one lightweight identity record per blood source instead of repeating species data on every stain.
+/proc/register_forensic_blood_identity(mob/living/source)
+	if(!iscarbon(source))
+		return
+	var/mob/living/carbon/carbon_source = source
+	var/dna_key = carbon_source.dna?.unique_enzymes
+	if(!dna_key)
+		return
+	var/species_name = carbon_source.dna?.species?.name
+	if(species_name)
+		GLOB.forensic_blood_species[dna_key] = "[species_name]"
+	var/list/owner_refs = GLOB.forensic_blood_owner_refs[dna_key]
+	if(!owner_refs)
+		owner_refs = list()
+		GLOB.forensic_blood_owner_refs[dna_key] = owner_refs
+	owner_refs |= WEAKREF(carbon_source)
+
+/// Resolves every currently present owner sharing a forensic blood identity.
+/proc/get_forensic_blood_owners(dna_key)
+	var/list/owners = list()
+	var/list/owner_refs = GLOB.forensic_blood_owner_refs[dna_key]
+	if(!length(owner_refs))
+		return owners
+	for(var/datum/weakref/owner_ref as anything in owner_refs.Copy())
+		var/mob/living/carbon/owner = owner_ref.resolve()
+		if(owner)
+			owners |= owner
+		else
+			owner_refs -= owner_ref
+	if(!length(owner_refs))
+		GLOB.forensic_blood_owner_refs -= dna_key
+	return owners
+
+/proc/get_forensic_blood_species(dna_key)
+	return GLOB.forensic_blood_species[dna_key]
+
 /atom/proc/return_fingerprints()
 	var/datum/component/forensics/D = GetComponent(/datum/component/forensics)
 	if(D)
@@ -20,10 +61,42 @@
 	if(D)
 		. = length(D.blood_DNA)
 
+/turf/blood_DNA_length()
+	var/list/unique_samples = list()
+	for(var/obj/effect/decal/cleanable/blood/blood in src)
+		var/list/blood_dna = blood.return_blood_DNA()
+		for(var/dna_key in blood_dna)
+			unique_samples[dna_key] = TRUE
+	return length(unique_samples)
+
 /atom/proc/return_fibers()
 	var/datum/component/forensics/D = GetComponent(/datum/component/forensics)
 	if(D)
 		. = D.fibers
+
+/atom/proc/record_forensic_event(event_type, mob/living/culprit, atom/tool)
+	if(QDELETED(src) || !event_type || !isliving(culprit))
+		return FALSE
+	var/datum/component/forensics/D = AddComponent(/datum/component/forensics)
+	return D.record_forensic_event(event_type, culprit, tool)
+
+/atom/proc/read_forensic_event()
+	var/datum/component/forensics/D = GetComponent(/datum/component/forensics)
+	return D?.read_forensic_event()
+
+/atom/proc/clear_forensic_event()
+	var/datum/component/forensics/D = GetComponent(/datum/component/forensics)
+	return D?.clear_forensic_event()
+
+/proc/forensic_event_display_name(event_type)
+	switch(event_type)
+		if(FORENSIC_EVENT_LOCKPICK_ATTEMPT)
+			return "an attempted lockpick"
+		if(FORENSIC_EVENT_LOCKPICK_SUCCESS)
+			return "a successful lockpick"
+		if(FORENSIC_EVENT_FORCED_BREAK)
+			return "forced destruction"
+	return "an unknown disturbance"
 
 /atom/proc/add_fingerprint_list(list/fingerprints)		//ASSOC LIST FINGERPRINT = FINGERPRINT
 	if(QDELETED(src))
@@ -45,16 +118,14 @@
 		. = AddComponent(/datum/component/forensics, null, null, null, fibertext)
 
 /atom/proc/add_fibers(mob/living/carbon/human/M)
-	var/old = 0
+	var/old = blood_DNA_length()
 	if(M.gloves && istype(M.gloves, /obj/item/clothing))
 		var/obj/item/clothing/gloves/G = M.gloves
-		old = length(G.return_blood_DNA())
 		if(G.transfer_blood > 1) //bloodied gloves transfer blood to touched objects
-			if(add_blood_DNA(G.return_blood_DNA()) && length(G.return_blood_DNA()) > old) //only reduces the bloodiness of our gloves if the item wasn't already bloody
+			if(add_blood_DNA(G.return_blood_DNA()) && blood_DNA_length() > old) //only reduce the blood supply when this atom gained a new sample
 				G.transfer_blood--
 	else if(M.bloody_hands > 1)
-		old = length(M.return_blood_DNA())
-		if(add_blood_DNA(M.return_blood_DNA()) && length(M.return_blood_DNA()) > old)
+		if(add_blood_DNA(M.return_blood_DNA()) && blood_DNA_length() > old)
 			M.bloody_hands--
 	var/datum/component/forensics/D = AddComponent(/datum/component/forensics)
 	. = D.add_fibers(M)

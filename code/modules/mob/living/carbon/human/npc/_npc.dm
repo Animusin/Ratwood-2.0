@@ -809,6 +809,10 @@
 		swap_hand() // swap back
 		return
 	rog_intent_change(3) // grab intent
+	if(!used_intent) // this mob has no grab intent available; abort without runtiming
+		rog_intent_change(1)
+		swap_hand() // switch back to mainhand
+		return FALSE
 	npc_choose_grab_zone(victim)
 	UnarmedAttack(victim, TRUE) // instead of start_pulling(victim)
 	var/stam_penalty = used_intent.releasedrain

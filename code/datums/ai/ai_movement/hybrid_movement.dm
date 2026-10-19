@@ -3,8 +3,8 @@
 	requires_processing = TRUE
 	max_pathing_attempts = 12
 	max_path_distance = 30
-	var/fallbacking = FALSE
-	var/fallback_fail = 0
+	var/list/fallbacking_by_controller = list()
+	var/list/fallback_failures_by_controller = list()
 
 	// Variables for asynchronous path generation
 	var/repath_anticipation_distance = 5 // Start generating new path when this close to the end
@@ -59,8 +59,8 @@
 				if(!can_go_up)
 					controller.movement_path = null
 					controller.clear_blackboard_key(future_path_blackboard_key)
-					fallbacking = FALSE
-					fallback_fail = 0
+					fallbacking_by_controller[controller] = FALSE
+					fallback_failures_by_controller[controller] = 0
 					continue
 
 		// Basic movement for targets on the same z-level with no existing path
@@ -77,7 +77,8 @@
 					advanced = TRUE
 					controller.movement_path = null
 					controller.clear_blackboard_key(future_path_blackboard_key)
-					fallbacking = TRUE
+					fallbacking_by_controller[controller] = TRUE
+					fallback_failures_by_controller[controller] = 0
 					SEND_SIGNAL(movable_pawn, COMSIG_AI_GENERAL_CHANGE, "Unable to Basic Move swapping to AStar.")
 
 			if(!advanced)
@@ -164,17 +165,19 @@
 						if(get_turf(movable_pawn) == double_checked) // Handle z-level stack issues
 							controller.movement_path.Cut(1,2)
 
-					if(!length(controller.movement_path) && fallbacking)
-						fallbacking = FALSE
+					if(!length(controller.movement_path) && fallbacking_by_controller[controller])
+						fallbacking_by_controller[controller] = FALSE
+						fallback_failures_by_controller[controller] = 0
 				else
-					if(!fallbacking)
+					if(!fallbacking_by_controller[controller])
 						generate_path = TRUE
 						controller.clear_blackboard_key(future_path_blackboard_key)
 					else
-						fallback_fail++
-						if(fallback_fail >= 2)
+						fallback_failures_by_controller[controller]++
+						if(fallback_failures_by_controller[controller] >= 2)
 							generate_path = TRUE
-							fallbacking = FALSE
+							fallbacking_by_controller[controller] = FALSE
+							fallback_failures_by_controller[controller] = 0
 							controller.clear_blackboard_key(future_path_blackboard_key)
 
 				// If we're nearing the end of our path, preemptively generate the next path
@@ -208,3 +211,13 @@
 					max_path_distance + 1, 250, minimum_distance, id=controller.get_access())
 				controller.clear_blackboard_key(future_path_blackboard_key) // Clear any future path as we have a fresh main path
 				SEND_SIGNAL(controller.pawn, COMSIG_AI_PATH_GENERATED, controller.movement_path)
+
+/datum/ai_movement/hybrid_pathing/start_moving_towards(datum/ai_controller/controller, atom/current_movement_target, min_distance)
+	fallbacking_by_controller[controller] = FALSE
+	fallback_failures_by_controller[controller] = 0
+	return ..()
+
+/datum/ai_movement/hybrid_pathing/stop_moving_towards(datum/ai_controller/controller)
+	fallbacking_by_controller -= controller
+	fallback_failures_by_controller -= controller
+	return ..()

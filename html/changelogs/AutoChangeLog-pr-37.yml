@@ -1,0 +1,5 @@
+author: "usernameasterisk"
+delete-after: True
+changes:
+  - bugfix: "(animuskeep) fireball, artillery fireball and spitfire no longer break grabs (greater fireball still does)."
+  - bugfix: "(animuskeep) fetch no longer break grabs when used at point-blank range"

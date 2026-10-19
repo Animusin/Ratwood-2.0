@@ -7,6 +7,19 @@
 	var/misfiring = FALSE
 	var/cog_accept = TRUE
 
+/obj/item/clothing/gloves/roguetown/contraption/examine(mob/user)
+	. = ..()
+	if(!istype(user, /mob/living))
+		return
+	var/mob/living/player = user
+	var/skill = player.get_skill_level(/datum/skill/craft/engineering)
+	if(current_charge)
+		. += span_warning("The gauntlets have [current_charge] charges left.")
+	if(!current_charge)
+		. += span_warning("The gauntlets require a new [initial(accepted_power_source.name)] to function.")
+	if(misfire_chance)
+		. += contraption_misfire_examine_text(misfire_chance, skill)
+
 
 // === CONTRAPTION CORE BEHAVIOR ===
 /obj/item/clothing/gloves/roguetown/contraption/proc/battery_collapse(obj/O, mob/living/user)
@@ -58,6 +71,14 @@
 			playsound(src, 'sound/combat/hits/blunt/woodblunt (2).ogg', 100, TRUE)
 			qdel(I)
 		return
+	if(istype(I, /obj/item/roguegear/wood) && cog_accept)
+		var/obj/item/roguegear/wood/cog = I
+		if(cog.misfire_modification || cog.misfire_modification == 0)
+			misfire_chance = cog.misfire_modification
+			playsound(src, pick('sound/combat/hits/onwood/fence_hit1.ogg', 'sound/combat/hits/onwood/fence_hit2.ogg', 'sound/combat/hits/onwood/fence_hit3.ogg'), 100, FALSE)
+			to_chat(user, span_warning("[cog.name] inserted!"))
+			qdel(cog)
+			return
 	..()
 
 

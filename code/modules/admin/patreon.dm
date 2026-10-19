@@ -100,6 +100,9 @@ GLOBAL_VAR(PatreonsLoaded)
 	for(var/X in GLOB.temporary_donators)
 		if(X == ckey)
 			return GLOB.temporary_donators[X]
+	var/db_donation_level = SSdonations?.get_cached_patreon_level_for_ckey(ckey)
+	if(db_donation_level)
+		return db_donation_level
 	if(!GLOB.PatreonsLoaded)
 		return get_patreon_manual(ckey)
 	var/num1 = 0
@@ -236,6 +239,20 @@ GLOBAL_LIST_EMPTY(temporary_donators)
 		patreonlevel = check_patreon_lvl(ckey)
 		return patreonlevel
 
+/mob/proc/can_upload_custom_music()
+	if(!client)
+		return FALSE
+	var/cost = client.custom_music_upload_cost()
+	return !isnull(cost) && (!cost || SStriumphs.get_triumphs(client.ckey) >= cost)
+
+/// null means subscription refresh failed; do not accidentally charge a subscriber.
+/client/proc/custom_music_upload_cost(refresh = FALSE)
+	if(holder)
+		return 0
+	if(refresh && SSdonations?.IsConfigured() && !sync_donation_info())
+		return null
+	return has_scientist_subscription() ? 0 : CUSTOM_MUSIC_UPLOAD_COST
+
 /proc/patemail2ckey(input)
 	if(!input)
 		return
@@ -255,19 +272,19 @@ GLOBAL_LIST_EMPTY(temporary_donators)
 	if(client)
 		if(client.patreonlevel())
 			return
-	var/name = input("Enter your patreon DISPLAY NAME exactly as it appears on Patreon.","ROGUETOWN") as text|null
+	var/name = input("Enter your patreon DISPLAY NAME exactly as it appears on Patreon.","Ratwood") as text|null
 	if(!name)
 		return
-	var/email = input("Enter your patreon EMAIL ADDRESS exactly as it appears on Patreon.","ROGUETOWN") as text|null
+	var/email = input("Enter your patreon EMAIL ADDRESS exactly as it appears on Patreon.","Ratwood") as text|null
 	if(!email)
 		return
 	if(!patreon_lookup(name) || !patreon_lookup(email) || !findtext(email, "@"))
-		to_chat(src, span_warning("We couldn't find that name/email combo.</span> <span class='info'>Donator status is updated weekly before every playtest. If you have waited a week, seek help in our DISCORD SERVER (https://discord.gg/9uYTPsRMKa)"))
+		to_chat(src, span_warning("We couldn't find that name/email combo.</span> <span class='info'>Donator status is updated weekly before every playtest. If you have waited a week, contact server staff."))
 		return
 //	var/saniemail = sanitize_simple(email,list("@"="AT","."="DOT"))
 	var/fug = patemail2ckey(email)
 	if(fug && (fug != ckey))
-		to_chat(src, span_warning("That Patreon is already registered to a different player.</span> <span class='info'>Donator status is updated weekly before every playtest. If you have waited a week, seek help in our DISCORD SERVER (https://discord.gg/9uYTPsRMKa)"))
+		to_chat(src, span_warning("That Patreon is already registered to a different player.</span> <span class='info'>Donator status is updated weekly before every playtest. If you have waited a week, contact server staff."))
 		return
 	add_patreon(ckey,email)
 	client.patreonlevel = -1

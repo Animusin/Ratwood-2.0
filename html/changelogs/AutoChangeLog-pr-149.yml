@@ -1,0 +1,4 @@
+author: "sigmaboy124124"
+delete-after: True
+changes:
+  - bugfix: "Newly obtained waterskins can be filled without toggling their caps twice."

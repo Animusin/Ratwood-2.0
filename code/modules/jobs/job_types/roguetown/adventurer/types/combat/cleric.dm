@@ -324,14 +324,14 @@
 		if(!istype(H?.patron, /datum/patron/old_god)) //Psydonics are special.
 			C.grant_miracles(H, cleric_tier = CLERIC_T1, passive_gain = CLERIC_REGEN_WEAK, devotion_limit = CLERIC_REQ_1) //Capped to T1 miracles.
 			var/oaths = list("Cleric - Medicine & Mirth","Crusader - Silver Weapon")
-			var/oath_choice = input(H, "Choose your OATH.", "PROFESS YOUR BLESSINGS.") as anything in oaths
+			var/oath_choice = H.client ? (input(H, "Choose your OATH.", "PROFESS YOUR BLESSINGS.") as anything in oaths) : oaths[1]
 			switch(oath_choice)
 				if("Cleric - Medicine & Mirth")
 					H.adjust_skillrank_up_to(/datum/skill/misc/medicine, SKILL_LEVEL_APPRENTICE, TRUE)
 					beltl = /obj/item/reagent_containers/glass/bottle/rogue/healthpot //No needles or cloth, but a basic potion of lifeblood - similar to the Sorcerer's manna potion. Take the 'Physician's Apprentice' virtue for that, uncapped skills, and more.
 				if("Crusader - Silver Weapon")
 					var/crusaderweapon = list("Silver Longsword", "Silver Mace", "Silver Flail", "Silver Greatflail, 13 STR MIN", "Silver Spear", "Silver Axe", "Silver Whip", "Silver Urumi")
-					var/crusaderweapon_choice = input(H, "Choose your silver weapon, Crusader!") as anything in crusaderweapon
+					var/crusaderweapon_choice = H.client ? (input(H, "Choose your silver weapon, Crusader!") as anything in crusaderweapon) : crusaderweapon[1]
 					switch(crusaderweapon_choice)
 						if("Silver Longsword")
 							H.adjust_skillrank_up_to(/datum/skill/combat/swords, SKILL_LEVEL_JOURNEYMAN, TRUE)
@@ -360,7 +360,7 @@
 							l_hand = /obj/item/rogueweapon/whip/urumi/silver // Die, monster! You don't belong in this world!
 		else
 			var/denominations = list("ENDURING, AS HE DOES - FAITH", "VEYLED, LIKE HIS MARTYRS - ARMOUR")
-			var/denomination_choice = input("Choose your DENOMINATION.", "YOUR FAITH IN HIM.") as anything in denominations
+			var/denomination_choice = H.client ? (input(H, "Choose your DENOMINATION.", "YOUR FAITH IN HIM.") as anything in denominations) : denominations[1]
 			switch(denomination_choice)
 				if("ENDURING, AS HE DOES - FAITH")
 					C.grant_miracles(H, cleric_tier = CLERIC_T2, passive_gain = CLERIC_REGEN_MINOR, devotion_limit = CLERIC_REQ_2)
@@ -373,7 +373,7 @@
 					ADD_TRAIT(H, TRAIT_HEAVYARMOR, TRAIT_GENERIC) //Basically a bit more flavourful Knight Errant, so may as very well give HEAVYARMOR
 					armor = /obj/item/clothing/suit/roguetown/armor/chainmail/hauberk/ornate
 	var/weapons = list("Longsword","Mace","Flail","Whip","Urumi","Spear","Axe")
-	var/weapon_choice = input(H, "Choose your WEAPON.", "TAKE UP YOUR GOD'S ARMS.") as anything in weapons
+	var/weapon_choice = H.client ? (input(H, "Choose your WEAPON.", "TAKE UP YOUR GOD'S ARMS.") as anything in weapons) : weapons[1]
 	switch(weapon_choice)
 		if("Longsword")
 			H.adjust_skillrank_up_to(/datum/skill/combat/swords, SKILL_LEVEL_JOURNEYMAN, TRUE)

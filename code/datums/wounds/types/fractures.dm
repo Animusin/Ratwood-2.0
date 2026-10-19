@@ -211,7 +211,7 @@
 	)
 	mortal = FALSE
 	whp = 50
-	bleed_rate = 3				//Lower than others, still bad though. 
+	bleed_rate = 3				//Lower than others, still bad though.
 	clotting_threshold = 0.3	//Slightly higher still
 	clotting_rate = 0.1			//Slower clotting, not bad though for bleeder wound.
 

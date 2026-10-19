@@ -75,7 +75,7 @@
 		if(client)
 			var/virgin = 1	//has the text been modified yet?
 			var/temp = winget(client, "input", "text")
-			if(findtextEx_char(temp, "Say \"", 1, 7) && length(temp) > 5)	//"case sensitive means
+			if(findtextEx_char(temp, "Say \"", 1, 7) && length_char(temp) > 5)	//"case sensitive means
 
 				temp = replacetext(temp, ";", "")	//general radio
 
@@ -94,7 +94,7 @@
 					return
 
 				var/trimmed = trim_left(temp)
-				if(length(trimmed))
+				if(length_char(trimmed))
 					if(append)
 						temp += pick(append)
 
@@ -107,7 +107,7 @@
 		send_voice(message)
 
 /mob/living/carbon/human/proc/send_voice(message, skip_thingy)
-	if(!message || !length(message))
+	if(!message || !length_char(message))
 		return
 	if(dna.species)
 		dna.species.send_voice(src)

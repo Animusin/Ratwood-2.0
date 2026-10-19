@@ -5,6 +5,8 @@
 	var/blood_output = 1
 	var/blood_pool = 0
 	var/max_blood_pool = 20000
+	var/mutable_appearance/current_blood_overlay
+	var/current_blood_overlay_chunk = 0
 	var/happiness = 0
 	// True by default, some quirks can make the beast dissatisfied.
 	var/satisfied = TRUE
@@ -171,6 +173,9 @@
 /datum/component/chimeric_heart_beast/Destroy()
 	STOP_PROCESSING(SSobj, src)
 	UnregisterSignal(heart_beast, list(COMSIG_HEART_BEAST_HEAR, COMSIG_ATOM_ATTACK_HAND))
+	if(current_blood_overlay)
+		heart_beast.cut_overlay(current_blood_overlay)
+		current_blood_overlay = null
 	. = ..()
 
 /datum/component/chimeric_heart_beast/proc/update_blood_output()
@@ -202,11 +207,19 @@
 
 /datum/component/chimeric_heart_beast/proc/update_blood_overlay()
 	var/blood_percent = blood_pool / max_blood_pool
-	heart_beast.cut_overlays()
-
 	var/chunk = round(blood_percent * 5) // This gives us 0-5
+
+	if(chunk == current_blood_overlay_chunk)
+		return
+
+	if(current_blood_overlay)
+		heart_beast.cut_overlay(current_blood_overlay)
+		current_blood_overlay = null
+
+	current_blood_overlay_chunk = chunk
 	if(chunk >= 1)
-		heart_beast.add_overlay(mutable_appearance('icons/obj/structures/heart_beast.dmi', "blood_[chunk]"))
+		current_blood_overlay = mutable_appearance('icons/obj/structures/heart_beast.dmi', "blood_[chunk]")
+		heart_beast.add_overlay(current_blood_overlay)
 
 /datum/component/chimeric_heart_beast/proc/generate_new_task()
 	if(next_task)

@@ -216,14 +216,21 @@ SUBSYSTEM_DEF(ticker)
 				tipped = TRUE
 
 			if(timeLeft <= 0)
-				if(!checkreqroles())
+				var/ready_to_start = checkreqroles() && totalPlayersReady >= 1
+#ifdef UNIT_TESTS
+				// CI has no clients; roundstart callbacks must still run the tests.
+				ready_to_start = TRUE
+#endif
+				if(!ready_to_start)
 					current_state = GAME_STATE_STARTUP
-					start_at = world.time + 600
+					start_at = world.time + 6000
 					timeLeft = null
+					start_immediately = FALSE
 					Master.SetRunLevel(RUNLEVEL_LOBBY)
 				else
 					current_state = GAME_STATE_SETTING_UP
 					Master.SetRunLevel(RUNLEVEL_SETUP)
+					job_change_locked = TRUE
 					if(start_immediately)
 						fire()
 
@@ -303,7 +310,7 @@ SUBSYSTEM_DEF(ticker)
 				player.playsound_local(player, 'sound/music/wartitle.ogg', 100, TRUE)
 		return FALSE
 	*/
-	job_change_locked = TRUE
+	//job_change_locked = TRUE
 	return TRUE
 
 /datum/controller/subsystem/ticker
@@ -478,8 +485,12 @@ SUBSYSTEM_DEF(ticker)
 			message_admins("THERES A MIND LACKING PLAYER IN THE NEW_PLAYER_LIST, REPORT IT TO RATWOOD DEVELOPMENT STAFF NOW!")
 			continue
 		if(player.ready == PLAYER_READY_TO_PLAY)
-			GLOB.joined_player_list += player.ckey
-			player.create_character(FALSE)
+			if(player.create_character(FALSE))
+				GLOB.joined_player_list += player.ckey
+			else
+				SSjob.release_failed_spawn(player)
+				if(!QDELETED(player))
+					player.new_player_panel()
 		else
 			player.new_player_panel()
 		CHECK_TICK

@@ -1,0 +1,4 @@
+author: "sigmaboy124124"
+delete-after: True
+changes:
+  - qol: "Chaotic Token verb is now visible in the OOC tab instead of being a hidden .chaotic-token command"

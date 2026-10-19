@@ -6,6 +6,7 @@
 	faction = "Station"
 	total_positions = 6
 	spawn_positions = 6
+	whitelist_req = FALSE
 
 	allowed_races = ACCEPTED_RACES
 	allowed_ages = ALL_AGES_LIST

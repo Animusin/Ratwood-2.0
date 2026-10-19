@@ -942,7 +942,7 @@
 
 		for(var/datum/job/job in SSjob.occupations)
 			if(job.title == Add)
-				job.total_positions += 1
+				job.set_admin_position_limit(max(job.current_positions, job.get_position_limit(TRUE)) + 1)
 				break
 
 		src.manage_free_slots()
@@ -956,13 +956,11 @@
 
 		for(var/datum/job/job in SSjob.occupations)
 			if(job.title == Add)
-				var/newtime = null
-				newtime = input(usr, "How many jebs do you want?", "Add wanted posters", "[newtime]") as num|null
-				if(!newtime)
-					to_chat(src.owner, "Setting to amount of positions filled for the job")
-					job.total_positions = job.current_positions
+				var/new_limit = input(usr, "Total slots for this job (-1 for unlimited):", "Manage Job Slots", job.get_position_limit(TRUE)) as num|null
+				if(isnull(new_limit))
 					break
-				job.total_positions = newtime
+				job.set_admin_position_limit(new_limit)
+				break
 
 		src.manage_free_slots()
 
@@ -973,8 +971,8 @@
 		var/Remove = href_list["removejobslot"]
 
 		for(var/datum/job/job in SSjob.occupations)
-			if(job.title == Remove && job.total_positions - job.current_positions > 0)
-				job.total_positions -= 1
+			if(job.title == Remove && job.get_position_limit(TRUE) > job.current_positions)
+				job.set_admin_position_limit(job.get_position_limit(TRUE) - 1)
 				break
 
 		src.manage_free_slots()
@@ -987,7 +985,7 @@
 
 		for(var/datum/job/job in SSjob.occupations)
 			if(job.title == Unlimit)
-				job.total_positions = -1
+				job.set_admin_position_limit(-1)
 				break
 
 		src.manage_free_slots()
@@ -1000,9 +998,17 @@
 
 		for(var/datum/job/job in SSjob.occupations)
 			if(job.title == Limit)
-				job.total_positions = job.current_positions
+				job.set_admin_position_limit(job.current_positions)
 				break
 
+		src.manage_free_slots()
+
+	else if(href_list["resetjobslot"])
+		if(!check_rights(R_ADMIN))
+			return
+		var/datum/job/job = SSjob.GetJob(href_list["resetjobslot"])
+		if(job)
+			job.reset_admin_position_limit()
 		src.manage_free_slots()
 
 	else if(href_list["adminsmite"])

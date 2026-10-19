@@ -234,6 +234,7 @@ SAVEFILE UPDATING/VERSIONING - 'Simplified', or rather, more coder-friendly ~Car
 	S["see_chat_non_mob"] 	>> see_chat_non_mob
 	S["tgui_fancy"]			>> tgui_fancy
 	S["tgui_lock"]			>> tgui_lock
+	S["buildmode_auto_open"] >> buildmode_auto_open
 	S["tgui_theme"]			>> tgui_theme
 	S["parchment_skin"]		>> parchment_skin
 	S["buttons_locked"]		>> buttons_locked
@@ -314,6 +315,8 @@ SAVEFILE UPDATING/VERSIONING - 'Simplified', or rather, more coder-friendly ~Car
 	// Patreon-dependent settings
 	S["patreon_say_color"]			>> patreon_say_color
 	S["patreon_say_color_enabled"]	>> patreon_say_color_enabled
+	S["donation_ooc_color_enabled"]	>> donation_ooc_color_enabled
+	S["donation_ooc_font_size_enabled"]	>> donation_ooc_font_size_enabled
 
 	// Custom hotkeys
 	S["key_bindings"]		>> key_bindings
@@ -339,6 +342,7 @@ SAVEFILE UPDATING/VERSIONING - 'Simplified', or rather, more coder-friendly ~Car
 	see_chat_non_mob	= sanitize_integer(see_chat_non_mob, 0, 1, initial(see_chat_non_mob))
 	tgui_fancy		= sanitize_integer(tgui_fancy, 0, 1, initial(tgui_fancy))
 	tgui_lock		= sanitize_integer(tgui_lock, 0, 1, initial(tgui_lock))
+	buildmode_auto_open = sanitize_integer(buildmode_auto_open, 0, 1, initial(buildmode_auto_open))
 	tgui_theme		= sanitize_text(tgui_theme, initial(tgui_theme))
 	parchment_skin	= sanitize_parchment_skin(parchment_skin)
 	buttons_locked	= sanitize_integer(buttons_locked, 0, 1, initial(buttons_locked))
@@ -372,6 +376,8 @@ SAVEFILE UPDATING/VERSIONING - 'Simplified', or rather, more coder-friendly ~Car
 	ambiencevol = sanitize_integer(ambiencevol, 0, 100, initial(ambiencevol))
 	mastervol = sanitize_integer(mastervol, 0, 100, initial(mastervol))
 	hide_unavailable_emotes = sanitize_integer(hide_unavailable_emotes, 0, 1, initial(hide_unavailable_emotes))
+	donation_ooc_color_enabled = sanitize_integer(donation_ooc_color_enabled, 0, 1, initial(donation_ooc_color_enabled))
+	donation_ooc_font_size_enabled = sanitize_integer(donation_ooc_font_size_enabled, 0, 1, initial(donation_ooc_font_size_enabled))
 
 	//ROGUETOWN
 	parallax = PARALLAX_INSANE
@@ -476,6 +482,7 @@ SAVEFILE UPDATING/VERSIONING - 'Simplified', or rather, more coder-friendly ~Car
 	WRITE_FILE(S["see_chat_non_mob"], see_chat_non_mob)
 	WRITE_FILE(S["tgui_fancy"], tgui_fancy)
 	WRITE_FILE(S["tgui_lock"], tgui_lock)
+	WRITE_FILE(S["buildmode_auto_open"], buildmode_auto_open)
 	WRITE_FILE(S["tgui_theme"], tgui_theme)
 	WRITE_FILE(S["parchment_skin"], parchment_skin)
 	WRITE_FILE(S["buttons_locked"], buttons_locked)
@@ -511,6 +518,8 @@ SAVEFILE UPDATING/VERSIONING - 'Simplified', or rather, more coder-friendly ~Car
 	WRITE_FILE(S["runmode"], runmode)
 	WRITE_FILE(S["patreon_say_color"], patreon_say_color)
 	WRITE_FILE(S["patreon_say_color_enabled"], patreon_say_color_enabled)
+	WRITE_FILE(S["donation_ooc_color_enabled"], donation_ooc_color_enabled)
+	WRITE_FILE(S["donation_ooc_font_size_enabled"], donation_ooc_font_size_enabled)
 	WRITE_FILE(S["compliance_notifs"], compliance_notifs)
 	WRITE_FILE(S["skillcap_notifs"], skillcap_notifs)
 

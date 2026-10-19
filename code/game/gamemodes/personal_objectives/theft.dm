@@ -19,6 +19,8 @@
 	SIGNAL_HANDLER
 	if(completed)
 		return
+	if(victim == owner.current)
+		return
 
 	stolen_count++
 	if(stolen_count >= required_count)

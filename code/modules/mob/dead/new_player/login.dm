@@ -1,4 +1,6 @@
 /mob/dead/new_player/Login()
+	// Returning during class selection must not carry that old body's selector into the lobby.
+	SSrole_class_handler.cancel_class_handler(ckey)
 	if(CONFIG_GET(flag/use_exp_tracking))
 		client.set_exp_from_db()
 		client.set_db_player_flags()
@@ -32,6 +34,8 @@
 	if(GLOB.rogue_round_id)
 		to_chat(src, span_info("ROUND ID: [GLOB.rogue_round_id]"))
 
+	client.sync_donation_info()
+
 	if(client.is_new_player())
 		to_chat(src, span_userdanger("Due to an invasion of goblins trying to play ROGUETOWN, you need to register your discord account or support us on patreon to join."))
 		to_chat(src, span_info("We dislike discord too, but it's necessary. To register your discord or patreon, please click the 'Register' tab in the top right of the window, and then choose one of the options."))
@@ -51,19 +55,26 @@
 			if(5)
 				shown_patreon_level = "Lord"
 		to_chat(src, span_info("Donator Level: [shown_patreon_level]"))
+	if(client.donation_info_loaded)
+		to_chat(src, span_info("Opyxes: [client.opyxes]"))
+		to_chat(src, span_info("Donator Tier: [donation_tier_display_name(client.donation_tier)]"))
+	else if(!client.donation_database_available())
+		to_chat(src, span_warning("Donation DB is not connected."))
 	client.changelog()
 
-	var/primary_server = "byond://ratwood.rip:22096"
-	var/secondary_server = "byond://ratwood.rip:22099"
+	var/server_address = CONFIG_GET(string/server)
+	var/primary_server = server_address ? "byond://[server_address]" : null
+	var/secondary_server = server_address ? "byond://[server_address]" : null
 	var/link_style = "color:#638500;text-decoration:underline;"
 
-	if(world.port == 22096)
-		to_chat(src, "<span style='color:#638500;'>Secondary Server: [secondary_server] <a href='?src=[REF(src)];join_server=secondary' style='[link_style]'><b>(JOIN)</b></a></span>")
-	else if(world.port == 22099)
-		to_chat(src, "<span style='color:#638500;'>Primary Server: [primary_server] <a href='?src=[REF(src)];join_server=primary' style='[link_style]'><b>(JOIN)</b></a></span>")
-	else
-		to_chat(src, "<span style='color:#638500;'>Primary Server: [primary_server] <a href='?src=[REF(src)];join_server=primary' style='[link_style]'><b>(JOIN)</b></a></span>")
-		to_chat(src, "<span style='color:#638500;'>Secondary Server: [secondary_server] <a href='?src=[REF(src)];join_server=secondary' style='[link_style]'><b>(JOIN)</b></a></span>")
+	if(server_address)
+		if(world.port == 22096)
+			to_chat(src, "<span style='color:#638500;'>Secondary Server: [secondary_server] <a href='?src=[REF(src)];join_server=secondary' style='[link_style]'><b>(JOIN)</b></a></span>")
+		else if(world.port == 22099)
+			to_chat(src, "<span style='color:#638500;'>Primary Server: [primary_server] <a href='?src=[REF(src)];join_server=primary' style='[link_style]'><b>(JOIN)</b></a></span>")
+		else
+			to_chat(src, "<span style='color:#638500;'>Primary Server: [primary_server] <a href='?src=[REF(src)];join_server=primary' style='[link_style]'><b>(JOIN)</b></a></span>")
+			to_chat(src, "<span style='color:#638500;'>Secondary Server: [secondary_server] <a href='?src=[REF(src)];join_server=secondary' style='[link_style]'><b>(JOIN)</b></a></span>")
 
 	to_chat(src, "<a href='?src=[REF(src)];open_changelog=1' style='color:#638500;text-decoration:underline;'><b>Open Changelog</b></a>")
 

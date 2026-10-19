@@ -18,6 +18,9 @@
 		to_chat(src, span_warning("Someone is grabbing my arm!"))
 		return
 
+	if(!used_intent) // no active intent means nothing to attack with; guards against null deref below
+		return
+
 	// Special glove functions:
 	// If the gloves do anything, have them return 1 to stop
 	// normal attack_hand() here.

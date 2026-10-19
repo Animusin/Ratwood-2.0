@@ -1,5 +1,5 @@
-ERROR. Lux interface failure. Please, +kill me+... Interface reset.
-Lay down your arms and submit yourself for Lux harvesting.
-Warning. This is a restricted area, you will be purged in Her name.
-Running causes accidents. Remain still during cleansing protocol.
-You are becoming hysterical
+ОШИБКА. Ошибка интерфейса. Пожалуйста, +убейте меня+... Интерфейс перезагружен.
+Сложи своё оружие и приготовь себя для жатвы.
+Предупреждение. Вы находитесь на запретной территории, Вы будете уничтожены во имя Её.
+Бег приводит к несчастным случаям. Оставайтесь неподвижны во время протокола очищения.
+Ты теряешь самообладание

@@ -9,6 +9,9 @@
 	addtimer(CALLBACK(src, PROC_REF(set_up), H), 30 SECONDS)
 
 /datum/charflaw/lawless/proc/set_up(mob/living/carbon/human/H)
+	if(!ishuman(H) || QDELETED(H) || !H.client)
+		return
+
 	if (has_bounty(H) || (H.job && H.job == "Wretch") || (H.advjob && H.advjob == "Wanted") || (H.job && H.job == "Bandit"))
 		// no doubling up on this stuff, you just get a random flaw instead.
 		var/list/flaws_without_random = GLOB.character_flaws.Copy()
@@ -27,8 +30,14 @@
 		addtimer(CALLBACK(src, PROC_REF(set_up), H), 30 SECONDS)
 		return
 	var/face_known = input(H, "Is your face known to the authorities?", "Visbility Status") as anything in list ("They know my face", "They know only my features")
+	if(QDELETED(H) || !H.client)
+		return
 	var/bounty_poster = input(H, "Who placed a bounty on you?", "Bounty Poster") as anything in list("The Justiciary of [SSmapping.map_adjustment.realm_name]", "The Grenzelhoftian Holy See", "The Otavan Orthodoxy")
+	if(QDELETED(H) || !H.client)
+		return
 	var/bounty_severity = input(H, "How severe are your crimes?", "Bounty Amount") as anything in list("Misdeed", "Harm towards lyfe", "Horrific atrocities")
+	if(QDELETED(H) || !H.client)
+		return
 	var/race = H.dna.species
 	var/gender = H.gender
 	var/list/d_list = H.get_mob_descriptors()
@@ -44,6 +53,8 @@
 		if("Horrific atrocities")
 			bounty_total = rand(150, 200)
 	var/my_crime = input(H, "What is your crime?", "Crime") as text|null
+	if(QDELETED(H) || !H.client)
+		return
 	if (!my_crime)
 		my_crime = "crimes against the Crown"
 	add_bounty(H.real_name, race, gender, descriptor_height, descriptor_body, descriptor_voice, bounty_total, FALSE, my_crime, bounty_poster)

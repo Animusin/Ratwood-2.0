@@ -33,33 +33,87 @@
 	mouse_opacity = MOUSE_OPACITY_TRANSPARENT
 	appearance_flags = NO_CLIENT_COLOR
 	var/blood_timer
+	var/is_dry = FALSE
+	/// Highest observed bleed rate category among sources added to this decal.
+	var/forensic_bleed_severity = FORENSIC_BLEED_UNKNOWN
+	/// Further identities were discarded after reaching the per-decal forensic sample cap.
+	var/blood_samples_overflow = FALSE
+	var/counted_as_forensic_blood_decal = FALSE
 
 /obj/effect/decal/cleanable/blood/Initialize(mapload)
+	counted_as_forensic_blood_decal = TRUE
+	GLOB.active_forensic_blood_decals++
+	if(GLOB.active_forensic_blood_decals >= FORENSIC_BLOOD_DECAL_WARNING_THRESHOLD && world.time >= GLOB.next_forensic_blood_decal_warning)
+		GLOB.next_forensic_blood_decal_warning = world.time + 10 MINUTES
+		message_admins("FORENSICS: [GLOB.active_forensic_blood_decals] active blood decals are present; investigate blood decal accumulation if this keeps rising.")
 	. = ..()
 	GLOB.weather_act_upon_list += src
 	if(. == INITIALIZE_HINT_QDEL)
 		return .
 	pixel_x = rand(-5,5)
 	pixel_y = rand(5,5)
-	blood_timer = addtimer(CALLBACK(src, PROC_REF(become_dry)), rand(5 MINUTES,8 MINUTES), TIMER_STOPPABLE)
+	if(!is_dry)
+		blood_timer = addtimer(CALLBACK(src, PROC_REF(become_dry)), rand(5 MINUTES,8 MINUTES), TIMER_STOPPABLE)
+
+/obj/effect/decal/cleanable/blood/add_blood_DNA(list/dna)
+	if(!length(dna))
+		return FALSE
+	var/list/current_blood = return_blood_DNA()
+	var/current_sample_count = length(current_blood)
+	var/list/accepted_blood = list()
+	for(var/dna_key in dna)
+		if(current_blood && (dna_key in current_blood))
+			accepted_blood[dna_key] = dna[dna_key]
+			continue
+		if(current_sample_count >= FORENSIC_MAX_BLOOD_SAMPLES)
+			blood_samples_overflow = TRUE
+			continue
+		accepted_blood[dna_key] = dna[dna_key]
+		current_sample_count++
+	if(!length(accepted_blood))
+		return FALSE
+	return ..(accepted_blood)
+
+/obj/effect/decal/cleanable/blood/add_mob_blood(mob/living/source)
+	. = ..()
+	if(!.)
+		return
+	var/bleed_rate = source.get_bleed_rate()
+	var/severity = FORENSIC_BLEED_MINOR
+	if(bleed_rate >= ARTERY_LIMB_BLEEDRATE)
+		severity = FORENSIC_BLEED_SEVERE
+	else if(bleed_rate >= 5)
+		severity = FORENSIC_BLEED_SIGNIFICANT
+	forensic_bleed_severity = max(forensic_bleed_severity, severity)
 
 
 /obj/effect/decal/cleanable/blood/proc/become_dry()
+	blood_timer = null
 	if(QDELETED(src))
 		return
 	name = "dry [initial(name)]"
 	color = "#967c69"
 	bloodiness = 0
+	is_dry = TRUE
 
 /obj/effect/decal/cleanable/blood/replace_decal(obj/effect/decal/cleanable/C)
 	. = ..()
 	if(C)
-		C.alpha = initial(alpha)
-		C.bloodiness = initial(bloodiness)
-		C.name = initial(name)
-		C.color = initial(color)
+		var/obj/effect/decal/cleanable/blood/existing_blood = C
+		existing_blood.alpha = initial(alpha)
+		existing_blood.bloodiness = initial(bloodiness)
+		existing_blood.name = initial(name)
+		existing_blood.color = initial(color)
+		existing_blood.is_dry = initial(is_dry)
+		deltimer(existing_blood.blood_timer)
+		existing_blood.blood_timer = null
+		if(!existing_blood.is_dry)
+			existing_blood.blood_timer = addtimer(CALLBACK(existing_blood, PROC_REF(become_dry)), rand(5 MINUTES,8 MINUTES), TIMER_STOPPABLE)
 
 /obj/effect/decal/cleanable/blood/Destroy()
+	if(counted_as_forensic_blood_decal)
+		GLOB.active_forensic_blood_decals = max(0, GLOB.active_forensic_blood_decals - 1)
+		counted_as_forensic_blood_decal = FALSE
 	GLOB.weather_act_upon_list -= src
 	deltimer(blood_timer)
 	blood_timer = null
@@ -75,10 +129,16 @@
 	desc = ""
 	bloodiness = 0
 	icon_state = "floor1-old"
+	is_dry = TRUE
 
 /obj/effect/decal/cleanable/blood/old/Initialize(mapload)
 	add_blood_DNA(list("Non-human DNA" = random_blood_type())) // Needs to happen before ..()
 	. = ..()
+	if(. == INITIALIZE_HINT_QDEL)
+		return .
+	deltimer(blood_timer)
+	blood_timer = null
+	is_dry = TRUE
 	icon_state = "[icon_state]-old" //change from the normal blood icon selected from random_icon_states in the parent's Initialize to the old dried up blood.
 
 /obj/effect/decal/cleanable/blood/splatter

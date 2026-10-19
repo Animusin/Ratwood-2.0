@@ -2,6 +2,7 @@
 	title = "Gnoll"
 	flag = GNOLL
 	antag_job = TRUE
+	admin_slot_antag_type = /datum/antagonist/gnoll
 	faction = "Station"
 	total_positions = 0
 	spawn_positions = 0
@@ -11,7 +12,7 @@
 	outfit_female = null
 	display_order = JDO_GNOLL
 	show_in_credits = TRUE
-	min_pq = 30 //Same as wretches for now
+	min_pq = 50
 	max_pq = null
 
 	obsfuscated_job = TRUE
@@ -33,6 +34,12 @@
 		/datum/advclass/gnoll/templar,
 		/datum/advclass/gnoll/shaman,
 	)
+
+/datum/job/roguetown/gnoll/New()
+	. = ..()
+	if(CONFIG_GET(string/round_modifier_policy) == "ratwood")
+		total_positions = 2
+		spawn_positions = 2
 
 /datum/job/roguetown/gnoll/after_spawn(mob/living/L, mob/M, latejoin = TRUE)
 	..()
@@ -260,4 +267,3 @@
 	mob_examine_panel.holder = tracked_target
 	mob_examine_panel.viewing = src
 	mob_examine_panel.ui_interact(src)
-

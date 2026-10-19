@@ -1399,13 +1399,13 @@
 
 /datum/emote/living/custom/proc/check_invalid(mob/user, input)
 	. = TRUE
-	if(copytext(input,1,5) == "says")
+	if(copytext_char(input,1,5) == "says")
 		to_chat(user, span_danger("Invalid emote."))
-	else if(copytext(input,1,9) == "exclaims")
+	else if(copytext_char(input,1,9) == "exclaims")
 		to_chat(user, span_danger("Invalid emote."))
-	else if(copytext(input,1,6) == "yells")
+	else if(copytext_char(input,1,6) == "yells")
 		to_chat(user, span_danger("Invalid emote."))
-	else if(copytext(input,1,5) == "asks")
+	else if(copytext_char(input,1,5) == "asks")
 		to_chat(user, span_danger("Invalid emote."))
 	else
 		. = FALSE
@@ -1422,7 +1422,7 @@
 		to_chat(user, span_boldwarning("I cannot send IC messages (muted)."))
 		return FALSE
 	else if(!params)
-		var/custom_emote = copytext(sanitize(input("What does your character do?") as text|null), 1, MAX_MESSAGE_LEN)
+		var/custom_emote = copytext_char(sanitize(input("What does your character do?") as text|null), 1, MAX_MESSAGE_LEN)
 		if(custom_emote && !check_invalid(user, custom_emote))
 /*			var/type = input("Is this a visible or hearable emote?") as null|anything in list("Visible", "Hearable")
 			switch(type)

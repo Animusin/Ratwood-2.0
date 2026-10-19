@@ -62,6 +62,7 @@
 		/obj/item/bodypart/taur/sloog,
 		/obj/item/bodypart/taur/ant,
 		/obj/item/bodypart/taur/wasp,
+		/obj/item/bodypart/taur/arachne,
 		/obj/item/bodypart/taur/insect
 	)
 

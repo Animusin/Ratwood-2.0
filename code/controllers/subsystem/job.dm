@@ -73,11 +73,71 @@ SUBSYSTEM_DEF(job)
 		SetupOccupations()
 	return type_occupations[jobtype]
 
+/// Antagonist weight reserved by roundstart job assignments. Their antagonist datums do not exist yet.
+/datum/controller/subsystem/job/proc/get_roundstart_antag_weight()
+	. = 0
+	for(var/datum/job/job as anything in occupations)
+		if(job.antag_job && job.current_positions > 0)
+			. += job.current_positions * job.antag_cap_weight
+
+/datum/controller/subsystem/job/proc/can_assign_antag_job(datum/job/job)
+	if(!job?.antag_job || !SSgamemode)
+		return TRUE
+	if(SSticker.HasRoundStarted() && job.admin_slot_antag_type && job.admin_antag_slots > 0)
+		return TRUE
+	if(SSgamemode.antagonists_disabled)
+		return FALSE
+	if(!SSticker.HasRoundStarted())
+		return job.antag_cap_weight <= SSgamemode.get_remaining_antag_capacity(get_roundstart_antag_weight())
+	return job.antag_cap_weight <= SSgamemode.get_remaining_antag_capacity()
+
+/// The slot limit shown in latejoin. Real antagonist jobs share the storyteller capacity,
+/// so their visible limit is their occupied slots plus however many still fit in that capacity.
+/datum/controller/subsystem/job/proc/get_latejoin_position_limit(datum/job/job, remaining_antag_capacity = null)
+	if(!job)
+		return 0
+	var/job_position_limit = job.get_position_limit(TRUE)
+	var/bonus_slots = SSticker.HasRoundStarted() && job.admin_slot_antag_type ? job.admin_antag_slots : 0
+	if(job.antag_job && SSgamemode?.antagonists_disabled)
+		if(!bonus_slots)
+			return 0
+		return job_position_limit < 0 ? job.current_positions + bonus_slots : min(job_position_limit, job.current_positions + bonus_slots)
+	if(job.antag_job && isnull(remaining_antag_capacity) && SSgamemode)
+		remaining_antag_capacity = SSgamemode.get_remaining_antag_capacity()
+	if(!job.antag_job || job.antag_cap_weight <= 0 || isnull(remaining_antag_capacity))
+		return job_position_limit
+	var/remaining_positions = FLOOR(max(remaining_antag_capacity, 0) / job.antag_cap_weight, 1)
+	var/cap_position_limit = job.current_positions + remaining_positions + bonus_slots
+	if(job_position_limit < 0)
+		return cap_position_limit
+	return min(job_position_limit, cap_position_limit)
+
+/// Per-player slot availability; a subscriber does not increase the cap for everyone.
+/datum/controller/subsystem/job/proc/has_available_position(datum/job/job, mob/player, latejoin = FALSE, refresh = FALSE)
+	if(!job || QDELETED(player) || !player.client)
+		return FALSE
+	if(latejoin && job.bypass_latejoin_position_limit)
+		return TRUE
+	var/position_limit = latejoin ? get_latejoin_position_limit(job) : job.get_position_limit(FALSE)
+	if(position_limit == -1 || job.current_positions < position_limit)
+		return TRUE
+	// Zero slots is an explicit closure, not merely a full job.
+	if(position_limit <= 0)
+		return FALSE
+	var/can_bypass = job.can_bypass_position_limit(player.client, refresh)
+	if(QDELETED(player) || !player.client)
+		return FALSE
+	// A subscription refresh may yield; recompute live slots afterwards.
+	position_limit = latejoin ? get_latejoin_position_limit(job) : job.get_position_limit(FALSE)
+	return position_limit == -1 || job.current_positions < position_limit || (position_limit > 0 && can_bypass)
+
 /datum/controller/subsystem/job/proc/AssignRole(mob/player, rank, latejoin = FALSE)
 	JobDebug("Running AR, Player: [player], Rank: [rank], LJ: [latejoin]")
 	if(player && player.mind && rank)
 		var/datum/job/job = GetJob(rank)
 		if(!job)
+			return FALSE
+		if(CONFIG_GET(flag/usewhitelist) && job.whitelist_req && !player.client.has_whitelist_access())
 			return FALSE
 		if(is_banned_from(player.ckey, rank) || QDELETED(player))
 			return FALSE
@@ -85,15 +145,21 @@ SUBSYSTEM_DEF(job)
 			return FALSE
 		if(job.required_playtime_remaining(player.client))
 			return FALSE
-		var/position_limit = job.total_positions
-		if(!latejoin)
-			position_limit = job.spawn_positions
+		if(!can_assign_antag_job(job))
+			return FALSE
+		if((latejoin || job.supports_scientist_slot_bypass()) && !has_available_position(job, player, latejoin, TRUE))
+			return FALSE
+		var/position_limit = latejoin ? get_latejoin_position_limit(job) : job.get_position_limit(FALSE)
+		if(job.triumph_entry_cost && SStriumphs.get_triumphs(player.ckey) < job.triumph_entry_cost)
+			return FALSE
 		JobDebug("Player: [player] is now Rank: [rank], JCP:[job.current_positions], JPL:[position_limit]")
 		if(player.mind.assigned_role)
 			var/datum/job/old_job = SSjob.GetJob(player.mind.assigned_role)
 			if(old_job)
 				old_job.current_positions = max(old_job.current_positions - 1, 0)
 		player.mind.assigned_role = rank
+		if(latejoin && claim_admin_antag_slot(job, player.mind))
+			log_admin("[key_name(player)] claimed a cap-exempt [rank] slot ([job.admin_antag_slots] remaining).")
 		unassigned -= player
 		job.current_positions++
 		if(!latejoin)
@@ -113,6 +179,28 @@ SUBSYSTEM_DEF(job)
 	JobDebug("AR has failed, Player: [player], Rank: [rank]")
 	return FALSE
 
+
+/// Return a reserved slot when character creation cannot complete.
+/datum/controller/subsystem/job/proc/release_failed_spawn(mob/dead/new_player/player)
+	if(QDELETED(player) || !player.mind)
+		return
+	var/datum/job/job = GetJob(player.mind.assigned_role)
+	if(job)
+		job.current_positions = max(0, job.current_positions - 1)
+		if(player.mind.admin_slot_antag_type == job.admin_slot_antag_type && job.admin_slot_antag_type)
+			job.admin_antag_slots++
+			player.mind.admin_slot_antag_type = null
+	player.mind.assigned_role = null
+	player.ready = PLAYER_NOT_READY
+	player.spawning = FALSE
+
+/// Reserve before character creation, so even antagonist datums added by outfits see the exemption.
+/datum/controller/subsystem/job/proc/claim_admin_antag_slot(datum/job/job, datum/mind/player)
+	if(!SSticker.HasRoundStarted() || !job?.admin_slot_antag_type || job.admin_antag_slots <= 0 || QDELETED(player))
+		return FALSE
+	job.admin_antag_slots--
+	player.admin_slot_antag_type = job.admin_slot_antag_type
+	return TRUE
 
 /datum/controller/subsystem/job/proc/FindOccupationCandidates(datum/job/job, level, flag)
 	JobDebug("Running FOC, Job: [job], Level: [level], Flag: [flag]")
@@ -166,11 +254,13 @@ SUBSYSTEM_DEF(job)
 		if((player.client.prefs.lastclass == job.title) && !job.bypass_lastclass)
 			JobDebug("FOC incompatible with lastclass, Player: [player], Job: [job.title]")
 			continue
+		if(job.triumph_entry_cost && SStriumphs.get_triumphs(player.ckey) < job.triumph_entry_cost)
+			continue
 		if(!job.special_job_check(player))
 			JobDebug("FOC player did not pass special check, Player: [player], Job:[job.title]")
 			continue
 		if(CONFIG_GET(flag/usewhitelist))
-			if(job.whitelist_req && (!player.client.whitelisted()))
+			if(job.whitelist_req && !player.client.has_whitelist_access())
 				continue
 		if(player.client.prefs.job_preferences[job.title] == level)
 			JobDebug("FOC pass, Player: [player], Level:[level]")
@@ -260,18 +350,17 @@ SUBSYSTEM_DEF(job)
 			continue
 
 		if(CONFIG_GET(flag/usewhitelist))
-			if(job.whitelist_req && (!player.client.whitelisted()))
+			if(job.whitelist_req && !player.client.has_whitelist_access())
 				continue
 
 //		if((player.client.prefs.lastclass == job.title) && (!job.bypass_lastclass))
 //			JobDebug("GRJ incompatible with lastclass, Player: [player], Job: [job.title]")
 //			continue
 
-		if(job.spawn_positions)
-			if((job.current_positions < job.spawn_positions) || job.spawn_positions == -1)
-				JobDebug("GRJ Random job given, Player: [player], Job: [job]")
-				if(AssignRole(player, job.title))
-					return TRUE
+		if(has_available_position(job, player, FALSE, TRUE))
+			JobDebug("GRJ Random job given, Player: [player], Job: [job]")
+			if(AssignRole(player, job.title))
+				return TRUE
 
 /datum/controller/subsystem/job/proc/ResetOccupations()
 	JobDebug("Occupations reset.")
@@ -326,7 +415,7 @@ SUBSYSTEM_DEF(job)
 			var/datum/job/job = GetJob(noble_position)
 			if(!job)
 				continue
-			if(job.current_positions >= job.spawn_positions)
+			if(job.current_positions >= job.get_position_limit(FALSE))
 				continue
 			var/list/candidates = FindOccupationCandidates(job, level)
 			if(!candidates.len)
@@ -344,7 +433,7 @@ SUBSYSTEM_DEF(job)
 		var/datum/job/job = GetJob(noble_position)
 		if(!job)
 			continue
-		if(job.current_positions >= job.spawn_positions)
+		if(job.current_positions >= job.get_position_limit(FALSE))
 			continue
 		var/list/candidates = FindOccupationCandidates(job, level)
 		if(!candidates.len)
@@ -430,11 +519,17 @@ SUBSYSTEM_DEF(job)
 				continue
 			for(var/job_title in GLOB.villain_positions)
 				var/datum/job/villain_job = GetJob(job_title)
-				if(!villain_job || villain_job.current_positions + SSgamemode.count_queued_villains(job_title) >= villain_job.spawn_positions)
+				if(!villain_job || !villain_job.spawn_positions)
+					continue
+				var/queued_for_job = SSgamemode.count_queued_villains(job_title)
+				if(villain_job.spawn_positions > 0 && villain_job.current_positions + queued_for_job >= villain_job.spawn_positions)
 					continue
 				if(player.client.prefs.job_preferences[job_title] != level)
 					continue
 				if(is_banned_from(player.ckey, job_title))
+					continue
+				var/current_villain_weight = get_roundstart_antag_weight() + SSgamemode.get_queued_villain_weight()
+				if(!SSgamemode.can_add_antag_weight(villain_job.antag_cap_weight, current_villain_weight))
 					continue
 				SSgamemode.queued_villains[player.ckey] = job_title
 				unassigned -= player
@@ -547,7 +642,7 @@ SUBSYSTEM_DEF(job)
 					continue
 
 				if(CONFIG_GET(flag/usewhitelist))
-					if(job.whitelist_req && (!player.client.whitelisted()))
+					if(job.whitelist_req && !player.client.has_whitelist_access())
 						continue
 
 				if(length(job.allowed_ages) && !(player.client.prefs.age in job.allowed_ages))
@@ -565,11 +660,10 @@ SUBSYSTEM_DEF(job)
 				// If the player wants that job on this level, then try give it to him.
 				if(player.client.prefs.job_preferences[job.title] == level)
 					// If the job isn't filled
-					if((job.current_positions < job.spawn_positions) || job.spawn_positions == -1)
+					if(has_available_position(job, player, FALSE, TRUE))
 						testing("DO pass, Player: [player], Level:[level], Job:[job.title]")
-						AssignRole(player, job.title)
-						unassigned -= player
-						break
+						if(AssignRole(player, job.title))
+							break
 
 
 	JobDebug("DO, Handling unassigned.")
@@ -643,7 +737,7 @@ SUBSYSTEM_DEF(job)
 					continue
 
 				if(CONFIG_GET(flag/usewhitelist))
-					if(job.whitelist_req && (!player.client.whitelisted()))
+					if(job.whitelist_req && !player.client.has_whitelist_access())
 						continue
 
 				if(length(job.allowed_ages) && !(player.client.prefs.age in job.allowed_ages))
@@ -657,9 +751,8 @@ SUBSYSTEM_DEF(job)
 
 				// We only need 1 person for the required job, the rest can use the normal system
 				if((job.current_positions < 1))
-					AssignRole(player, job.title)
-					unassigned -= player
-					amt_picked++
+					if(AssignRole(player, job.title))
+						amt_picked++
 	return amt_picked
 
 /datum/controller/subsystem/job/proc/validate_required_jobs(list/required_jobs)

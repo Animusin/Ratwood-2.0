@@ -244,7 +244,7 @@
 		if(is_public)
 			to_chat(user, span_warning("This is a public vendor. Keys won't work here."))
 			return
-		if(K.lockid == lockid)
+		if(matches_lock_key(K, lockid))
 			locked = !locked
 			playsound(loc, 'sound/misc/gold_misc.ogg', 100, FALSE, -1)
 			update_icon()
@@ -257,7 +257,7 @@
 	else if(istype(P, /obj/item/storage/keyring))
 		var/right_key = FALSE
 		for(var/obj/item/roguekey/KE in P.contents)
-			if(KE.lockid == lockid)
+			if(matches_lock_key(KE, lockid))
 				if(is_public)
 					to_chat(user, span_warning("This is a public vendor. Keys won't work here."))
 					return

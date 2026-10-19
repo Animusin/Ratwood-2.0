@@ -71,6 +71,7 @@ GLOBAL_VAR_INIT(date_override_offset, 0)
 			SStreasury.tick_burgher_pledge() // Item 6 decrees: burghers' Golden Bull tribute
 			SStreasury.tick_poll_tax() // Taxation 2: collect per-class poll tax / pay subsidies
 			SStreasury.tick_rumor_points() // Quest 2: refill innkeeper rumor points for the day
+			SSmerchant_trade.ratwood_recover_market() // Ratwood: passive Navigator market relief.
 			if(SSeconomy)
 				SSeconomy.daily_tick()
 			SScity_assembly?.on_day_tick()
@@ -158,7 +159,7 @@ GLOBAL_VAR_INIT(date_override_offset, 0)
 	else if(GLOB.tod == "night")
 		playsound_local(src, 'sound/misc/nightfall.ogg', 100, FALSE)
 		var/mob/living/carbon/human/H = src
-		if(ishuman(H))
+		if(ishuman(H)) // time_flags only exists on humans; src may be a simple_animal
 			H.time_flags &= ~(TIME_OF_DAY_BIT_DAY | TIME_OF_DAY_BIT_NIGHT)
 			H.time_flags |= TIME_OF_DAY_BIT_NIGHT
 	var/atom/movable/screen/daynight/D = new()

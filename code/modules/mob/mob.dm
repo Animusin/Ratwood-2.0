@@ -58,6 +58,8 @@ GLOBAL_VAR_INIT(mobids, 1)
 		var/datum/skill_holder/my_skill = skills
 		my_skill.current = null
 		QDEL_NULL(skills)
+	// A previous form can still reference skills now owned by the restored body.
+	skills = null
 	client_colours = null
 	ghostize(drawskip=TRUE)
 	// spell/action removal must go after ghostize, so we only delete the ones not transferred by a mind
@@ -71,6 +73,8 @@ GLOBAL_VAR_INIT(mobids, 1)
 			action.Remove(src)
 	// remove any actions not transferred in ghostize or removed above
 	QDEL_LIST(actions)
+	// Ghosting and action cleanup are complete; the deleted body must not retain its mind.
+	mind = null
 	..()
 	return QDEL_HINT_QUEUE
 
@@ -155,7 +159,7 @@ GLOBAL_VAR_INIT(mobids, 1)
 	if(!client)
 		return
 
-	msg = copytext(msg, 1, MAX_MESSAGE_LEN)
+	msg = copytext_char(msg, 1, MAX_MESSAGE_LEN)
 
 	if(type)
 		if(type & MSG_VISUAL && eye_blind )//Vision related
@@ -176,7 +180,7 @@ GLOBAL_VAR_INIT(mobids, 1)
 	// voice muffling
 	if(stat == UNCONSCIOUS)
 		if(type & MSG_AUDIBLE) //audio
-			if(findtext(msg, "snores.")) //No spamming people with their own snoring.
+			if(findtext_char(msg, "snores.")) //No spamming people with their own snoring.
 				return
 			if(prob(20))
 				msg = "<span class='smallyell'>[msg]</span>"
@@ -638,7 +642,7 @@ GLOBAL_VAR_INIT(mobids, 1)
 		if (world.time < memory_throttle_time)
 			return
 		memory_throttle_time = world.time + 5 SECONDS
-		msg = copytext(msg, 1, MAX_MESSAGE_LEN)
+		msg = copytext_char(msg, 1, MAX_MESSAGE_LEN)
 		msg = sanitize(msg)
 
 		mind.store_memory(msg)
@@ -882,12 +886,12 @@ GLOBAL_VAR_INIT(mobids, 1)
 			statpanel(listed_turf.name, null, listed_turf)
 			var/list/overrides = list()
 			for(var/image/I in client.images)
-				if(I.loc && I.loc.loc == listed_turf && I.override)
+				if(I.loc && I.loc.loc == listed_turf && I.override && I.loc != pulling)
 					overrides += I.loc
 			for(var/atom/A in listed_turf)
 				if(!A.mouse_opacity)
 					continue
-				if(A.invisibility > see_invisible)
+				if(!A.is_turf_list_visible_to(src))
 					continue
 				if(overrides.len && (A in overrides))
 					continue
@@ -1468,15 +1472,15 @@ GLOBAL_VAR_INIT(mobids, 1)
 
 
 /mob/say_mod(input, message_mode)
-	var/customsayverb = findtext(input, "*")
+	var/customsayverb = findtext_char(input, "*")
 	if(customsayverb)
-		return LOWER_TEXT(copytext(input, 1, customsayverb))
+		return LOWER_TEXT(copytext_char(input, 1, customsayverb))
 	. = ..()
 
 /atom/movable/proc/attach_spans(input, list/spans)
-	var/customsayverb = findtext(input, "*")
+	var/customsayverb = findtext_char(input, "*")
 	if(customsayverb)
-		input = capitalize(copytext(input, customsayverb+1))
+		input = capitalize(copytext_char(input, customsayverb+1))
 	return "[message_spans_start(spans)][input]</span>"
 
 /mob/living/proc/can_smell()

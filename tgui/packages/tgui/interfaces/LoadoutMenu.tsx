@@ -1,11 +1,5 @@
 import { Dispatch, SetStateAction, useState } from 'react';
-import {
-  Box,
-  Button,
-  Input,
-  Section,
-  Stack,
-} from 'tgui-core/components';
+import { Box, Button, Input, Section, Stack } from 'tgui-core/components';
 
 import { useBackend } from '../backend';
 import { Window } from '../layouts';
@@ -22,6 +16,7 @@ type LoadoutItem = {
 
 type Data = {
   loadout_items: LoadoutItem[];
+  cosmetics_available: boolean;
 };
 
 export const LoadoutMenu = (props) => {
@@ -47,11 +42,11 @@ export const ItemDisplay = (props) => {
 
   const { act, data } = useBackend<Data>();
 
-  const { loadout_items } = data;
+  const { loadout_items, cosmetics_available } = data;
 
   const availableItems = loadout_items
     .filter((item) => {
-      return item.nobility_check && item.donoritem;
+      return item.nobility_check && (!item.donoritem || cosmetics_available);
     })
     .filter((item) => {
       if (search) {
@@ -68,6 +63,7 @@ export const ItemDisplay = (props) => {
       scrollable
       buttons={<SearchBar search={search} setSearch={setSearch} />}
     >
+      <Box mb={1}>Donator kits require an active Scientist tier or higher.</Box>
       {availableItems.map((item) => (
         <Button
           key={item.ref}
@@ -76,16 +72,14 @@ export const ItemDisplay = (props) => {
         >
           <Stack align="center">
             <Stack.Item>
-             <Box className={item.icon} mr={2} inline />
+              <Box className={item.icon} mr={2} inline />
             </Stack.Item>
             <Stack.Item>
-             {item.name} - {item.triumph_cost}
+              {item.name} - {item.triumph_cost}
             </Stack.Item>
           </Stack>
           <Stack align="center">
-            <Stack.Item>
-             {item.desc}
-            </Stack.Item>
+            <Stack.Item>{item.desc}</Stack.Item>
           </Stack>
         </Button>
       ))}

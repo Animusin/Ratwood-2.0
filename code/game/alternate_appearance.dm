@@ -118,6 +118,49 @@ GLOBAL_LIST_EMPTY(active_alternate_appearances)
 /datum/atom_hud/alternate_appearance/basic/observers/mobShouldSee(mob/M)
 	return isobserver(M)
 
+/// Replaces a protected player's appearance with a transparent image for regular ghosts.
+/datum/atom_hud/alternate_appearance/basic/ghost_protection
+
+/datum/atom_hud/alternate_appearance/basic/ghost_protection/New()
+	..()
+	for(var/mob/dead/observer/observer in GLOB.dead_mob_list)
+		update_observer(observer)
+
+/datum/atom_hud/alternate_appearance/basic/ghost_protection/onNewMob(mob/M)
+	if(isobserver(M))
+		var/mob/dead/observer/observer = M
+		update_observer(observer)
+
+/datum/atom_hud/alternate_appearance/basic/ghost_protection/mobShouldSee(mob/M)
+	// Observer mobs are initialized before their client is transferred. Wait for
+	// Login so admin status can be evaluated instead of caching a false result.
+	if(!isobserver(M) || !M.client)
+		return FALSE
+	var/mob/dead/observer/observer = M
+	return !observer.bypasses_ghost_protection()
+
+/// Idempotently applies the current ghost-protection state to one observer.
+/datum/atom_hud/alternate_appearance/basic/ghost_protection/proc/update_observer(mob/dead/observer/observer)
+	if(mobShouldSee(observer))
+		if(!hudusers[observer])
+			add_hud_to(observer)
+	else if(hudusers[observer])
+		remove_hud_from(observer)
+
+/// Re-evaluates every protected player after this observer gains or loses admin status.
+/mob/dead/observer/proc/update_ghost_protection_appearances()
+	for(var/datum/atom_hud/alternate_appearance/basic/ghost_protection/protection as anything in GLOB.active_alternate_appearances)
+		protection.update_observer(src)
+
+/mob/living/proc/update_ghost_protection_visibility()
+	remove_alt_appearance("ghost_protection")
+	if(!client?.prefs?.ghost_protection)
+		return
+	var/image/hidden_appearance = image('icons/blanks/32x32.dmi', src, "nothing")
+	hidden_appearance.override = TRUE
+	hidden_appearance.alpha = 0
+	add_alt_appearance(/datum/atom_hud/alternate_appearance/basic/ghost_protection, "ghost_protection", hidden_appearance, NONE)
+
 /datum/atom_hud/alternate_appearance/basic/blessedAware
 
 /datum/atom_hud/alternate_appearance/basic/blessedAware/New()

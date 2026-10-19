@@ -1,0 +1,4 @@
+author: "sigmaboy124124"
+delete-after: True
+changes:
+  - bugfix: "Two-handed items (melancholic crankbox, logs, etc.) no longer vanish when offered to someone whose off-hand is occupied"

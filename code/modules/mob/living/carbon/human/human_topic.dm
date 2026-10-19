@@ -179,6 +179,8 @@ GLOBAL_VAR_INIT(year_integer, text2num(year)) // = 2013???
 			return
 		if(!underwear)
 			return
+		if(!erp_undress_allowed(usr))
+			return
 		usr.visible_message(span_warning("[usr] starts taking off [src]'s [underwear.name]."),span_warning("I start taking off [src]'s [underwear.name]..."))
 		if(do_after(usr, 50, needhand = 1, target = src))
 			var/obj/item/bodypart/chest = get_bodypart(BODY_ZONE_CHEST)

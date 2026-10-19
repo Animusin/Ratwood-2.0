@@ -1,0 +1,4 @@
+author: "sigmaboy124124"
+delete-after: True
+changes:
+  - bugfix: "Wall clocks now apply custom loadout color, name, and nerfs when retrieving stash items"

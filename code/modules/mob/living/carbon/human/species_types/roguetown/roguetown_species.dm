@@ -28,7 +28,7 @@
 		if("Lupian accent")
 			return strings("polish_replacement.json", type, convert_HTML = TRUE)
 		if("Tiefling accent")
-			return strings("spanish_replacement.json", type, convert_HTML = TRUE)
+			return strings("tiefling_replacement.json", type, convert_HTML = TRUE)
 		if("Half Orc accent")
 			return strings("middlespeak.json", type, convert_HTML = TRUE)
 		if("Urban Orc accent")
@@ -57,6 +57,8 @@
 			return strings("axian_replacement.json", type, convert_HTML = TRUE)
 		if("Low-Town accent")
 			return strings("poor_replacement.json", type, convert_HTML = TRUE)
+		if("West Kazengun accent")
+			return strings("cultivator_replacement.json", type, convert_HTML = TRUE)
 
 /proc/get_mannerism_list_for_name(mannerism_name, type, convert_HTML = TRUE)
 	switch(mannerism_name)
@@ -68,6 +70,8 @@
 			return strings("heavy_stutter_replacement.json", type, convert_HTML = convert_HTML)
 		if("Lisp")
 			return strings("lisp_replacement.json", type, convert_HTML = convert_HTML)
+		if("Rhotacism")
+			return strings("rhotacism_replacement.json", type, convert_HTML = convert_HTML)
 		if("Hesitant")
 			return strings("hesitant_replacement.json", type, convert_HTML = convert_HTML)
 
@@ -112,6 +116,9 @@
 #define REGEX_ENDWORD 3
 #define REGEX_ANY 4
 
+// BYOND regex word boundaries do not treat Cyrillic as word characters.
+#define WB_BEHIND "(?<=\\s)"
+#define WB_AHEAD "(?=\[\\s|\\.\\,\\!\\?:;\\#\\(\\)])"
 
 /*
 	Lets a player speak a name or foreign word exactly as they typed it by putting \[brackets\]
@@ -182,7 +189,7 @@
 	if(do_trim)
 		message = trim(message)
 
-	// Put the escaped words back last so they stay exactly as typed 
+	// Put the escaped words back last so they stay exactly as typed
 	if(accent_escapes)
 		message = accent_escape_restore(message, accent_escapes)
 	return action_prefix ? "[action_prefix]*[message]" : message
@@ -228,7 +235,8 @@
 		search_pos = match_at + length(rebuilt)
 	return message
 
-
+/// Applies a named accent's full transformation pipeline to a test message and returns the result.
+/// Returns null for accents that have no text transformations (font-only or no accent).
 /proc/apply_accent_preview(accent_name, message)
 	if(accent_name == "No accent" || accent_name == "Saut al-Atash accent" || accent_name == "Posh accent")
 		return null
@@ -290,18 +298,20 @@
 		if(prefix?.len && word != "" && prob(20))
 			words[index] = "[pick(prefix)][word]"
 			continue
-		if(repeat?.len && length(word) > 3 && prob(25))
-			var/initial_syllable = copytext(word, 1, 3)
+		// Speech is UTF-8: byte offsets can split a Cyrillic letter in half.
+		var/word_length = length_char(word)
+		if(repeat?.len && word_length > 3 && prob(25))
+			var/initial_syllable = copytext_char(word, 1, 3)
 			words[index] = "[initial_syllable][pick(repeat)][initial_syllable]-[word]"
 			continue
 		if(initial?.len && prob(25))
-			var/first_letter = copytext(word, 1, 2)
+			var/first_letter = copytext_char(word, 1, 2)
 			if(first_letter && first_letter != "<")
 				words[index] = "[first_letter][pick(initial)][word]"
 				continue
-		if(middle?.len && length(word) > 3 && prob(20))
-			var/insertion_point = rand(2, length(word) - 1)
-			words[index] = "[copytext(word, 1, insertion_point)][pick(middle)][copytext(word, insertion_point)]"
+		if(middle?.len && word_length > 3 && prob(20))
+			var/insertion_point = rand(2, word_length - 1)
+			words[index] = "[copytext_char(word, 1, insertion_point)][pick(middle)][copytext_char(word, insertion_point)]"
 	message = jointext(words, " ")
 	return action_prefix ? "[action_prefix]*[message]" : message
 
@@ -338,7 +348,7 @@
 	if(message[1] == "*")
 		return message
 	message = "[message]"
-	var/list/message_words = splittext_char(message, regex("\[^(&#39;|\\w)\]+"))
+	var/list/message_words = splittext_char(message, regex(@"[^&#39;|\w|а-яА-ЯёЁ]+"))
 	for (var/key in message_words)
 		var/value = get_value_from_accent(key, accent_list)
 		if (!value)
@@ -347,9 +357,9 @@
 			continue
 		if (islist(value))
 			value = pick(value)
-		message = replacetextEx(message, regex("\\b[uppertext(key)]\\b|\\A[uppertext(key)]\\b|\\b[uppertext(key)]\\Z|\\A[uppertext(key)]\\Z", "(\\w+)/g"), uppertext(value))
-		message = replacetextEx(message, regex("\\b[capitalize(key)]\\b|\\A[capitalize(key)]\\b|\\b[capitalize(key)]\\Z|\\A[capitalize(key)]\\Z", "(\\w+)/g"), capitalize(value))
-		message = replacetextEx(message, regex("\\b[key]\\b|\\A[key]\\b|\\b[key]\\Z|\\A[key]\\Z", "(\\w+)/g"), value)
+		message = replacetextEx_char(message, regex("[WB_BEHIND][uppertext(key)][WB_AHEAD]|\\A[uppertext(key)][WB_AHEAD]|[WB_BEHIND][uppertext(key)]\\Z|\\A[uppertext(key)]\\Z", "(\\w+)/g"), uppertext(value))
+		message = replacetextEx_char(message, regex("[WB_BEHIND][capitalize(key)][WB_AHEAD]|\\A[capitalize(key)][WB_AHEAD]|[WB_BEHIND][capitalize(key)]\\Z|\\A[capitalize(key)]\\Z", "(\\w+)/g"), capitalize(value))
+		message = replacetextEx_char(message, regex("[WB_BEHIND][key][WB_AHEAD]|\\A[key][WB_AHEAD]|[WB_BEHIND][key]\\Z|\\A[key]\\Z", "(\\w+)/g"), value)
 	return message
 
 /proc/treat_message_accent(message, list/accent_list, chosen_regex)
@@ -368,23 +378,23 @@
 		switch(chosen_regex)
 			if(REGEX_FULLWORD)
 				// Full word regex (full world replacements)
-				message = replacetextEx(message, regex("\\b[uppertext(key)]\\b|\\A[uppertext(key)]\\b|\\b[uppertext(key)]\\Z|\\A[uppertext(key)]\\Z", "(\\w+)/g"), uppertext(value))
-				message = replacetextEx(message, regex("\\b[capitalize(key)]\\b|\\A[capitalize(key)]\\b|\\b[capitalize(key)]\\Z|\\A[capitalize(key)]\\Z", "(\\w+)/g"), capitalize(value))
-				message = replacetextEx(message, regex("\\b[key]\\b|\\A[key]\\b|\\b[key]\\Z|\\A[key]\\Z", "(\\w+)/g"), value)
+				message = replacetextEx_char(message, regex("[WB_BEHIND][uppertext(key)][WB_AHEAD]|\\A[uppertext(key)][WB_AHEAD]|[WB_BEHIND][uppertext(key)]\\Z|\\A[uppertext(key)]\\Z", "(\\w+)/g"), uppertext(value))
+				message = replacetextEx_char(message, regex("[WB_BEHIND][capitalize(key)][WB_AHEAD]|\\A[capitalize(key)][WB_AHEAD]|[WB_BEHIND][capitalize(key)]\\Z|\\A[capitalize(key)]\\Z", "(\\w+)/g"), capitalize(value))
+				message = replacetextEx_char(message, regex("[WB_BEHIND][key][WB_AHEAD]|\\A[key][WB_AHEAD]|[WB_BEHIND][key]\\Z|\\A[key]\\Z", "(\\w+)/g"), value)
 			if(REGEX_STARTWORD)
 				// Start word regex (Some words that get different endings)
-				message = replacetextEx(message, regex("\\b[uppertext(key)]|\\A[uppertext(key)]", "(\\w+)/g"), uppertext(value))
-				message = replacetextEx(message, regex("\\b[capitalize(key)]|\\A[capitalize(key)]", "(\\w+)/g"), capitalize(value))
-				message = replacetextEx(message, regex("\\b[key]|\\A[key]", "(\\w+)/g"), value)
+				message = replacetextEx_char(message, regex("[WB_BEHIND][uppertext(key)]|\\A[uppertext(key)]", "(\\w+)/g"), uppertext(value))
+				message = replacetextEx_char(message, regex("[WB_BEHIND][capitalize(key)]|\\A[capitalize(key)]", "(\\w+)/g"), capitalize(value))
+				message = replacetextEx_char(message, regex("[WB_BEHIND][key]|\\A[key]", "(\\w+)/g"), value)
 			if(REGEX_ENDWORD)
 				// End of word regex (Replaces last letters of words)
-				message = replacetextEx(message, regex("[uppertext(key)]\\b|[uppertext(key)]\\Z", "(\\w+)/g"), uppertext(value))
-				message = replacetextEx(message, regex("[key]\\b|[key]\\Z", "(\\w+)/g"), value)
+				message = replacetextEx_char(message, regex("[uppertext(key)][WB_AHEAD]|[uppertext(key)]\\Z", "(\\w+)/g"), uppertext(value))
+				message = replacetextEx_char(message, regex("[key][WB_AHEAD]|[key]\\Z", "(\\w+)/g"), value)
 			if(REGEX_ANY)
 				// Any regex (syllables)
 				// Careful about use of syllables as they will continually reapply to themselves, potentially canceling each other out
-				message = replacetextEx(message, uppertext(key), uppertext(value))
-				message = replacetextEx(message, key, value)
+				message = replacetextEx_char(message, uppertext(key), uppertext(value))
+				message = replacetextEx_char(message, key, value)
 
 	return message
 
@@ -392,3 +402,5 @@
 #undef REGEX_STARTWORD
 #undef REGEX_ENDWORD
 #undef REGEX_ANY
+#undef WB_BEHIND
+#undef WB_AHEAD

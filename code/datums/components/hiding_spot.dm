@@ -36,9 +36,9 @@
 
 /datum/component/hiding_spot/UnregisterFromParent()
 	// Just in case, let's double check
-	var/mob/living/real_hider = hider?.resolve()
-	if(real_hider)
-		escape_hidingspot(real_hider)
+	var/mob/living/hiding_mob = hider?.resolve()
+	if(hiding_mob)
+		escape_hidingspot(hiding_mob)
 
 	UnregisterSignal(parent, list(COMSIG_QDELETING, COMSIG_ATOM_RELAYMOVE, COMSIG_ATOM_ATTACK_HAND, COMSIG_PARENT_EXAMINE, COMSIG_LOOK_AROUND_SPOTTED))
 
@@ -70,6 +70,7 @@
 	if(hider?.resolve())
 		to_chat(potential_hider, span_warning(occupied_message))
 		return
+	hider = null
 
 	var/sneak_level = potential_hider.get_skill_level(/datum/skill/misc/sneaking) || 0
 	var/sneaktime = max(1 SECONDS, 5 SECONDS - (sneak_level SECONDS)) // Hard caps at 1 second at Expert and above.
@@ -110,6 +111,7 @@
 
 	var/mob/living/found_mob = hider?.resolve()
 	if(!found_mob)
+		hider = null
 		examine_list += span_notice(\
 			"Some structures can be used as hiding places. \
 			Toggle the 'SNEAK' button on your HUD, then click the structure to hide in it. \
@@ -125,6 +127,7 @@
 		return
 	var/mob/living/hiding_mob = hider?.resolve()
 	if(!hiding_mob)
+		hider = null
 		return
 	var/sneak_amount = 8 + (hiding_mob.get_skill_level(/datum/skill/misc/sneaking) * 2)
 	if(looker.STAPER >= sneak_amount) // skewed towards the hiding player because there's already a separate, guaranteed way to find hiders.

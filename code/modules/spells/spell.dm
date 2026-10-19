@@ -408,7 +408,7 @@ GLOBAL_LIST_INIT(spells, typesof(/obj/effect/proc_holder/spell)) //needed for th
 		to_chat(user, span_warning("I can't cast this spell here!"))
 		return FALSE
 
-	if(!charge_check(user))
+	if(!skipcharge && !charge_check(user))
 		return FALSE
 
 	if(user.stat && !stat_allowed)
@@ -934,6 +934,11 @@ GLOBAL_LIST_INIT(spells, typesof(/obj/effect/proc_holder/spell)) //needed for th
 		return FALSE
 
 	if(user.client && user.buckled)
+		if(!issimple(user.buckled))
+			if(!istype(user.buckled, /obj/structure/chair))
+				return FALSE
+			if(istype(user.buckled, /obj/structure/chair/arrestchair) || istype(user.buckled, /obj/structure/chair/freedomchair))
+				return FALSE
 		if(moving_mount_blocks_cast(user))
 			return FALSE
 

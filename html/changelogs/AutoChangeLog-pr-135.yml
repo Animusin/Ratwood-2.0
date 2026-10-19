@@ -1,0 +1,4 @@
+author: "sigmaboy124124"
+delete-after: True
+changes:
+  - bugfix: "Prevented coin loss when depositing into a Peddler in maintenance mode."

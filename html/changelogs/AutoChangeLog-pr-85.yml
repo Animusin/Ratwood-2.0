@@ -1,0 +1,4 @@
+author: "sigmaboy124124"
+delete-after: True
+changes:
+  - bugfix: "EA Hasir gold merchant's handcart now spawns on the merchant's tile instead of being lost inside the outfit datum"

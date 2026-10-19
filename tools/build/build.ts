@@ -203,7 +203,7 @@ export const TgFontTarget = new Juke.Target({
 export const TguiTarget = new Juke.Target({
   dependsOn: [BunTarget],
   inputs: [
-    "tgui/rspack.config.mjs",
+    "tgui/rspack.config.ts",
     "tgui/**/package.json",
     "tgui/packages/**/*.+(js|cjs|ts|tsx|jsx|scss)",
   ],
@@ -212,8 +212,6 @@ export const TguiTarget = new Juke.Target({
     "tgui/public/tgui.bundle.js",
     "tgui/public/tgui-panel.bundle.css",
     "tgui/public/tgui-panel.bundle.js",
-    "tgui/public/tgui-say.bundle.css",
-    "tgui/public/tgui-say.bundle.js",
   ],
   executes: () => bun("tgui:build"),
 });

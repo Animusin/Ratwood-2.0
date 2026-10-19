@@ -26,7 +26,6 @@ GLOBAL_LIST_EMPTY(lord_titles)
 
 	display_order = JDO_LORD
 	tutorial = "Elevated upon your throne through a web of intrigue and political upheaval, you are the absolute authority of these lands and at the center of every plot within it. Every man, woman and child is envious of your position and would replace you in less than a heartbeat: Show them the error of their ways. The Crown took a heavy toll upon your lyfe-force, and you will not be able to be revived if you perish."
-	whitelist_req = FALSE
 	min_pq = 10
 	max_pq = null
 	round_contrib_points = 4

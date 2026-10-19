@@ -6,6 +6,9 @@
 #define MIGRANT_TRACK_TRIUMPH "triumph"
 #define MIGRANT_TRACK_EVENT "event"
 
+#define MIGRANT_TRIUMPH_THRESHOLD 100
+#define SUPPORTER_MIGRANT_DAILY_LIMIT 2
+
 #define MIGRANT_NOBILITY \
 	/datum/migrant_role/heartfelt/lord,\
 	/datum/migrant_role/heartfelt/hand,\

@@ -1,6 +1,47 @@
 GLOBAL_LIST_EMPTY(musicboxes) //list of all music boxes
 GLOBAL_VAR_INIT(musicboxes_last_upload, 0) //last time of the last upload, to prevent multiple uploads within seconds of eachother
 GLOBAL_VAR_INIT(musicboxes_last_play, 0) //last time of the last played track, to prevent spamming clients too often with play/stop
+GLOBAL_VAR_INIT(custom_music_upload_sequence, 0)
+
+/// Subtypes must revalidate access to the item after all file/name/subscription dialogs.
+/obj/item/proc/can_accept_custom_music_upload(mob/user)
+	return FALSE
+
+/// Shared by instruments and music boxes. Failed/cancelled uploads never debit Triumphs.
+/obj/item/proc/store_custom_music_upload(mob/user, infile)
+	if(QDELETED(src) || !user?.client || !infile)
+		return null
+	var/client/player = user.client
+	var/file_ext = LOWER_TEXT(copytext("[infile]", -4))
+	var/file_size = length(infile)
+	if(file_ext != ".ogg" || file_size <= 0 || file_size > 6485760)
+		to_chat(user, span_warning("Song must be a non-empty OGG file, 6 MB or less."))
+		return null
+	var/cost = player.custom_music_upload_cost(TRUE)
+	if(isnull(cost))
+		to_chat(user, span_warning("Unable to check your subscription. No Triumphs were spent; try again later."))
+		return null
+	if(QDELETED(src) || QDELETED(user) || user.client != player || !can_accept_custom_music_upload(user))
+		return null
+	if(cost && SStriumphs.get_triumphs(player.ckey) < cost)
+		to_chat(user, span_warning("One custom song upload costs [cost] Triumphs. You do not have enough."))
+		return null
+	// Never use the uploaded filename as a server path or overwrite an earlier paid song.
+	var/upload_number = ++GLOB.custom_music_upload_sequence
+	var/path = "data/jukeboxuploads/round-[GLOB.round_id || "NULL"]/[player.ckey[1]]/[player.ckey]/[world.realtime]-[world.time]-[upload_number].ogg"
+	if(!fcopy(infile, path))
+		to_chat(user, span_warning("Could not save song. No Triumphs were spent."))
+		return null
+	var/uploaded_file = file(path)
+	if(length(uploaded_file) != file_size || !SStriumphs.try_spend_triumphs(player.ckey, cost))
+		fdel(path)
+		to_chat(user, span_warning("Upload failed or your Triumph balance changed. No Triumphs were spent."))
+		return null
+	user.log_message("uploaded custom song: [path] (cost: [cost] Triumphs)", LOG_GAME)
+	message_admins("[ADMIN_LOOKUPFLW(user)] uploaded a custom song ([file_size] bytes, [cost] Triumphs).")
+	if(cost)
+		to_chat(user, span_notice("Custom song uploaded for [cost] Triumphs. Replaying it costs nothing."))
+	return uploaded_file
 
 /datum/looping_sound/dmusloop
 	mid_sounds = list()
@@ -81,6 +122,9 @@ GLOBAL_VAR_INIT(musicboxes_last_play, 0) //last time of the last played track, t
 		return
 	if(playing)
 		return
+	if(!user.can_upload_custom_music())
+		to_chat(user, span_warning("Custom music uploads cost [CUSTOM_MUSIC_UPLOAD_COST] Triumphs each; Scientist subscribers and admins upload for free."))
+		return
 	user.changeNext_move(CLICK_CD_MELEE)
 	if(lastfilechange)
 		if(world.time < lastfilechange + 3 MINUTES)
@@ -92,54 +136,22 @@ GLOBAL_VAR_INIT(musicboxes_last_play, 0) //last time of the last played track, t
 	playsound(loc, 'sound/misc/beep.ogg', 100, FALSE, -1)
 	INVOKE_ASYNC(src, PROC_REF(upload_file), user) // call as thread to avoid halting while waiting for user file input
 
+/obj/item/dmusicbox/can_accept_custom_music_upload(mob/user)
+	return !QDELETED(user) && user.client && loc == user && loaded && !playing && (!lastfilechange || world.time >= lastfilechange + 3 MINUTES) && world.time >= GLOB.musicboxes_last_upload + 30 SECONDS
+
 /obj/item/dmusicbox/proc/upload_file(mob/user)
 	set waitfor = FALSE
-	var/infile = input(user, "CHOOSE A NEW SONG", src) as null|file
-
+	if(!can_accept_custom_music_upload(user))
+		return
+	var/infile = input(user, "CHOOSE A NEW SONG ([CUSTOM_MUSIC_UPLOAD_COST] Triumphs per successful upload; free for Scientist+ and admins)", src) as null|file
 	if(!infile)
 		return
-
-	if(!loaded)
+	var/uploaded_file = store_custom_music_upload(user, infile)
+	if(!uploaded_file)
 		return
-
-	if(world.time < GLOB.musicboxes_last_upload + 30 SECONDS)
-		say("NOT YET!")
-		return
-
-	var/filename = "[infile]"
-	var/file_ext = LOWER_TEXT(copytext(filename, -4))
-	var/file_size = length(infile)
-
-	if(file_ext != ".ogg")
-		to_chat(user, span_warning("SONG MUST BE AN OGG."))
-		return
-	if(file_size > 6485760)
-		to_chat(user, span_warning("TOO BIG. 6 MEGS OR LESS."))
-		return
+	curfile = uploaded_file
 	lastfilechange = world.time
 	GLOB.musicboxes_last_upload = world.time
-	var/logged_filename = "data/jukeboxuploads/round-[GLOB.round_id ? GLOB.round_id : "NULL"]/[user.ckey[1]]/[user.ckey]/[time2text(world.time, "hh_mm_ss", 0)][file_ext]"
-	if(fexists(logged_filename))
-		fdel(logged_filename)
-	if(!fcopy(infile, logged_filename))
-		to_chat(user, span_warning("Could not upload song."))
-		return
-	if(QDELETED(user) || QDELETED(src)) // clean up uploaded file if object/user was deleted while upload was in progress
-		if(fexists(logged_filename))
-			fdel(logged_filename)
-		return
-	if(fexists(logged_filename))
-		curfile = file(logged_filename)
-		if(curfile && length(curfile) != file_size) // file didn't finish/uploaded file size does not match - delete file
-			fdel(logged_filename)
-			curfile = null
-		if(!curfile)
-			user.log_message("attempted to upload jukebox song: [logged_filename]", LOG_GAME)
-		else
-			user.log_message("uploaded jukebox song: [logged_filename]", LOG_GAME)
-	else
-		curfile = null
-
 	loaded = FALSE
 	update_icon()
 

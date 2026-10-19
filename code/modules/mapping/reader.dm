@@ -911,7 +911,9 @@ GLOBAL_LIST_EMPTY(map_model_default)
 	//The next part of the code assumes there's ALWAYS an /area AND a /turf on a given tile
 	//first instance the /area and remove it from the members list
 	index = members.len
-	if(members[index] != /area/template_noop)
+	// A malformed tile can leave a non-area path in the area slot; new'ing a turf with a null loc throws "bad loc".
+	// Skip area handling in that case and keep the tile's existing area rather than crashing.
+	if(members[index] != /area/template_noop && ispath(members[index], /area))
 		if(members_attributes[index] != default_list)
 			world.preloader_setup(members_attributes[index], members[index])//preloader for assigning  set variables on atom creation
 		var/area/area_instance = loaded_areas[members[index]]
@@ -937,18 +939,24 @@ GLOBAL_LIST_EMPTY(map_model_default)
 		if(GLOB.use_preloader)
 			world.preloader_load(area_instance)
 
-	// Index right before /area is /turf
-	index--
+	// The /area is the last member only when one is actually present. Consume that slot only then,
+	// so a degenerate tile with no /area (e.g. just a turf) doesn't underflow index into the turf slot below.
+	if(ispath(members[index], /area))
+		index--
 	var/atom/instance
 	//then instance the /turf
 	//NOTE: this used to place any turfs before the last "underneath" it using .appearance and underlays
 	//We don't actually use this, and all it did was cost cpu, so we don't do this anymore
-	if(members[index] != /turf/template_noop)
+	if(index >= 1 && members[index] != /turf/template_noop)
 		if(members_attributes[index] != default_list)
 			world.preloader_setup(members_attributes[index], members[index])
 
-		// Note: we make the assertion that the last path WILL be a turf. if it isn't, this will fail.
-		if(placeOnTop)
+		// Note: we expect the last path before /area to be a turf. A malformed tile can leave a non-turf
+		// (e.g. an /obj) here; placing it as a turf mangles it into an obj-as-turf and trips
+		// assemble_baseturfs(). Create it as a normal atom instead and leave the existing turf in place.
+		if(!ispath(members[index], /turf))
+			instance = create_atom(members[index], crds)
+		else if(placeOnTop)
 			instance = crds.LoadOnTop(members[index], CHANGETURF_DEFER_CHANGE | (no_changeturf ? CHANGETURF_SKIP : NONE))
 		else if(no_changeturf)
 			instance = create_atom(members[index], crds)//first preloader pass

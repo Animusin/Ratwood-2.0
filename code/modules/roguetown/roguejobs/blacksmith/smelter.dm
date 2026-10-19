@@ -2,8 +2,37 @@
 /obj/item
 //	var/smeltresult defined on obj within artificer/contraptions
 	var/smelt_bar_num = 1 //variable for tracking how many bars things smelt back into for multi-bar items
+	var/smelt_batch_num = 1
 // MULTIBAR SMELTING WAS DISABLED FOR BALANCE REASONS
 // DO NOT RE-ENABLE IT UNTIL FURTHER NOTICE
+
+/obj/item/proc/can_be_smelted(max_batch = 1)
+	if(!smeltresult)
+		return FALSE
+	return smelt_batch_num <= max_batch
+
+/obj/item/proc/smelt_batch_key()
+	return "[type]|[smeltresult]|[smelt_batch_num]"
+
+/// Collects a full smelting batch of items lying directly on our tile.
+/// Returns exactly smelt_batch_num matching items, or null if the batch is
+/// incomplete or we are not lying loose on a tile. Items inside inventories
+/// and containers on the tile are never taken.
+/obj/item/proc/gather_full_smelt_batch()
+	var/turf/tile = get_turf(src)
+	if(!tile || loc != tile)
+		return null
+	var/batch_size = max(smelt_batch_num, 1)
+	if(batch_size <= 1)
+		return list(src)
+	var/list/batch = list()
+	for(var/obj/item/item in tile.contents)
+		if(item.smelt_batch_key() != smelt_batch_key())
+			continue
+		batch += item
+		if(batch.len >= batch_size)
+			return batch
+	return null
 
 /obj/machinery/light/rogue/smelter
 	icon = 'icons/roguetown/misc/forge.dmi'
@@ -127,6 +156,10 @@
 	if(!smelting_item)
 		return
 
+	if(smelting_item.smeltresult && !smelting_item.can_be_smelted(max_contained_items))
+		to_chat(user, span_warning("\The [smelting_item.name] only smelts as a full batch of [smelting_item.smelt_batch_num], which cannot fit in \the [src]."))
+		return
+
 	if(length(contained_items) >= max_contained_items)
 		to_chat(user, span_warning("\The [smelting_item.name] can be smelted, but \the [src] is full."))
 		return
@@ -182,22 +215,85 @@
 	handle_smelting()
 
 /obj/machinery/light/rogue/smelter/proc/handle_smelting()
-	for(var/obj/item/item as anything in contained_items)
-		if(item.smeltresult)
-			// disabled for now, balance reasons
-			// while(item.smelt_bar_num)
-			// 	item.smelt_bar_num--
-			// 	var/obj/item/result = new item.smeltresult(src, contained_items[item])
-			// 	contained_items += result
-			// contained_items -= item
-			var/obj/item/result = new item.smeltresult(src, contained_items[item])
-			contained_items -= item
-			contained_items += result
-			qdel(item)
-	playsound(src,'sound/misc/smelter_fin.ogg', 100, FALSE)
-	visible_message(span_notice("\The [src] finished smelting."))
+	if(smelt_individual_items())
+		playsound(src,'sound/misc/smelter_fin.ogg', 100, FALSE)
+		visible_message(span_notice("\The [src] finished smelting."))
 	smelting_progress = smelting_ticks + 1
 	actively_smelting = FALSE
+
+/obj/machinery/light/rogue/smelter/proc/smelt_batch_groups()
+	var/list/batches = list()
+	for(var/obj/item/item as anything in contained_items)
+		if(!item.smeltresult)
+			continue
+		LAZYADD(batches[item.smelt_batch_key()], item)
+	return batches
+
+/obj/machinery/light/rogue/smelter/proc/smelt_individual_items()
+	var/smelted_anything = FALSE
+	var/list/batches = smelt_batch_groups()
+	for(var/group_key in batches)
+		var/list/batch = batches[group_key]
+		var/obj/item/batch_item = batch[1]
+		var/batch_size = max(batch_item.smelt_batch_num, 1)
+		if(batch_size > max_contained_items)
+			continue
+		var/batches_to_smelt = round(batch.len / batch_size)
+		for(var/b in 1 to batches_to_smelt)
+			var/result_quality = contained_items[batch[batch_size]]
+			for(var/i in 1 to batch_size)
+				var/obj/item/removed_item = batch[1]
+				contained_items -= removed_item
+				qdel(removed_item)
+				batch -= batch[1]
+			var/obj/item/result = new batch_item.smeltresult(src, result_quality)
+			contained_items[result] = result_quality
+			smelted_anything = TRUE
+	return smelted_anything
+
+/obj/machinery/light/rogue/smelter/proc/normalized_smelt_results()
+	var/list/batches = smelt_batch_groups()
+	var/list/results = list()
+	for(var/group_key in batches)
+		var/list/batch = batches[group_key]
+		var/obj/item/batch_item = batch[1]
+		var/batch_size = max(batch_item.smelt_batch_num, 1)
+		if(batch_size > max_contained_items)
+			continue
+		results[batch_item.smeltresult] += round(batch.len / batch_size)
+	return results
+
+/obj/machinery/light/rogue/smelter/proc/batch_leftovers()
+	var/list/leftovers = list()
+	var/list/batches = smelt_batch_groups()
+	for(var/group_key in batches)
+		var/list/batch = batches[group_key]
+		var/obj/item/batch_item = batch[1]
+		var/batch_size = max(batch_item.smelt_batch_num, 1)
+		var/consumed = batch.len
+		if(batch_size <= max_contained_items)
+			consumed = round(batch.len / batch_size) * batch_size
+		if(consumed < batch.len)
+			leftovers += batch.Copy(consumed + 1)
+	return leftovers
+
+/obj/machinery/light/rogue/smelter/proc/consume_for_alloy(alloy)
+	var/list/leftovers = batch_leftovers()
+	var/floor_mean_quality = SMELTERY_LEVEL_SPOIL
+	var/ore_deleted = 0
+	for(var/obj/item/item as anything in contained_items.Copy())
+		if(item in leftovers)
+			continue
+		floor_mean_quality += contained_items[item]
+		ore_deleted += 1
+		contained_items -= item
+		qdel(item)
+	if(!ore_deleted)
+		return
+	floor_mean_quality = floor(floor_mean_quality/ore_deleted)
+	for(var/i in 1 to max_contained_items)
+		var/obj/item/result = new alloy(src, floor_mean_quality)
+		contained_items[result] = floor_mean_quality
 
 /obj/machinery/light/rogue/smelter/burn_out()
 	smelting_progress = 0
@@ -226,25 +322,16 @@
 	var/purifiedalloy
 	var/blacksteelalloy // Idk why Blacksteel were removed but we don't have an overabundance of steel and such anymore
 
-	for(var/obj/item/item as anything in contained_items)
-		if(item.smeltresult == /obj/item/rogueore/coal)
-			steelalloycoal += 1
-		if(item.smeltresult == /obj/item/rogueore/coal/charcoal)
-			steelalloycoal += 1
-		if(item.smeltresult == /obj/item/ingot/iron)
-			steelalloyiron += 1
-		if(item.smeltresult == /obj/item/ingot/tin)
-			bronzealloy = bronzealloy + 1
-		if(item.smeltresult == /obj/item/ingot/copper)
-			bronzealloy = bronzealloy + 2
-		if(item.smeltresult == /obj/item/ingot/aaslag)
-			purifiedalloy = purifiedalloy + 3
-		if(item.smeltresult == /obj/item/ingot/gold)
-			purifiedalloy = purifiedalloy + 2
-		if(item.smeltresult == /obj/item/ingot/silver)
-			blacksteelalloy = blacksteelalloy + 1
-		if(item.smeltresult == /obj/item/ingot/steel)
-			blacksteelalloy = blacksteelalloy + 2
+	var/list/results = normalized_smelt_results()
+	steelalloycoal += results[/obj/item/rogueore/coal] || 0
+	steelalloycoal += results[/obj/item/rogueore/coal/charcoal] || 0
+	steelalloyiron += results[/obj/item/ingot/iron] || 0
+	bronzealloy += results[/obj/item/ingot/tin] || 0
+	bronzealloy += 2 * (results[/obj/item/ingot/copper] || 0)
+	purifiedalloy += 3 * (results[/obj/item/ingot/aaslag] || 0)
+	purifiedalloy += 2 * (results[/obj/item/ingot/gold] || 0)
+	blacksteelalloy += results[/obj/item/ingot/silver] || 0
+	blacksteelalloy += 2 * (results[/obj/item/ingot/steel] || 0)
 
 	if(steelalloycoal == 1 && steelalloyiron == 3)
 		max_contained_items = 4
@@ -261,25 +348,9 @@
 		alloy = null
 
 	if(alloy)
-		// The smelting quality of all ores added together, divided by the number of ores, and then rounded to the lowest integer (this isn't done until after the for loop)
-		var/floor_mean_quality = SMELTERY_LEVEL_SPOIL
-		var/ore_deleted = 0
-		for(var/obj/item/item in contained_items)
-			floor_mean_quality += contained_items[item]
-			ore_deleted += 1
-			contained_items -= item
-			qdel(item)
-		floor_mean_quality = floor(floor_mean_quality/ore_deleted)
-		for(var/i in 1 to max_contained_items)
-			var/obj/item/result = new alloy(src, floor_mean_quality)
-			contained_items += result
+		consume_for_alloy(alloy)
 	else
-		for(var/obj/item/item in contained_items)
-			if(item.smeltresult)
-				var/obj/item/result = new item.smeltresult(src, contained_items[item])
-				contained_items -= item
-				contained_items += result
-				qdel(item)
+		smelt_individual_items()
 
 	playsound(src,'sound/misc/smelter_fin.ogg', 100, FALSE)
 	visible_message(span_notice("\The [src] finished smelting."))
@@ -302,11 +373,9 @@
 /obj/machinery/light/rogue/smelter/bronze/handle_smelting()
 	var/alloy //moving each alloy to it's own var allows for possible additions later
 	var/bronzealloy
-	for(var/obj/item/item in contained_items)
-		if(item.smeltresult == /obj/item/ingot/tin)
-			bronzealloy = bronzealloy + 1
-		if(item.smeltresult == /obj/item/ingot/copper)
-			bronzealloy = bronzealloy + 2
+	var/list/results = normalized_smelt_results()
+	bronzealloy += results[/obj/item/ingot/tin] || 0
+	bronzealloy += 2 * (results[/obj/item/ingot/copper] || 0)
 	if(bronzealloy == 7)
 		testing("BRONZE ALLOYED")
 		alloy = /obj/item/ingot/bronze
@@ -314,25 +383,9 @@
 		alloy = null
 
 	if(alloy)
-		// The smelting quality of all ores added together, divided by the number of ores, and then rounded to the lowest integer (this isn't done until after the for loop)
-		var/floor_mean_quality = SMELTERY_LEVEL_SPOIL
-		var/ore_deleted = 0
-		for(var/obj/item/item in contained_items)
-			floor_mean_quality += contained_items[item]
-			ore_deleted += 1
-			contained_items -= item
-			qdel(item)
-		floor_mean_quality = floor(floor_mean_quality/ore_deleted)
-		for(var/i in 1 to max_contained_items)
-			var/obj/item/result = new alloy(src, floor_mean_quality)
-			contained_items += result
+		consume_for_alloy(alloy)
 	else
-		for(var/obj/item/item in contained_items)
-			if(item.smeltresult)
-				var/obj/item/result = new item.smeltresult(src, contained_items[item])
-				contained_items -= item
-				contained_items += result
-				qdel(item)
+		smelt_individual_items()
 
 	playsound(src,'sound/misc/smelter_fin.ogg', 100, FALSE)
 	visible_message(span_notice("\The [src] finished smelting."))

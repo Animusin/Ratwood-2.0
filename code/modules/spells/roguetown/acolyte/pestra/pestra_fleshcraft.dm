@@ -37,7 +37,7 @@
 	if(!ishuman(targets[1]))
 		to_chat(caster, span_warning("You need living human flesh to reshape."))
 		return FALSE
-	
+
 	var/mob/living/carbon/human/target = targets[1]
 
 	if(istype(target.dna?.species,  /datum/species/gnoll) || istype(target.dna?.species, /datum/species/werewolf))

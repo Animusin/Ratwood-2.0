@@ -25,7 +25,6 @@
 	outfit = /datum/outfit/job/roguetown/tribalchieftain
 
 	display_order = JDO_TRIBALCHIEFTAIN
-	whitelist_req = FALSE
 	min_pq = 10
 	max_pq = null
 	round_contrib_points = 4

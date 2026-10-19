@@ -1,0 +1,4 @@
+author: "sigmaboy124124"
+delete-after: True
+changes:
+  - bugfix: "Oozes can use Mirror Transform to customize their features without resetting their appearance."

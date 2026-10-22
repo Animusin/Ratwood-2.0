@@ -385,7 +385,14 @@
 
 // If you want description to show up you gotta have the trait name defined BEFORE this lol
 
+#define TRAIT_LEVY "Levy Militia"
+#define TRAIT_LEECHRESIST "Leech Awareness"
+#define TRAIT_SELF_RELIANCE "Self-Reliance"
+
 GLOBAL_LIST_INIT(roguetraits, list(
+	TRAIT_LEVY = span_greentext("I serve in the Levy. Near another conscious levyman I can call out a visible target with Shift + Ctrl + RMB, once every ten seconds."),
+	TRAIT_LEECHRESIST = span_info("I notice attached leeches, remove them safely, and can avoid wild leeches based on speed and luck."),
+	TRAIT_SELF_RELIANCE = span_greentext("My crafting and labor skills can progress to Journeyman. I must still train them."),
 	TRAIT_STEELHEARTED = span_info("I have hardened nerves, and do not waiver from the sight of violence in battle."),
 	TRAIT_OUTLANDER = span_info("Those of the realm see me as not of their land."),
 	TRAIT_OUTLAW = span_info("This land's nervelocks and castificos reject my touch."),

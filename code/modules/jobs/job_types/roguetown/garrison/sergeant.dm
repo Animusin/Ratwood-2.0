@@ -371,7 +371,7 @@
 				revert_cast()
 				return
 		if(user.job == "Master Warden")
-			if(!(target.job in list("Warden", "Vanguard")))
+			if(!(target.job in list("Warden", "Levy")))
 				to_chat(user, span_alert("I cannot order one not of my ranks!"))
 				revert_cast()
 				return

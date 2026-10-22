@@ -42,7 +42,7 @@
 		"Mercenary" = TRUE,
 		"Warden" = TRUE,
 		"Acolyte" = TRUE,
-		"Vanguard" = TRUE,
+		"Levy" = TRUE,
 		"City Guard" = TRUE,
 		"Bandit" = TRUE,
 		"Watch Captain" = TRUE,

@@ -2074,3 +2074,7 @@
 	inhand_mod = TRUE
 	detail_tag = "_detail"
 	detail_color = CLOTHING_BLACK
+
+/obj/item/clothing/cloak/stabard/bog/levy
+	name = "levy militia tabard"
+	desc = "A green tabard issued to the Crown's levy, still bearing the proud colors of its swamp patrols."

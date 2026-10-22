@@ -49,7 +49,7 @@
 /obj/item/signal_horn/proc/sound_horn(mob/living/user)
 	user.visible_message(span_userdanger("[user] blows the horn!"))
 	switch(user.job)
-		if("Warden")
+		if("Warden", "Levy")
 			playsound(src, 'modular_hearthstone/sound/items/bogguardhorn.ogg', 100, TRUE)
 		if("Town Sheriff", "Watchman", "Sergeant", "Man at Arms")
 			playsound(src, 'modular_hearthstone/sound/items/watchhorn.ogg', 100, TRUE)
@@ -90,7 +90,7 @@
 				dirtext = "although I cannot make out an exact direction"
 
 		switch(user.job)
-			if("Warden")
+			if("Warden", "Levy")
 				player.playsound_local(get_turf(player), 'modular_hearthstone/sound/items/bogguardhorn.ogg', 35, FALSE, pressure_affected = FALSE)
 			if("Marshal", "Watchman", "Sergeant", "Man at Arms")
 				player.playsound_local(get_turf(player), 'modular_hearthstone/sound/items/watchhorn.ogg', 35, FALSE, pressure_affected = FALSE)

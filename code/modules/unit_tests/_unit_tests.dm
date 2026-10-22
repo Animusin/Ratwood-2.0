@@ -88,7 +88,6 @@
 #include "admin_antags.dm"
 #include "admin_job_slots.dm"
 #include "anchored_mobs.dm"
-#include "assassin_slots.dm"
 #include "baseturfs.dm"
 #include "buildmode_catalog.dm"
 #include "colorblind_hud_palette.dm"

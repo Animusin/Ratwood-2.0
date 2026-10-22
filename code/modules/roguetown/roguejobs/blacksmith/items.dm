@@ -126,6 +126,8 @@
 		. += span_info("Can be glazed with a dye brush to increase its value.")
 
 /obj/item/get_real_price()
+	if(housing_decoration)
+		return 0
 	. = ..()
 	if(glazed && glaze_bonus_pct > 0)
 		. = max(1, round(. * (1 + glaze_bonus_pct / 100)))

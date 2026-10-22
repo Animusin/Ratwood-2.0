@@ -62,7 +62,7 @@
 	name = "Assassin"
 	role_category = "Adventurer"
 	antag_datum = /datum/antagonist/assassin
-	antag_cap_weight = 0
+	antag_cap_weight = 1
 	advclass_cat_rolls = list(CTAG_ASSASSIN = 20)
 
 /datum/migrant_role/assassin/apply_config()
@@ -70,7 +70,6 @@
 	antag_cap_weight = initial(antag_cap_weight)
 	if(CONFIG_GET(string/round_modifier_policy) == "ratwood")
 		antag_datum = /datum/antagonist/assassin/ratwood
-		antag_cap_weight = 0.5
 
 /datum/migrant_role/gnoll
 	name = "Gnoll"

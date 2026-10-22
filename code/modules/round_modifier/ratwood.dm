@@ -177,7 +177,14 @@
 
 /datum/round_modifier/ratwood/major/assassins
 	name = "Assassins"
-	villain_event_type = /datum/round_event_control/antagonist/solo/assassins/ratwood
+	desc = "Two Assassin slots are open in Villains."
+	cost = 2
+	minimum_cost = 2
+	job_slots = list("Assassin" = 2)
+
+/datum/round_modifier/ratwood/major/assassins/prepare(datum/controller/subsystem/gamemode/mode, remaining_budget)
+	// Job assignment counts these slots. An event reserve would count them twice.
+	return cost <= remaining_budget
 
 /datum/round_modifier/ratwood/major/vampire_lord
 	name = "Vampire Lord"
@@ -222,18 +229,6 @@
 	antag_cap_weight = 2
 	antag_datum = /datum/antagonist/dreamwalker/ratwood
 
-/datum/round_event_control/antagonist/solo/assassins/ratwood
-	name = "Ratwood: Assassins"
-	round_modifier_label = "Assassins"
-	round_modifier_only = TRUE
-	checks_antag_cap = TRUE
-	base_antags = 2
-	maximum_antags = 2
-	max_occurrences = 1
-	antag_cap_weight = 0.5
-	requires_full_planned_count = TRUE
-	antag_datum = /datum/antagonist/assassin/ratwood
-
 /datum/round_event_control/antagonist/solo/vampires/ratwood
 	name = "Ratwood: Vampire Lord"
 	round_modifier_label = "Vampire Lord"
@@ -273,7 +268,7 @@
 	antag_flags = NONE
 
 /datum/antagonist/assassin/ratwood/get_antag_cap_weight()
-	return 0.5
+	return 1
 
 /datum/antagonist/prebel/head/ratwood/get_antag_cap_weight()
 	return 2

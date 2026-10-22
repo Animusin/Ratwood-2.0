@@ -8,7 +8,7 @@
 	min_pq = 25		//This is a class that lets you effectively no-esc someone. So.. responsibility.
 	max_pq = null
 	antag_job = TRUE
-	antag_cap_weight = 0 // Upstream assassins are fake antags; Ratwood enables its own counted subtype in New().
+	antag_cap_weight = 1
 	allowed_races = RACES_ALL_KINDS
 	tutorial = "Long ago you did a crime worthy of your bounty being hung on the wall outside of the local inn. You now live with your fellow freemen in the bog, and generally get up to no good."
 
@@ -45,11 +45,6 @@
 		/datum/advclass/assassin_poisoner,
 		/datum/advclass/assassin_hitman,
 	)
-
-/datum/job/roguetown/assassin/New()
-	. = ..()
-	if(CONFIG_GET(string/round_modifier_policy) == "ratwood")
-		antag_cap_weight = 0.5
 
 /datum/job/roguetown/assassin/after_spawn(mob/living/L, mob/M, latejoin = TRUE)
 	..()

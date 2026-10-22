@@ -12,7 +12,7 @@
 	var/antag_datum
 	/// Capacity consumed by each selected antagonist. Override the proc for mixed-weight events.
 	var/antag_cap_weight = 1
-	/// Fixed-size pairs such as Ratwood assassins are cancelled instead of being partially planned.
+	/// Require the full planned count instead of accepting fewer candidates.
 	var/requires_full_planned_count = FALSE
 	/// Prompt players for consent to turn them into antags before doing so. Dont allow this for roundstart.
 	var/prompted_picking = FALSE

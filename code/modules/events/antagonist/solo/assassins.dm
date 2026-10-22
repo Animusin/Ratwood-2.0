@@ -8,7 +8,6 @@
 	roundstart = TRUE
 	antag_flag = ROLE_ASSASSIN
 	shared_occurence_type = SHARED_MINOR_THREAT
-	checks_antag_cap = FALSE // Assassin datum is FLAG_FAKE_ANTAG.
 
 	restricted_roles = list(
 		"Grand Duke",
@@ -46,7 +45,7 @@
 	maximum_antags = 4
 
 	earliest_start = 0 SECONDS
-	max_occurrences = 2
+	max_occurrences = 0
 
 	weight = 10
 
@@ -73,12 +72,5 @@
 	SSgamemode?.complete_planned_villain_event(control)
 
 /datum/round_event_control/antagonist/solo/assassins/canSpawnEvent(players_amt, gamemode, fake_check)
-	. = ..()
-	if(!.)
-		return
-	var/list/candidates = get_candidates()
-
-	if(length(candidates) < 1)
-		return FALSE
-
-	return TRUE
+	// Assassins enter through Villains or migration. Keep this event for manual admin use.
+	return FALSE

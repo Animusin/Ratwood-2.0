@@ -12,7 +12,7 @@
 		"DEATH IS MY DEVOTION!",
 		"THE DARK SUN GUIDES MY HAND!",
 	)
-	antag_flags = FLAG_FAKE_ANTAG
+	antag_flags = NONE
 
 	var/traits_assassin = list(
 		TRAIT_ASSASSIN,

@@ -170,6 +170,10 @@
 	/// If the bandage is soaked in some kind of medicine.
 	var/medicine_quality
 	var/medicine_amount = 0
+	/// If set, restricts which body zones this cloth may be tied onto as a bandage (e.g. arms and legs for a tourniquet).
+	var/list/bandage_zones
+	/// If FALSE, this cloth is left alone when cloth is swept up into a bundle on the floor.
+	var/bundleable = TRUE
 
 /obj/item/natural/cloth/attack_right(mob/user)
 	if(user.get_active_held_item())
@@ -178,7 +182,8 @@
 	if(move_after(user, bundling_time, target = src))
 		var/list/cloth_to_bundle = list()
 		for(var/obj/item/natural/cloth/F in get_turf(src))
-			cloth_to_bundle += F
+			if(F.bundleable)
+				cloth_to_bundle += F
 		var/clothcount = cloth_to_bundle.len
 		while(clothcount > 0)
 			if(clothcount == 1)
@@ -316,6 +321,12 @@
 	var/obj/item/bodypart/affecting = H.get_bodypart(check_zone(user.zone_selected))
 	if(!affecting)
 		return
+	if(length(bandage_zones) && !(affecting.body_zone in bandage_zones))
+		to_chat(user, span_warning("I can't tie [src] there - it must be wrapped around an arm or a leg."))
+		return
+	if(!can_bandage_limb(affecting))
+		to_chat(user, span_warning("I can't tie [src] onto [affecting]."))
+		return
 	if(affecting.bandage)
 		to_chat(user, span_warning("There is already a bandage."))
 		return
@@ -334,6 +345,18 @@
 		user.visible_message(span_notice("[user] bandages [user.p_their()] [affecting]."), span_notice("I bandage my [affecting.name]."))
 	else
 		user.visible_message(span_notice("[user] bandages [M]'s [affecting]."), span_notice("I bandage [M]'s [affecting.name]."))
+
+/// Whether this cloth may be tied onto the given bodypart. Override for special bandages.
+/obj/item/natural/cloth/proc/can_bandage_limb(obj/item/bodypart/limb)
+	return TRUE
+
+/// Called when this cloth is tied onto a bodypart as a bandage. Override to add behaviour.
+/obj/item/natural/cloth/proc/on_bandaged(mob/living/carbon/host, obj/item/bodypart/limb)
+	return
+
+/// Called when this cloth is removed from, or destroyed while on, the bodypart it was bandaging. Override to clean up.
+/obj/item/natural/cloth/proc/on_unbandaged(mob/living/carbon/host, obj/item/bodypart/limb)
+	return
 
 /obj/item/natural/thorn
 	name = "thorn"

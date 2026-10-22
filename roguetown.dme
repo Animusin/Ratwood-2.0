@@ -3255,6 +3255,11 @@
 #include "code\modules\tgui_panel\telemetry.dm"
 #include "code\modules\tgui_panel\tgui_panel.dm"
 #include "code\modules\underworld\underworld.dm"
+// BEGIN_TOURNIQUET_MODULE - comment out this block to remove the tourniquet entirely
+#include "modular_tourniquet\code\game\objects\items\rogueitems\tourniquet.dm"
+#include "modular_tourniquet\code\modules\roguetown\roguecrafting\tourniquet.dm"
+#include "modular_tourniquet\code\modules\cargo\packsrogue\tourniquet.dm"
+// END_TOURNIQUET_MODULE
 #include "code\modules\unit_tests\_unit_tests.dm"
 #include "code\modules\vampire_neu\_actions.dm"
 #include "code\modules\vampire_neu\bloodsuck.dm"

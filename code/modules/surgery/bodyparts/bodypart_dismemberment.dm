@@ -325,6 +325,9 @@
 	for(var/obj/item/embedded in embedded_objects)
 		remove_embedded_object(embedded)
 	if(bandage)
+		if(istype(bandage, /obj/item/natural/cloth))
+			var/obj/item/natural/cloth/cloth = bandage
+			cloth.on_unbandaged(was_owner, src)
 		if(drop_location)
 			bandage.forceMove(drop_location)
 		else

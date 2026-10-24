@@ -144,7 +144,7 @@
 	if(!iscarbon(grabbed))
 		return
 	var/mob/living/carbon/C = grabbed
-	C.update_action_buttons_icon()
+	C.update_mob_action_buttons()
 
 /obj/item/grabbing/Destroy()
 	STOP_PROCESSING(SSfastprocess, src)
@@ -180,7 +180,7 @@
 			grabbee.l_grab = null
 		if(grabbee.mouth == src)
 			grabbee.mouth = null
-			grabbee.update_action_buttons_icon()
+			grabbee.update_mob_action_buttons()
 		grabbee = null
 	if(former_grabbee?.pulling)
 		var/highest_remaining_grab = GRAB_PASSIVE

@@ -113,7 +113,7 @@
 	character.adjust_skillrank_up_to(/datum/skill/combat/polearms, 2, TRUE)
 	var/datum/skill/crafting_skill = GetSkillRef(/datum/skill/craft/crafting)
 	var/original_crafting_xp = original_skills.skill_experience[crafting_skill]
-	player.spell_points = 20
+	player.AddSpell(new /datum/action/cooldown/spell/light)
 	var/obj/item/clothing/shoes/roguetown/boots/boots = allocate(/obj/item/clothing/shoes/roguetown/boots)
 	character.equip_to_slot(boots, SLOT_SHOES)
 	TEST_ASSERT_EQUAL(character.get_item_by_slot(SLOT_SHOES), boots, "The fixture must start with equipped boots.")
@@ -143,7 +143,7 @@
 	if(istype(granted, /datum/antagonist/lich))
 		var/datum/antagonist/lich/lich = granted
 		TEST_ASSERT_EQUAL(length(lich.phylacteries), 1, "An in-place lich still needs its phylactery.")
-		TEST_ASSERT_EQUAL(player.spell_points, 27, "Lich spell points must use a floor, not 20 + 27.")
+		TEST_ASSERT(player.has_spell(/datum/action/cooldown/spell/light), "Becoming a lich must retain existing action-based spells.")
 		TEST_ASSERT(player.get_spell(/obj/effect/proc_holder/spell/invoked/raise_undead), "An in-place lich still needs its role powers.")
 
 	// Check teardown too: CI waits for garbage collection after the gain assertions.
@@ -302,12 +302,12 @@
 	TEST_ASSERT_EQUAL(player.queued_admin_antag, offer, "Normal lobby deletion after transfer must retain the reservation.")
 	TEST_ASSERT(!player.apply_queued_admin_antag(), "The offer must wait for job and class equipment.")
 	character.adjust_skillrank_up_to(/datum/skill/combat/polearms, 3, TRUE)
-	player.spell_points = 20
+	player.AddSpell(new /datum/action/cooldown/spell/light)
 	character.finish_admin_antag_setup()
 	TEST_ASSERT_NULL(player.queued_admin_antag, "Finishing setup must consume the reservation.")
 	TEST_ASSERT_EQUAL(player.has_antag_datum(/datum/antagonist/lich), offer, "The consented role must apply even during Zero Chaos.")
 	TEST_ASSERT_EQUAL(character.get_skill_level(/datum/skill/combat/polearms), 4, "Job rank 3 and lich rank 4 must produce rank 4, not Legendary.")
-	TEST_ASSERT_EQUAL(player.spell_points, 27, "Job spell points must not add to the lich budget.")
+	TEST_ASSERT(player.has_spell(/datum/action/cooldown/spell/light), "Queued lich conversion must retain spells learned during job setup.")
 	character.finish_admin_antag_setup()
 	TEST_ASSERT_EQUAL(length(player.antag_datums), 1, "Repeated completion hooks must not reapply the role.")
 	TEST_ASSERT_EQUAL(length(offer.phylacteries), 1, "Repeated completion hooks must not duplicate role equipment.")

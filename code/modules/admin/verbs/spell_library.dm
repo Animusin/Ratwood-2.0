@@ -15,6 +15,12 @@
 /// More specific rules override a family's usual purpose (e.g. Fetch is not an attack).
 /proc/admin_spell_category_rules()
 	var/static/list/rules = list(
+		/datum/action/cooldown/spell/projectile = "attack",
+		/datum/action/cooldown/spell/telegraphed_strike = "attack",
+		/datum/action/cooldown/spell/augment_buff = "buff",
+		/datum/action/cooldown/spell/conjure_summon = "summoning",
+		/datum/action/cooldown/spell/conjure_arcyne_ward = "protection",
+		/datum/action/cooldown/spell/regenerate_arcyne_ward = "healing",
 		/obj/effect/proc_holder/spell/aimed = "attack",
 		/obj/effect/proc_holder/spell/aoe_turf/conjure = "summoning",
 		/obj/effect/proc_holder/spell/aoe_turf/conjure/mime_wall = "protection",
@@ -31,11 +37,10 @@
 		/obj/effect/proc_holder/spell/invoked/attach_bodypart = "healing",
 		/obj/effect/proc_holder/spell/invoked/avert = "protection",
 		/obj/effect/proc_holder/spell/invoked/baothablessings = "buff",
-		/obj/effect/proc_holder/spell/invoked/between_the_lines = "movement",
-		/obj/effect/proc_holder/spell/invoked/blade_burst = "attack",
+		/datum/action/cooldown/spell/between_the_lines = "movement",
 		/obj/effect/proc_holder/spell/invoked/bless_food = "buff",
 		/obj/effect/proc_holder/spell/invoked/blindness = "control",
-		/obj/effect/proc_holder/spell/invoked/blink = "movement",
+		/datum/action/cooldown/spell/blink = "movement",
 		/obj/effect/proc_holder/spell/invoked/blood_heal = "healing",
 		/obj/effect/proc_holder/spell/invoked/bonechill = "attack",
 		/obj/effect/proc_holder/spell/invoked/bonemend = "healing",
@@ -46,16 +51,13 @@
 		/obj/effect/proc_holder/spell/invoked/challenge = "control",
 		/obj/effect/proc_holder/spell/invoked/churnwealthy = "attack",
 		/obj/effect/proc_holder/spell/invoked/command_undead = "control",
-		/obj/effect/proc_holder/spell/invoked/conjure_primordial = "summoning",
-		/obj/effect/proc_holder/spell/invoked/conjure_tool = "summoning",
-		/obj/effect/proc_holder/spell/invoked/conjure_weapon = "summoning",
+		/datum/action/cooldown/spell/conjure_summon/primordial = "summoning",
 		/obj/effect/proc_holder/spell/invoked/convergence = "buff",
-		/obj/effect/proc_holder/spell/invoked/counterspell = "protection",
 		/obj/effect/proc_holder/spell/invoked/craftercovenant = "buff",
-		/obj/effect/proc_holder/spell/invoked/create_campfire = "summoning",
+		/datum/action/cooldown/spell/create_campfire = "summoning",
 		/obj/effect/proc_holder/spell/invoked/create_shrooms = "summoning",
 		/obj/effect/proc_holder/spell/invoked/cure_rot = "healing",
-		/obj/effect/proc_holder/spell/invoked/darkvision = "buff",
+		/datum/action/cooldown/spell/darkvision = "buff",
 		/obj/effect/proc_holder/spell/invoked/deaths_door = "protection",
 		/obj/effect/proc_holder/spell/invoked/divergence = "control",
 		/obj/effect/proc_holder/spell/invoked/divine_rebirth = "healing",
@@ -64,29 +66,23 @@
 		/obj/effect/proc_holder/spell/invoked/dream_bind = "control",
 		/obj/effect/proc_holder/spell/invoked/dream_trance = "control",
 		/obj/effect/proc_holder/spell/invoked/ele_quake = "attack",
-		/obj/effect/proc_holder/spell/invoked/enchant_weapon = "buff",
-		/obj/effect/proc_holder/spell/invoked/enlarge = "buff",
-		/obj/effect/proc_holder/spell/invoked/ensnare = "control",
+		/datum/action/cooldown/spell/augment_buff/enlarge = "buff",
 		/obj/effect/proc_holder/spell/invoked/eora_blessing = "buff",
 		/obj/effect/proc_holder/spell/invoked/eoracurse = "control",
 		/obj/effect/proc_holder/spell/invoked/equalize = "control",
 		/obj/effect/proc_holder/spell/invoked/evil_resurrect = "summoning",
 		/obj/effect/proc_holder/spell/invoked/eyebite = "attack",
-		/obj/effect/proc_holder/spell/invoked/featherfall = "protection",
+		/datum/action/cooldown/spell/featherfall = "protection",
 		/obj/effect/proc_holder/spell/invoked/fiend_meteor = "attack",
 		/obj/effect/proc_holder/spell/invoked/fire_cascade = "attack",
 		/obj/effect/proc_holder/spell/invoked/fire_obelisk_beam = "attack",
 		/obj/effect/proc_holder/spell/invoked/firewalker = "protection",
-		/obj/effect/proc_holder/spell/invoked/forcewall = "protection",
-		/obj/effect/proc_holder/spell/invoked/forcewall/arcyne_prison = "control",
-		/obj/effect/proc_holder/spell/invoked/fortitude = "protection",
+		/datum/action/cooldown/spell/forcewall = "protection",
+		/datum/action/cooldown/spell/augment_buff/fortitude = "protection",
 		/obj/effect/proc_holder/spell/invoked/frostbite = "attack",
-		/obj/effect/proc_holder/spell/invoked/giants_strength = "buff",
 		/obj/effect/proc_holder/spell/invoked/griefflower = "control",
-		/obj/effect/proc_holder/spell/invoked/guidance = "buff",
+		/datum/action/cooldown/spell/augment_buff/guidance = "buff",
 		/obj/effect/proc_holder/spell/invoked/hammerfall = "attack",
-		/obj/effect/proc_holder/spell/invoked/haste = "buff",
-		/obj/effect/proc_holder/spell/invoked/hawks_eyes = "buff",
 		/obj/effect/proc_holder/spell/invoked/heal = "healing",
 		/obj/effect/proc_holder/spell/invoked/heartweave = "buff",
 		/obj/effect/proc_holder/spell/invoked/heatmetal = "attack",
@@ -98,14 +94,12 @@
 		/obj/effect/proc_holder/spell/invoked/jaunt = "movement",
 		/obj/effect/proc_holder/spell/invoked/joyride = "movement",
 		/obj/effect/proc_holder/spell/invoked/lasthigh = "buff",
-		/obj/effect/proc_holder/spell/invoked/leap = "movement",
+		/datum/action/cooldown/spell/leap = "movement",
 		/obj/effect/proc_holder/spell/invoked/lesser_heal = "healing",
-		/obj/effect/proc_holder/spell/invoked/longstrider = "buff",
 		/obj/effect/proc_holder/spell/invoked/magicshield = "protection",
 		/obj/effect/proc_holder/spell/invoked/malum_flame_rogue = "attack",
 		/obj/effect/proc_holder/spell/invoked/massage = "healing",
 		/obj/effect/proc_holder/spell/invoked/mastersillusion = "summoning",
-		/obj/effect/proc_holder/spell/invoked/meteor_storm = "attack",
 		/obj/effect/proc_holder/spell/invoked/mineroresight = "buff",
 		/obj/effect/proc_holder/spell/invoked/minion_order = "control",
 		/obj/effect/proc_holder/spell/invoked/mockery = "attack",
@@ -120,21 +114,18 @@
 		/obj/effect/proc_holder/spell/invoked/pestra_heal = "healing",
 		/obj/effect/proc_holder/spell/invoked/pestra_leech = "healing",
 		/obj/effect/proc_holder/spell/invoked/pomegranate = "protection",
-		/obj/effect/proc_holder/spell/invoked/primordialmark = "buff",
 		/obj/effect/proc_holder/spell/invoked/projectile = "attack",
 		/obj/effect/proc_holder/spell/invoked/projectile/blowingdust = "control",
-		/obj/effect/proc_holder/spell/invoked/projectile/fetch = "movement",
-		/obj/effect/proc_holder/spell/invoked/projectile/repel = "control",
+		/datum/action/cooldown/spell/projectile/fetch = "movement",
+		/datum/action/cooldown/spell/projectile/repel = "control",
 		/obj/effect/proc_holder/spell/invoked/psydonamend = "healing",
 		/obj/effect/proc_holder/spell/invoked/psydonendure = "healing",
 		/obj/effect/proc_holder/spell/invoked/pyroclastic_puff = "attack",
-		/obj/effect/proc_holder/spell/invoked/raise_deadite = "summoning",
 		/obj/effect/proc_holder/spell/invoked/raise_spirit_respite = "summoning",
 		/obj/effect/proc_holder/spell/invoked/raise_spirits_vengeance = "summoning",
 		/obj/effect/proc_holder/spell/invoked/raise_undead = "summoning",
 		/obj/effect/proc_holder/spell/invoked/raise_undead_formation = "summoning",
 		/obj/effect/proc_holder/spell/invoked/raise_undead_guard = "summoning",
-		/obj/effect/proc_holder/spell/invoked/rebuke = "attack",
 		/obj/effect/proc_holder/spell/invoked/regression = "healing",
 		/obj/effect/proc_holder/spell/invoked/repulse = "control",
 		/obj/effect/proc_holder/spell/invoked/resurrect = "healing",
@@ -143,8 +134,6 @@
 		/obj/effect/proc_holder/spell/invoked/sanctify_tree = "summoning",
 		/obj/effect/proc_holder/spell/invoked/shadowstep = "movement",
 		/obj/effect/proc_holder/spell/invoked/silence = "control",
-		/obj/effect/proc_holder/spell/invoked/slick_trick = "control",
-		/obj/effect/proc_holder/spell/invoked/slick_trick_small = "control",
 		/obj/effect/proc_holder/spell/invoked/song = "buff",
 		/obj/effect/proc_holder/spell/invoked/song/dirge_fortune = "control",
 		/obj/effect/proc_holder/spell/invoked/song/discordant_dirge = "control",
@@ -153,24 +142,21 @@
 		/obj/effect/proc_holder/spell/invoked/song/recovery_song = "healing",
 		/obj/effect/proc_holder/spell/invoked/song/rejuvenation_song = "healing",
 		/obj/effect/proc_holder/spell/invoked/stasis = "protection",
-		/obj/effect/proc_holder/spell/invoked/stoneskin = "protection",
 		/obj/effect/proc_holder/spell/invoked/summon_bed = "summoning",
 		/obj/effect/proc_holder/spell/invoked/summon_dreamfiend_curse = "control",
 		/obj/effect/proc_holder/spell/invoked/summon_marked = "movement",
 		/obj/effect/proc_holder/spell/invoked/summon_rift = "summoning",
 		/obj/effect/proc_holder/spell/invoked/sundering_lightning = "attack",
 		/obj/effect/proc_holder/spell/invoked/tame_undead = "control",
-		/obj/effect/proc_holder/spell/invoked/thunderstrike = "attack",
 		/obj/effect/proc_holder/spell/invoked/tug_of_war = "control",
 		/obj/effect/proc_holder/spell/invoked/veilbound_shift = "movement",
 		/obj/effect/proc_holder/spell/invoked/vigorousexchange = "buff",
-		/obj/effect/proc_holder/spell/invoked/wither = "attack",
+		/datum/action/cooldown/spell/wither = "attack",
 		/obj/effect/proc_holder/spell/invoked/wound_closure = "healing",
 		/obj/effect/proc_holder/spell/invoked/wound_heal = "healing",
 		/obj/effect/proc_holder/spell/invoked/xylixlian_luck = "buff",
 		/obj/effect/proc_holder/spell/self/abyssor_wind = "healing",
 		/obj/effect/proc_holder/spell/self/astrata_gaze = "buff",
-		/obj/effect/proc_holder/spell/self/astratan_path = "buff",
 		/obj/effect/proc_holder/spell/self/astratan_spear = "summoning",
 		/obj/effect/proc_holder/spell/self/bearclaws = "buff",
 		/obj/effect/proc_holder/spell/self/cabbitclaws = "buff",
@@ -178,7 +164,7 @@
 		/obj/effect/proc_holder/spell/self/catclaws = "buff",
 		/obj/effect/proc_holder/spell/self/claws = "buff",
 		/obj/effect/proc_holder/spell/self/colossus_stomp = "attack",
-		/obj/effect/proc_holder/spell/self/conjure_armor = "protection",
+		/datum/action/cooldown/spell/conjure_arcyne_ward = "protection",
 		/obj/effect/proc_holder/spell/self/conjure_floral_seed = "summoning",
 		/obj/effect/proc_holder/spell/self/create_abyssoid = "summoning",
 		/obj/effect/proc_holder/spell/self/create_vines = "summoning",
@@ -186,15 +172,13 @@
 		/obj/effect/proc_holder/spell/self/crescendo = "buff",
 		/obj/effect/proc_holder/spell/self/divine_strike = "attack",
 		/obj/effect/proc_holder/spell/self/dragon_slam = "attack",
-		/obj/effect/proc_holder/spell/self/findfamiliar = "summoning",
 		/obj/effect/proc_holder/spell/self/foxclaws = "buff",
 		/obj/effect/proc_holder/spell/self/graggar_bloodrage = "buff",
 		/obj/effect/proc_holder/spell/self/harpy_flight = "movement",
 		/obj/effect/proc_holder/spell/self/harpy_sing = "control",
 		/obj/effect/proc_holder/spell/self/howl = "buff",
-		/obj/effect/proc_holder/spell/self/light = "summoning",
+		/datum/action/cooldown/spell/light = "summoning",
 		/obj/effect/proc_holder/spell/self/lurking_step = "movement",
-		/obj/effect/proc_holder/spell/self/magicians_brick = "summoning",
 		/obj/effect/proc_holder/spell/self/moleclaw = "buff",
 		/obj/effect/proc_holder/spell/self/phantasm_fade = "movement",
 		/obj/effect/proc_holder/spell/self/phantom_flicker = "protection",
@@ -205,7 +189,6 @@
 		/obj/effect/proc_holder/spell/self/psydonic_sacrosanctity = "protection",
 		/obj/effect/proc_holder/spell/self/psydonpersist = "protection",
 		/obj/effect/proc_holder/spell/self/psydonrespite = "healing",
-		/obj/effect/proc_holder/spell/self/recall = "movement",
 		/obj/effect/proc_holder/spell/self/rhythm = "buff",
 		/obj/effect/proc_holder/spell/self/rhythm/concussive = "attack",
 		/obj/effect/proc_holder/spell/self/rhythm/malaise = "control",
@@ -247,7 +230,7 @@
 		/obj/effect/proc_holder/spell/targeted/summonweapon = "summoning",
 		/obj/effect/proc_holder/spell/targeted/tesla = "attack",
 		/obj/effect/proc_holder/spell/targeted/touch/loversruin = "attack",
-		/obj/effect/proc_holder/spell/targeted/touch/nondetection = "protection",
+		/datum/action/cooldown/spell/nondetection = "protection",
 		/obj/effect/proc_holder/spell/targeted/touch/summonrogueweapon = "summoning",
 		/obj/effect/proc_holder/spell/targeted/transfix_neu = "control",
 		/obj/effect/proc_holder/spell/targeted/turf_teleport = "movement",
@@ -257,24 +240,37 @@
 
 /proc/admin_spell_category(spell_type)
 	var/list/rules = admin_spell_category_rules()
-	while(ispath(spell_type, /obj/effect/proc_holder/spell))
+	while(ispath(spell_type, /obj/effect/proc_holder/spell) || ispath(spell_type, /datum/action/cooldown/spell))
 		if(rules[spell_type])
 			return rules[spell_type]
 		spell_type = type2parent(spell_type)
 	return "other"
 
-/proc/admin_spell_icon(obj/effect/proc_holder/spell/spell_type)
-	var/icon_file = initial(spell_type.action_icon)
+/proc/admin_spell_icon(spell_type)
+	var/icon_file
+	var/list/candidate_states
+	if(ispath(spell_type, /datum/action/cooldown/spell))
+		var/datum/action/cooldown/spell/action_type = spell_type
+		icon_file = initial(action_type.button_icon)
+		candidate_states = list(initial(action_type.button_icon_state))
+	else
+		var/obj/effect/proc_holder/spell/legacy_type = spell_type
+		icon_file = initial(legacy_type.action_icon)
+		candidate_states = list(initial(legacy_type.overlay_state), initial(legacy_type.action_icon_state))
 	var/static/list/states_by_file = list()
 	if(icon_file)
 		var/list/states = states_by_file[icon_file]
 		if(!states)
 			states = icon_states(icon_file)
 			states_by_file[icon_file] = states
-		for(var/state in list(initial(spell_type.overlay_state), initial(spell_type.action_icon_state)))
+		for(var/state in candidate_states)
 			if(state && (state in states))
 				return list("file" = icon_file, "state" = state)
 	return list("file" = 'icons/mob/actions/roguespells.dmi', "state" = "spell")
+
+/proc/admin_spell_types()
+	var/static/list/types = GLOB.spells + subtypesof(/datum/action/cooldown/spell)
+	return types
 
 /proc/admin_spell_sprite_key(spell_type)
 	return "admin_spell_[md5("[spell_type]")]"
@@ -283,7 +279,7 @@
 	name = "admin_spells"
 
 /datum/asset/spritesheet/admin_spells/create_spritesheets()
-	for(var/spell_type in GLOB.spells)
+	for(var/spell_type in admin_spell_types())
 		var/list/sprite = admin_spell_icon(spell_type)
 		Insert(admin_spell_sprite_key(spell_type), sprite["file"], sprite["state"])
 
@@ -296,17 +292,32 @@
 	var/datum/asset/spritesheet/spritesheet = get_asset_datum(/datum/asset/spritesheet/admin_spells)
 	var/static/regex/breaks = regex("<br\\s*/?>", "gi")
 	var/static/regex/tags = regex("<.*?>", "g")
-	for(var/obj/effect/proc_holder/spell/spell_type as anything in GLOB.spells)
-		var/description = initial(spell_type.desc) || ""
-		description = html_decode(tags.Replace(breaks.Replace(description, "\n"), ""))
+	for(var/datum/spell_type as anything in admin_spell_types())
+		var/description
+		var/spell_name
+		var/cooldown = 0
+		var/charge_time = 0
+		if(ispath(spell_type, /datum/action/cooldown/spell))
+			var/datum/action/cooldown/spell/action_type = spell_type
+			description = initial(action_type.desc)
+			spell_name = initial(action_type.name)
+			cooldown = initial(action_type.cooldown_time) / 10
+			charge_time = initial(action_type.charge_required) ? initial(action_type.charge_time) / 10 : 0
+		else
+			var/obj/effect/proc_holder/spell/legacy_type = spell_type
+			description = initial(legacy_type.desc)
+			spell_name = initial(legacy_type.name)
+			cooldown = initial(legacy_type.charge_type) == "recharge" ? initial(legacy_type.recharge_time) / 10 : 0
+			charge_time = initial(legacy_type.skipcharge) ? 0 : initial(legacy_type.chargetime) / 10
+		description = html_decode(tags.Replace(breaks.Replace(description || "", "\n"), ""))
 		entries += list(list(
 			"path" = "[spell_type]",
-			"name" = initial(spell_type.name) || "Без названия",
+			"name" = spell_name || "Без названия",
 			"desc" = description,
 			"category" = admin_spell_category(spell_type),
 			"icon" = spritesheet.icon_class_name(admin_spell_sprite_key(spell_type)),
-			"cooldown" = initial(spell_type.charge_type) == "recharge" ? initial(spell_type.recharge_time) / 10 : 0,
-			"charge_time" = initial(spell_type.skipcharge) ? 0 : initial(spell_type.chargetime) / 10,
+			"cooldown" = cooldown,
+			"charge_time" = charge_time,
 		))
 	catalog = entries
 	return catalog
@@ -381,7 +392,7 @@
 	var/list/known = list()
 	if(!target)
 		return known
-	for(var/obj/effect/proc_holder/spell/spell as anything in (target.mob_spell_list + target.mind?.spell_list))
+	for(var/datum/spell as anything in (target.mob_spell_list + target.mind?.spell_list))
 		if(!QDELETED(spell))
 			known["[spell.type]"] = TRUE
 	return known
@@ -418,30 +429,37 @@
 	if(!istext(path_text))
 		return FALSE
 	var/spell_type = text2path(path_text)
-	if(!ispath(spell_type, /obj/effect/proc_holder/spell) || !(spell_type in GLOB.spells))
+	if(!(ispath(spell_type, /obj/effect/proc_holder/spell) || ispath(spell_type, /datum/action/cooldown/spell)) || !(spell_type in admin_spell_types()))
 		return FALSE
 	// Compare canonical paths, not alternative textual representations from clients.
 	path_text = "[spell_type]"
 	if(known_spells(target)[path_text])
 		status_message = "У получателя уже есть это заклинание."
 		return TRUE
-	var/obj/effect/proc_holder/spell/spell = new spell_type()
+	var/datum/spell = new spell_type()
 	// Constructors may yield; recheck the recipient and access before granting.
 	if(!can_access(user) || get_target() != target || known_spells(target)[path_text])
 		qdel(spell)
 		return TRUE
-	if(QDELETED(spell) || !spell.action)
+	var/obj/effect/proc_holder/spell/legacy_spell
+	if(istype(spell, /obj/effect/proc_holder/spell))
+		legacy_spell = spell
+	if(QDELETED(spell) || (legacy_spell && !legacy_spell.action))
 		qdel(spell)
 		status_message = "Этот тип не создаёт доступную для выдачи способность."
 		return TRUE
 	if(target.mind)
 		target.mind.AddSpell(spell)
+	else if(istype(spell, /datum/action/cooldown/spell))
+		var/datum/action/cooldown/spell/action_spell = spell
+		target.mob_spell_list += action_spell
+		action_spell.Grant(target)
 	else
-		target.AddSpell(spell)
+		target.AddSpell(legacy_spell)
 	log_admin("[key_name(user)] gave [key_name(target)] the spell [spell_type].")
 	message_admins(span_adminnotice("[key_name_admin(user)] gave [key_name_admin(target)] the spell [spell_type]."))
 	SSblackbox.record_feedback("tally", "admin_verb", 1, "Give Spell")
-	status_message = "Выдано: [spell.name] → [target.name]."
+	status_message = "Выдано: [spell:name] → [target.name]."
 	return TRUE
 
 /datum/admin_spell_library/proc/revoke_spell(mob/user, path_text)
@@ -454,19 +472,19 @@
 	if(!istext(path_text))
 		return FALSE
 	var/spell_type = text2path(path_text)
-	if(!ispath(spell_type, /obj/effect/proc_holder/spell) || !(spell_type in GLOB.spells))
+	if(!(ispath(spell_type, /obj/effect/proc_holder/spell) || ispath(spell_type, /datum/action/cooldown/spell)) || !(spell_type in admin_spell_types()))
 		return FALSE
 	// Cards represent exact types; do not remove their subtypes or skip body-owned spells.
 	var/list/spells_to_remove = list()
-	for(var/obj/effect/proc_holder/spell/spell as anything in (target.mob_spell_list + target.mind?.spell_list))
+	for(var/datum/spell as anything in (target.mob_spell_list + target.mind?.spell_list))
 		if(!QDELETED(spell) && spell.type == spell_type)
 			spells_to_remove |= spell
 	if(!length(spells_to_remove))
 		status_message = "У получателя уже нет этого заклинания."
 		return TRUE
-	var/obj/effect/proc_holder/spell/first_spell = spells_to_remove[1]
-	var/spell_name = first_spell.name
-	for(var/obj/effect/proc_holder/spell/spell as anything in spells_to_remove)
+	var/datum/first_spell = spells_to_remove[1]
+	var/spell_name = first_spell:name
+	for(var/datum/spell as anything in spells_to_remove)
 		target.mob_spell_list -= spell
 		target.mind?.spell_list -= spell
 		qdel(spell)

@@ -1,47 +1,52 @@
-/obj/effect/proc_holder/spell/invoked/mirror_transform  // Changed from targeted to invoked
+/datum/action/cooldown/spell/mirror_transform
 	name = "Mirror Transform"
 	desc = "Temporarily grants you the ability to use mirrors to change your appearance."
-	clothes_req = FALSE
-	charge_type = "recharge"
-	associated_skill = /datum/skill/magic/arcane
-	cost = 1 // Trash spell
-	xp_gain = TRUE
-	// Fix invoked spell variables
-	releasedrain = 35
-	chargedrain = 1  // Fixed from chargeddrain to chargedrain
-	chargetime = 10
-	recharge_time = 300 SECONDS
-	warnie = "spellwarning"
-	no_early_release = TRUE
-	movement_interrupt = FALSE
-	spell_tier = 1
+	button_icon = 'icons/mob/actions/mage_augmentation.dmi'
+	button_icon_state = "mirror"
+	sound = 'sound/magic/whiteflame.ogg'
+
+	click_to_activate = TRUE
+	self_cast_possible = TRUE
+
+	primary_resource_type = SPELL_COST_STAMINA
+	primary_resource_cost = SPELLCOST_CANTRIP
+
 	invocations = list("Effingo")
-	invocation_type = "whisper"
-	hide_charge_effect = TRUE
-	charging_slowdown = 3
-	chargedloop = /datum/looping_sound/wind
-	overlay_state = "mirror"
+	invocation_type = INVOCATION_WHISPER
 
-/obj/effect/proc_holder/spell/invoked/mirror_transform/ooze
-	human_req = TRUE
+	charge_required = TRUE
+	charge_time = 1 SECONDS
+	hold_drain = 1
+	charge_slowdown = 3
+	charge_sound = null
+	cooldown_time = 300 SECONDS
 
-/obj/effect/proc_holder/spell/invoked/mirror_transform/cast(list/targets, mob/user)  // Changed to match invoked spell pattern
-	if(!isliving(targets[1]))
-		return
-	var/mob/living/carbon/human/H = targets[1]
+	associated_skill = /datum/skill/magic/arcane
+	point_cost = 1
+	spell_tier = 1
+	spell_impact_intensity = SPELL_IMPACT_NONE
+	spell_requirements = SPELL_REQUIRES_NO_ANTIMAGIC | SPELL_REQUIRES_HUMAN | SPELL_REQUIRES_SAME_Z
+
+/datum/action/cooldown/spell/mirror_transform/cast(atom/cast_on)
+	. = ..()
+	var/mob/living/carbon/human/H = cast_on
 	if(!istype(H))
-		return
+		return FALSE
 
 	ADD_TRAIT(H, TRAIT_MIRROR_MAGIC, TRAIT_GENERIC)
 	H.visible_message(span_notice("[H]'s reflection shimmers briefly."), span_notice("You feel a connection to mirrors forming..."))
-	
-	addtimer(CALLBACK(src, PROC_REF(remove_mirror_magic), H), 5 MINUTES)
-	return TRUE  // Return TRUE for successful cast
 
-/obj/effect/proc_holder/spell/invoked/mirror_transform/proc/remove_mirror_magic(mob/living/carbon/human/H)
+	addtimer(CALLBACK(src, PROC_REF(remove_mirror_magic), H), 5 MINUTES)
+	return TRUE
+
+/datum/action/cooldown/spell/mirror_transform/proc/remove_mirror_magic(mob/living/carbon/human/H)
 	if(!QDELETED(H))
 		REMOVE_TRAIT(H, TRAIT_MIRROR_MAGIC, TRAIT_GENERIC)
 		to_chat(H, span_warning("Your connection to mirrors fades away."))
+
+/datum/action/cooldown/spell/mirror_transform/ooze
+	// Oozes may customize their humanoid body, but not their blob form.
+	spell_requirements = SPELL_REQUIRES_NO_ANTIMAGIC | SPELL_REQUIRES_HUMAN | SPELL_REQUIRES_SAME_Z
 
 /proc/perform_mirror_transform(mob/living/carbon/human/H)
 	// Handles the actual appearance changing part of the spell. For reasons unknown to man, this previously lived exclusively on the mirror object.

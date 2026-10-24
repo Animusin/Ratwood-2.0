@@ -39,7 +39,7 @@
 		/datum/advclass/hedgeknight,
 		/datum/advclass/iconoclast,
 		/datum/advclass/knave,
-		/datum/advclass/roguemage,
+		/datum/advclass/hedgemage,
 		/datum/advclass/sawbones,
 		/datum/advclass/sellsword,
 		/datum/advclass/pioneer

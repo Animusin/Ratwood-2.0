@@ -199,6 +199,8 @@
 	associated_skill = /datum/skill/misc/climbing
 	recharge_time = 10 SECONDS
 	ignore_cockblock = TRUE
+	/// Carrier-to-wound transmission roll; individual wounds retain their own infection checks.
+	var/infection_chance = 10
 
 /obj/effect/proc_holder/spell/targeted/woundlick/cast(list/targets, mob/user)
 	if(iscarbon(targets[1]))
@@ -223,7 +225,8 @@
 			target.visible_message(span_green("[user] is licking [target]'s wounds with its tongue!"), span_notice("That thing... Did it lick my wounds?"))
 			rid = /datum/reagent/water
 			target.reagents.add_reagent(rid, ramount)
-			if(prob(10))
+			// Cats share this healing spell, but only a lycanthropic caster can spread the curse.
+			if(user.mind?.has_antag_datum(/datum/antagonist/werewolf) && prob(infection_chance))
 				for(var/obj/item/bodypart/BP in target.bodyparts)
 					if(!BP?.wounds)
 						continue

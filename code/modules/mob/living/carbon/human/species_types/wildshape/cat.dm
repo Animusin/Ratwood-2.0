@@ -223,7 +223,8 @@
 			target.visible_message(span_green("[user] is licking [target]'s wounds with its tongue!"), span_notice("That thing... Did it lick my wounds?"))
 			rid = /datum/reagent/water
 			target.reagents.add_reagent(rid, ramount)
-			if(prob(10))
+			// Cats share this healing spell, but only a lycanthropic caster can spread the curse.
+			if(user.mind?.has_antag_datum(/datum/antagonist/werewolf) && prob(10))
 				for(var/obj/item/bodypart/BP in target.bodyparts)
 					if(!BP?.wounds)
 						continue

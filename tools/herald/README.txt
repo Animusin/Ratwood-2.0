@@ -267,7 +267,10 @@ native USING options are supported by the existing parser/query engine. Queries
 use superuser=FALSE and ordinary CanProcCall/vv guards. Remote proccalls establish
 an explicit authenticated caller context so advanced-proccall protections are
 not skipped merely because usr is null. KEEP_ALIVE retains query data for
-inspection, not permission for an automatic unconfirmed re-execution.
+inspection, not permission for an automatic unconfirmed re-execution. Remote
+queries are one-shot: only their job can schedule the initial Run; native UI RUN,
+ARun/Run proc calls and edits of launch flags cannot replay or start a future
+sequential query early. Native HALT/delete remain available for stopping/review.
 
 IMPORTANT: full SDQL is inherently capable of destructive world changes and
 arbitrary proccalls. A non-yielding/infinite proc, HIGH priority, huge SELECT,

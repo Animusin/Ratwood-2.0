@@ -346,6 +346,7 @@ GLOBAL_PROTECT(herald_sdql_proc_caller)
 					sequential = TRUE
 			if(sequential)
 				for(var/datum/SDQL2_query/herald_remote/Q in queries)
+					Q.herald_launch_allowed = TRUE
 					Q.ARun()
 					while(!QDELETED(Q) && !Q.herald_returned)
 						sleep(1)
@@ -354,6 +355,7 @@ GLOBAL_PROTECT(herald_sdql_proc_caller)
 						break
 			else
 				for(var/datum/SDQL2_query/herald_remote/Q in queries)
+					Q.herald_launch_allowed = TRUE
 					Q.ARun()
 				var/pending = TRUE
 				while(pending)
@@ -401,9 +403,36 @@ GLOBAL_PROTECT(herald_sdql_proc_caller)
 	var/datum/herald_sdql_job/herald_job
 	var/herald_started = FALSE
 	var/herald_returned = FALSE
+	var/herald_scheduled = FALSE
+	var/herald_launch_allowed = FALSE
+
+/datum/SDQL2_query/herald_remote/CanProcCall(procname)
+	return FALSE // Wrapper internals are not a second execution gateway.
+
+/datum/SDQL2_query/herald_remote/can_vv_get(var_name)
+	if(var_name in list("vars", "herald_job", "herald_started", "herald_returned", "herald_scheduled", "herald_launch_allowed"))
+		return FALSE
+	return ..()
+
+/datum/SDQL2_query/herald_remote/vv_edit_var(var_name, var_value)
+	if(var_name in list("herald_job", "herald_started", "herald_returned", "herald_scheduled", "herald_launch_allowed"))
+		return FALSE
+	return ..()
+
+/datum/SDQL2_query/herald_remote/admin_run(mob/user = usr)
+	return FALSE // Native UI RUN cannot reuse an owner-approved remote query.
+
+/datum/SDQL2_query/herald_remote/ARun()
+	if(!herald_launch_allowed || herald_scheduled || herald_started || !herald_job || QDELETED(herald_job))
+		return FALSE
+	herald_launch_allowed = FALSE
+	herald_scheduled = TRUE
+	return ..()
 
 /datum/SDQL2_query/herald_remote/Run()
-	if(!herald_job || QDELETED(herald_job))
+	// This check MUST precede all flag changes: a duplicate Run while the
+	// first is yielding must not report that first call as returned.
+	if(herald_started || !herald_scheduled || !herald_job || QDELETED(herald_job))
 		return FALSE // KEEP_ALIVE is inspectable, not an unapproved re-execution.
 	herald_started = TRUE
 	herald_returned = FALSE

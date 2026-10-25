@@ -603,6 +603,10 @@ GLOBAL_LIST_EMPTY(herald_sdql_probe_deletes)
 	sleep(5)
 	return set_value(new_value)
 
+/datum/herald_sdql_probe_target/proc/slow_value(new_value)
+	sleep(2 SECONDS)
+	return set_value(new_value)
+
 /datum/world_topic/herald_sdql/herald_probe
 	var/test_storage_failure = FALSE
 
@@ -755,6 +759,46 @@ GLOBAL_LIST_EMPTY(herald_sdql_probe_deletes)
 			Q.admin_halt()
 	result = sdql_wait(api, halting["request_id"])
 	check("sdql_halt_releases_busy_but_does_not_rollback_proc", result["status"] == "operation_uncertain" && T.value == 9 && !api.busy_id, json_encode(result))
+	api.next_execute = 0
+	var/list/replay_race = sdql_request("CALL increment() ON /datum IN global.herald_sdql_probe_targets; CALL slow_value(40) ON /datum IN global.herald_sdql_probe_targets", "eccccccccccccccccccccccccccccccc", 12)
+	result = sdql_result(api, replay_race)
+	sleep(1)
+	var/datum/herald_sdql_job/race_job
+	for(var/datum/SDQL2_query/herald_remote/Q in GLOB.sdql2_queries)
+		if(Q.herald_job && Q.herald_job.request_id == replay_race["request_id"])
+			race_job = Q.herald_job
+			break
+	if(!race_job || length(race_job.queries) != 2)
+		check("sdql_replay_race_fixture", FALSE)
+		return
+	var/datum/SDQL2_query/herald_remote/finished_query = race_job.queries[1]
+	var/datum/SDQL2_query/herald_remote/yielding_query = race_job.queries[2]
+	var/race_calls = T.calls
+	var/finished_rejected = !finished_query.Run() && !finished_query.ARun() && !finished_query.admin_run()
+	WrapAdminProcCall(finished_query, "Run", list())
+	WrapAdminProcCall(finished_query, "ARun", list())
+	check("sdql_finished_remote_query_cannot_replay_while_sibling_alive", finished_query.herald_returned && finished_rejected && !finished_query.CanProcCall("Run") && T.calls == race_calls)
+	var/yielding_rejected = !yielding_query.Run() && !yielding_query.ARun() && !yielding_query.admin_run()
+	check("sdql_concurrent_run_cannot_fake_returned_or_release_busy", yielding_rejected && yielding_query.herald_started && !yielding_query.herald_returned && api.busy_id == replay_race["request_id"])
+	check("sdql_remote_launch_flags_not_vv_editable", !yielding_query.vv_edit_var("herald_started", FALSE) && !yielding_query.vv_edit_var("herald_launch_allowed", TRUE) && !yielding_query.can_vv_get("vars"))
+	result = sdql_wait(api, replay_race["request_id"])
+	check("sdql_race_original_calls_execute_once", result["status"] == "completed" && T.value == 40 && T.calls == race_calls + 1 && !api.busy_id, json_encode(result))
+	api.next_execute = 0
+	var/list/early_run = sdql_request("USING SEQUENTIAL = TRUE CALL slow_value(41) ON /datum IN global.herald_sdql_probe_targets; CALL increment() ON /datum IN global.herald_sdql_probe_targets", "eddddddddddddddddddddddddddddddd", 13)
+	result = sdql_result(api, early_run)
+	sleep(1)
+	var/datum/herald_sdql_job/sequential_job
+	for(var/datum/SDQL2_query/herald_remote/Q in GLOB.sdql2_queries)
+		if(Q.herald_job && Q.herald_job.request_id == early_run["request_id"])
+			sequential_job = Q.herald_job
+			break
+	if(!sequential_job || length(sequential_job.queries) != 2)
+		check("sdql_early_run_fixture", FALSE)
+		return
+	var/datum/SDQL2_query/herald_remote/waiting_query = sequential_job.queries[2]
+	check("sdql_sequential_future_query_cannot_launch_early", !waiting_query.herald_started && !waiting_query.herald_scheduled && !waiting_query.Run() && !waiting_query.ARun() && !waiting_query.admin_run())
+	result = sdql_wait(api, early_run["request_id"])
+	check("sdql_sequential_future_query_runs_once_when_job_permits", result["status"] == "completed" && T.value == 42, json_encode(result))
 	T.value = 7 // Restore this owned test datum for the recovery check below.
 	var/old_calls = T.calls
 	var/list/entry = api.receipts[input["request_id"]]

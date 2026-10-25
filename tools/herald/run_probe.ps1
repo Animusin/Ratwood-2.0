@@ -27,7 +27,7 @@ try {
         elseif((Get-Item -LiteralPath $link).LinkType -ne 'Junction' -or (Get-Item -LiteralPath $link).Target -ne $target){throw 'Unexpected build input.'}
     }
     $prefix="#define NO_DUNGEON`r`n#define USE_CUSTOM_ERROR_HANDLER`r`n#define FORCE_MAP `"tmp/herald-probe/map.json`"`r`n"
-    ($prefix+$source+"`r`n#include `"../../../tools/herald/game_probe.dm`"`r`n")|Set-Content -LiteralPath (Join-Path $build 'probe.dme') -Encoding utf8
+    [IO.File]::WriteAllText((Join-Path $build 'probe.dme'), ($prefix+$source+"`r`n#include `"../../../tools/herald/game_probe.dm`"`r`n"), [Text.UTF8Encoding]::new($false))
     $output=& 'C:/Program Files (x86)/BYOND/bin/dm.exe' (Join-Path $build 'probe.dme') 2>&1
     $output|Set-Content -LiteralPath (Join-Path $root 'compile.log') -Encoding utf8
     $output|Select-Object -Last 4
@@ -58,6 +58,7 @@ try {
       'WEBHOOK_CUSTOM_EMOTES https://discord.com/api/webhooks/456/emotetesttoken',
       'WEBHOOK_CUSTOM_EMOTES https://discord.com/api/webhooks/456/emotetesttoken',
       'HERALD_ADMIN_OPERATOR_IDS 2',
+      'HERALD_DUTY_ENABLED 1',
       'HERALD_ADMIN_CKEY heraldadminprobe')|Set-Content -LiteralPath (Join-Path $cfg 'config.txt') -Encoding ascii
     Get-ChildItem -LiteralPath $repo -File -Filter '*.dll'|Copy-Item -Destination $runtime
     foreach($icon in @('title_static.png','rogueworld_title.dmi','tg_32.png')){

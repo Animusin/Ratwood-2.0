@@ -76,6 +76,31 @@ def validated_admin(port, values):
     return data
 
 
+def duty_request(action, round_id=None, ck=None, data=None, request_id=None):
+    values = {'herald_duty': action, 'minute': str(int(time.time() // 60)), 'operator': '2'}
+    if action == 'snapshot':
+        values['nonce'] = secrets.token_hex(16)
+        canonical = f'duty_snapshot|{values["minute"]}|{values["nonce"]}|2'
+    else:
+        payload = json.dumps(data, ensure_ascii=False, sort_keys=True, separators=(',', ':'))
+        values.update({'round': round_id, 'ckey': ck, 'payload': payload,
+                       'request_id': request_id or secrets.token_hex(16)})
+        digest = hashlib.sha256(payload.encode()).hexdigest()
+        canonical = f'duty_request|{round_id}|{ck}|{digest}|{values["minute"]}|{values["request_id"]}|2'
+    values['signature'] = sign(canonical)
+    return values
+
+
+def validated_duty(port, values):
+    envelope = query(port, values)
+    assert 'data' in envelope, envelope
+    snapshot = values['herald_duty'] == 'snapshot'
+    prefix = 'duty_snapshot_response' if snapshot else 'duty_response'
+    identity = values['nonce'] if snapshot else values['request_id']
+    assert hmac.compare_digest(envelope['signature'], sign(f'{prefix}|{identity}|' + envelope['data']))
+    return json.loads(envelope['data'])
+
+
 def main():
     port = int(sys.argv[1])
     for action in ('status', 'players', 'character'):
@@ -83,10 +108,10 @@ def main():
         snapshot = validated(port, values)
         round_id = str(snapshot['round'])
         print('PASS local_signed_' + action)
-        time.sleep(1.1)
+        time.sleep(2.2)  # World time can lag wall time during map startup.
     values = request('status')
     validated(port, values)
-    time.sleep(1.1)
+    time.sleep(2.2)
     assert query(port, values)['error'] == 'replayed_or_busy'
     assert query(port, {'herald_read': 'sdql'})['error'] == 'unsupported_action'
     invalid = request('status')
@@ -99,7 +124,7 @@ def main():
     duplicate = validated_admin(port, reply)
     assert duplicate['status'] == 'delivered' and duplicate['duplicate'] == 1
     print('PASS real_topic_admin_reply_and_idempotent_replay')
-    time.sleep(2.1)
+    time.sleep(3.1)
     pq = admin_request('pq', round_id, 'heraldpqprobe', {'delta': -1, 'reason': 'Local wire check'})
     result = validated_admin(port, pq)
     assert result['status'] == 'pq_adjusted' and result['before'] == 35 and result['after'] == 34
@@ -112,6 +137,21 @@ def main():
     assert query(port, bad)['error'] == 'unauthorized'
     assert query(port, {'herald_admin': 'sdql'})['error'] == 'unsupported_action'
     print('PASS admin_old_round_bad_signature_and_arbitrary_command_refused')
+    snapshot = validated_duty(port, duty_request('snapshot'))
+    assert snapshot['read_only'] == 1 and snapshot['duty_enabled'] == 1
+    assert snapshot['admins'] == {'known': 1, 'active': 0, 'total': 0}
+    ticket = next(row for row in snapshot['tickets'] if row['id'] == 995)
+    assert ticket['ckey'] == 'heralddutywire' and ticket['last_interactions'][-1]['kind'] == 'player'
+    reply = duty_request('reply', round_id, ticket['ckey'],
+                         {'ticket_id': ticket['id'], 'version': ticket['version'], 'text': 'Я Геральд, автоматический дежурный. Проверяю обращение.'})
+    result = validated_duty(port, reply)
+    assert result['status'] == 'delivered' and result['new_version'] > ticket['version']
+    assert validated_duty(port, reply)['duplicate'] == 1
+    long_reply = duty_request('reply', round_id, ticket['ckey'],
+                              {'ticket_id': ticket['id'], 'version': result['new_version'], 'text': 'слово ' * 31})
+    assert query(port, long_reply)['error'] == 'invalid_argument'
+    assert query(port, {'herald_duty': 'ban'})['error'] == 'unsupported_action'
+    print('PASS duty_signed_snapshot_ai_reply_dedup_word_limit_no_punishment')
 
 
 if __name__ == '__main__':

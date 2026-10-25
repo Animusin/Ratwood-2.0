@@ -179,6 +179,7 @@ var/global/datum/herald_game_probe/herald_game_probe = new
 	CONFIG_SET(string/webhook_adminhelp, "")
 	test_emote_relay()
 	test_admin_actions()
+	test_duty()
 	var/mob/living/carbon/human/consistent/M = new(locate(1, 1, 1))
 	M.name = "Herald Probe"
 	GLOB.player_list |= M
@@ -202,6 +203,204 @@ var/global/datum/herald_game_probe/herald_game_probe = new
 		qdel(Q)
 	check("sdql_did_not_mutate_character", !QDELETED(M) && M.health == old_health && M.stat == old_stat && M.loc == old_location && M.name == "Herald Probe")
 	qdel(M)
+
+// Synthetic recipients and staff counts below exist ONLY in this test world.
+/datum/admin_help/herald_duty_probe
+	var/duty_reply_count = 0
+	var/test_connected = TRUE
+
+/datum/admin_help/herald_duty_probe/New()
+	id = 996
+	initiator_ckey = "heraldduty"
+	_interactions = list()
+
+/datum/admin_help/herald_duty_probe/HeraldDutyConnected()
+	return test_connected
+
+/datum/admin_help/herald_duty_probe/HeraldDutyReply(message)
+	duty_reply_count++
+	AddInteraction("Геральд: [herald_ahelp_body(message)]", "duty", "Геральд")
+	herald_last_duty_player_revision = herald_player_revision
+	herald_duty_next_reply = world.time + 1 MINUTES
+	return "delivered" // Fake client; does not assert delivery to a real player.
+
+/datum/world_topic/herald_duty/herald_probe
+	var/test_staff_total = 0
+	var/test_staff_active = 0
+	var/test_known = TRUE
+	var/test_storage_failure = FALSE
+	var/test_human_after_reservation = FALSE
+
+/datum/world_topic/herald_duty/herald_probe/admin_presence()
+	return list("known" = test_known, "active" = test_staff_active, "total" = test_staff_total)
+
+/datum/world_topic/herald_duty/herald_probe/persist()
+	if(test_storage_failure)
+		return FALSE
+	var/saved = ..()
+	if(test_human_after_reservation)
+		test_staff_total = 1
+		test_human_after_reservation = FALSE
+	return saved
+
+/datum/herald_game_probe/proc/duty_sign(list/input)
+	var/signed
+	if(input["herald_duty"] == "snapshot")
+		signed = "duty_snapshot|[input["minute"]]|[input["nonce"]]|[input["operator"]]"
+	else
+		var/hash = rustg_hash_string(RUSTG_HASH_SHA256, input["payload"])
+		signed = "duty_request|[input["round"]]|[input["ckey"]]|[hash]|[input["minute"]]|[input["request_id"]]|[input["operator"]]"
+	input["signature"] = herald_read_signature(CONFIG_GET(string/herald_readonly_key), signed)
+	return input
+
+/datum/herald_game_probe/proc/duty_request(version, message, request_id)
+	return duty_sign(list("herald_duty" = "reply", "round" = "[GLOB.rogue_round_id]", "ckey" = "heraldduty",
+		"payload" = json_encode(list("ticket_id" = 996, "version" = version, "text" = message)),
+		"minute" = num2text(round(world.realtime / 600) + 15778080, 10), "request_id" = request_id, "operator" = "2"))
+
+/datum/herald_game_probe/proc/duty_result(datum/world_topic/herald_duty/api, list/input)
+	var/list/envelope = json_decode(api.TryRun(input))
+	if(envelope["data"])
+		var/prefix = input["herald_duty"] == "snapshot" ? "duty_snapshot_response" : "duty_response"
+		var/identity = input["herald_duty"] == "snapshot" ? input["nonce"] : input["request_id"]
+		check("signed_duty_response", envelope["signature"] == herald_read_signature(CONFIG_GET(string/herald_readonly_key), "[prefix]|[identity]|[envelope["data"]]"))
+		return json_decode(envelope["data"])
+	return envelope
+
+/datum/herald_game_probe/proc/test_duty()
+	check("duty_loaded_from_main_config", CONFIG_GET(flag/herald_duty_enabled))
+	var/datum/world_topic/herald_duty/herald_probe/api = new
+	var/datum/admin_help/herald_duty_probe/T = new
+	GLOB.ahelp_tickets.active_tickets += T
+	T.HeraldRecord("Нужна помощь 🐟", "player", "heraldduty")
+	var/list/read = duty_sign(list("herald_duty" = "snapshot", "minute" = num2text(round(world.realtime / 600) + 15778080, 10),
+		"nonce" = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "operator" = "2"))
+	CONFIG_SET(flag/herald_duty_enabled, FALSE)
+	var/list/result = duty_result(api, read)
+	check("duty_disabled_without_optin", result["error"] == "disabled")
+	CONFIG_SET(flag/herald_duty_enabled, TRUE)
+	result = duty_result(api, read)
+	var/list/staff = result["admins"]
+	check("duty_bounded_read_snapshot", result["read_only"] && length(result["tickets"]) <= 10 && staff["known"] && staff["total"] == 0 && findtext(result["generated_at"], "Z"))
+	var/list/reply = duty_request(T.herald_revision, "Проверяю обращение. Расскажи, что случилось.", "d1111111111111111111111111111111")
+	var/list/invalid = reply.Copy()
+	invalid["signature"] = "bad"
+	result = duty_result(api, invalid)
+	check("duty_signature_denied", result["error"] == "unauthorized")
+	invalid = reply.Copy()
+	invalid["query"] = "SELECT * FROM world"
+	result = duty_result(api, invalid)
+	check("duty_arbitrary_query_denied", result["error"] == "invalid_argument")
+	invalid = reply.Copy()
+	invalid["herald_duty"] = "ban"
+	result = duty_result(api, invalid)
+	check("duty_punishment_not_exposed", result["error"] == "unsupported_action")
+	api.test_staff_total = 1 // Active=0 deliberately models AFK/stealth/deadmin staff.
+	result = duty_result(api, reply)
+	check("duty_afk_or_hidden_staff_still_pauses", result["status"] == "human_present" && !T.duty_reply_count)
+	api.test_staff_total = 0
+	api.test_known = FALSE
+	result = duty_result(api, reply)
+	check("duty_unknown_presence_denies", result["status"] == "snapshot_unknown" && !T.duty_reply_count)
+	api.test_known = TRUE
+	T.HeraldRecord("Человек взял тикет", "human", "humanprobe")
+	result = duty_result(api, duty_request(T.herald_revision, "Не отправлять", "d2222222222222222222222222222222"))
+	check("duty_human_claim_pauses", result["status"] == "human_handled" && !T.duty_reply_count)
+	T.herald_handler = "" // Test fixture reset, not a remotely exposed operation.
+	result = duty_result(api, reply)
+	check("duty_stale_revision_denied", result["status"] == "ticket_changed")
+	T.test_connected = FALSE
+	result = duty_result(api, duty_request(T.herald_revision, "Не отправлять", "d3333333333333333333333333333333"))
+	check("duty_offline_player_denied", result["status"] == "player_offline")
+	T.test_connected = TRUE
+	var/list/too_many = list()
+	for(var/i in 1 to 31)
+		too_many += "слово"
+	result = duty_result(api, duty_request(T.herald_revision, jointext(too_many, " "), "d4444444444444444444444444444444"))
+	check("duty_thirty_word_limit_enforced", result["error"] == "invalid_argument")
+	check("duty_unicode_whitespace_word_count", herald_duty_word_count(jointext(too_many, "\u00a0")) == 31 && herald_duty_word_count("Привет\tмир\nрыба") == 3)
+	reply = duty_request(T.herald_revision, "Краткий ответ от Геральда.", "d5555555555555555555555555555555")
+	api.test_storage_failure = TRUE
+	result = duty_result(api, reply)
+	check("duty_requires_durable_reservation", result["error"] == "receipt_storage_failed" && !T.duty_reply_count)
+	api.test_storage_failure = FALSE
+	api.test_human_after_reservation = TRUE
+	result = duty_result(api, reply)
+	check("duty_rechecks_staff_after_reservation", result["status"] == "human_present" && !T.duty_reply_count)
+	api.test_staff_total = 0
+	api.next_reply = 0
+	reply = duty_request(T.herald_revision, "Проверяю обращение. Уточни обстоятельства.", "d6666666666666666666666666666666")
+	result = duty_result(api, reply)
+	check("duty_reply_once_explicit_ai_actor", result["status"] == "delivered" && T.duty_reply_count == 1 && !findtext(T._interactions[1], "heraldadminprobe") && findtext(T._interactions[1], "Геральд"))
+	result = duty_result(api, reply)
+	check("duty_retry_does_not_repeat", result["duplicate"] && T.duty_reply_count == 1)
+	invalid = reply.Copy()
+	invalid["payload"] = json_encode(list("ticket_id" = 996, "version" = T.herald_revision, "text" = "Другой ответ"))
+	result = duty_result(api, duty_sign(invalid))
+	check("duty_id_payload_conflict_denied", result["error"] == "request_id_conflict")
+	api.receipts = list()
+	api.generation = 0
+	api.recovered = FALSE
+	result = duty_result(api, reply)
+	check("duty_receipt_recovers_without_repeat", result["duplicate"] && T.duty_reply_count == 1)
+	var/list/invalid_receipts = list("d0000000000000000000000000000000" = list("fingerprint" = "shape only", "result" = "not a result object"))
+	check("duty_malformed_receipt_entries_denied", !api.valid_receipts(invalid_receipts))
+	var/checkpoint = "data/herald_duty_receipts_0.json"
+	var/checkpoint_backup = file2text(checkpoint)
+	fdel(checkpoint)
+	text2file("not valid JSON", checkpoint)
+	api.recovered = FALSE
+	result = duty_result(api, reply)
+	check("duty_corrupt_receipt_recovery_fails_closed", result["error"] == "receipt_storage_failed" && T.duty_reply_count == 1)
+	fdel(checkpoint)
+	text2file(checkpoint_backup, checkpoint)
+	api.recovery_failed = FALSE // Isolated fixture restored its exact checkpoint.
+	api.recovered = FALSE
+	result = duty_result(api, reply)
+	check("duty_restored_receipt_still_deduplicates", result["duplicate"] && T.duty_reply_count == 1)
+	api.next_reply = 0
+	result = duty_result(api, duty_request(T.herald_revision, "Не отвечать себе", "d7777777777777777777777777777777"))
+	check("duty_no_reply_without_new_player_message", result["status"] == "no_new_player_message")
+	T.HeraldRecord("Ещё вопрос", "player", "heraldduty")
+	result = duty_result(api, duty_request(T.herald_revision, "Рано", "d8888888888888888888888888888888"))
+	check("duty_per_ticket_cooldown", result["status"] == "cooldown")
+	check("duty_typed_recent_interactions", length(T.herald_interactions) <= 12 && T.herald_revision == 4)
+	var/list/old_tickets = list()
+	for(var/i in 1 to 11)
+		var/datum/admin_help/herald_duty_probe/old = new
+		old.id = 900 + i
+		old.HeraldRecord("Тикет уже у человека", "human", "humanprobe")
+		GLOB.ahelp_tickets.active_tickets.Insert(1, old)
+		old_tickets += old
+	var/datum/admin_help/herald_duty_probe/new_pending = new
+	new_pending.id = 994
+	new_pending.HeraldRecord("Новый вопрос после старых тикетов", "player", "heraldduty")
+	GLOB.ahelp_tickets.active_tickets += new_pending
+	T.herald_last_duty_player_revision = T.herald_player_revision
+	var/list/prioritized = api.snapshot()
+	var/list/first_pending = prioritized["tickets"][1]
+	check("duty_snapshot_prioritizes_new_pending_over_old_handled", first_pending["id"] == 994 && length(prioritized["tickets"]) == 10 && prioritized["truncated"] && prioritized["total_active"] == length(GLOB.ahelp_tickets.active_tickets))
+	for(var/datum/admin_help/old in old_tickets)
+		GLOB.ahelp_tickets.active_tickets -= old
+		qdel(old)
+	GLOB.ahelp_tickets.active_tickets -= new_pending
+	qdel(new_pending)
+	var/list/oversized_tickets = list()
+	for(var/i in 1 to 10)
+		var/body = ""
+		for(var/j in 1 to 1000)
+			body += ascii2text(1)
+		oversized_tickets += list(list("text" = body))
+	var/list/bounded = json_decode(api.envelope("duty_snapshot_response", "test", list("tickets" = oversized_tickets, "truncated" = FALSE)))
+	var/list/bounded_data = json_decode(bounded["data"])
+	check("duty_snapshot_envelope_byte_bound", length(json_encode(bounded)) < 60000 && bounded_data["truncated"])
+	GLOB.ahelp_tickets.active_tickets -= T
+	qdel(T)
+	var/datum/admin_help/herald_duty_probe/wire = new
+	wire.id = 995
+	wire.initiator_ckey = "heralddutywire"
+	wire.HeraldRecord("Локальная проверка дежурного", "player", "heralddutywire")
+	GLOB.ahelp_tickets.active_tickets += wire
 
 // Test-only identities and database seam; never loaded by production roguetown.dme.
 /datum/admins/herald_probe/New(datum/admin_rank/R, ck)

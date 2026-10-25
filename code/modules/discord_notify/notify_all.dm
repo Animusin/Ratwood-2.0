@@ -322,7 +322,7 @@ SUBSYSTEM_DEF(emote_relay)
 		return "player_offline_or_ticket_changed"
 	var/display = "[admin_ckey] через Геральда (Discord [operator])"
 	var/body = herald_ahelp_body(message)
-	AddInteraction("<font color='blue'>PM from [display]: [body]</font>")
+	AddInteraction("<font color='blue'>PM from [display]: [body]</font>", "human", admin_ckey)
 	heard_by_no_admins = FALSE
 	to_chat(recipient, span_adminhelp("<b>Admin PM from [display]</b>: [body]<br><i>Ответить можно в текущем тикете Adminhelp.</i>"))
 	SEND_SOUND(recipient, sound('sound/adminhelp.ogg'))

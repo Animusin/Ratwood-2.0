@@ -146,7 +146,7 @@
 
 	if(irc)
 		to_chat(src, type = MESSAGE_TYPE_ADMINPM, html = span_notice("PM to-<b>Admins</b>: <span class='linkify'>[rawmsg]</span>"))
-		var/datum/admin_help/AH = admin_ticket_log(src, "<font color='red'>Reply PM from-<b>[key_name(src, TRUE, TRUE)]</b> to <i>IRC</i>: [keywordparsedmsg]</font>")
+		var/datum/admin_help/AH = admin_ticket_log(src, "<font color='red'>Reply PM from-<b>[key_name(src, TRUE, TRUE)]</b> to <i>IRC</i>: [keywordparsedmsg]</font>", src)
 		ircreplyamount--
 		send2irc("[AH ? "#[AH.id] " : ""]Reply: [ckey]", rawmsg)
 	else
@@ -157,13 +157,13 @@
 
 				//omg this is dumb, just fill in both their tickets
 				var/interaction_message = "<font color='purple'>PM from-<b>[key_name(src, recipient, 1)]</b> to-<b>[key_name(recipient, src, 1)]</b>: [keywordparsedmsg]</font>"
-				admin_ticket_log(src, interaction_message)
+				admin_ticket_log(src, interaction_message, src)
 				if(recipient != src)	//reeee
-					admin_ticket_log(recipient, interaction_message)
+					admin_ticket_log(recipient, interaction_message, src)
 
 			else		//recipient is an admin but sender is not
 				var/replymsg = "Reply PM from-<b>[key_name(src, recipient, 1)]</b>: <span class='linkify'>[keywordparsedmsg]</span>"
-				admin_ticket_log(src, "<font color='red'>[replymsg]</font>")
+				admin_ticket_log(src, "<font color='red'>[replymsg]</font>", src)
 				to_chat(recipient, type = MESSAGE_TYPE_ADMINPM, html = span_danger("[replymsg]"))
 				to_chat(src, type = MESSAGE_TYPE_ADMINPM, html = span_notice("PM to-<b>Admins</b>: <span class='linkify'>[msg]</span>"))
 
@@ -184,7 +184,7 @@
 			to_chat(recipient, type = MESSAGE_TYPE_ADMINPM, html = span_adminsay("<i><a href='?viewticket=1'>View ticket</a> | <a href='?replyticket=1'>Quick reply</a></i>"))
 			to_chat(src, type = MESSAGE_TYPE_ADMINPM, html = span_notice("Admin PM to-<b>[key_name(recipient, src, 1)]</b>: <span class='linkify'>[msg]</span>"))
 
-			admin_ticket_log(recipient, "<font color='purple'>PM From [key_name_admin(src)]: [keywordparsedmsg]</font>")
+			admin_ticket_log(recipient, "<font color='purple'>PM From [key_name_admin(src)]: [keywordparsedmsg]</font>", src)
 
 			//always play non-admin recipients the adminhelp sound
 			SEND_SOUND(recipient, sound('sound/adminhelp.ogg'))
@@ -307,7 +307,7 @@
 	to_chat(C, span_adminsay("Admin PM from-<b><a href='?priv_msg=[stealthkey]'>[adminname]</A></b>: [msg]"))
 	to_chat(C, span_adminsay("<i>Click on the administrator's name to reply.</i>"))
 
-	admin_ticket_log(C, "<font color='purple'>PM From [irc_tagged]: [msg]</font>")
+	admin_ticket_log(C, "<font color='purple'>PM From [irc_tagged]: [msg]</font>", null, "human", "IRC")
 
 	window_flash(C, ignorepref = TRUE)
 	//always play non-admin recipients the adminhelp sound

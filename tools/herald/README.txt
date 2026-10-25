@@ -187,3 +187,54 @@ SQL parameter binding with a MOCK database. Recipient delivery is a FAKE test
 fixture because no real BYOND client connects. No production ban/kick/PQ/reply was
 performed. After deployment, separately test delivery with a volunteer account
 and standard ban-table compatibility in the host's staging database.
+
+Optional autonomous duty replies (disabled by default)
+-----------------------------------------------------
+After deploying this update, enable only if the owner has deliberately authorized
+AI duty replies. Add to the SAME main config/config.txt:
+HERALD_DUTY_ENABLED 1
+
+The existing read key, operator allowlist and configured R_AHELP authority are
+required. The authority permits this feature but is NOT presented as its speaker:
+the recipient sees "Геральд — автоматический помощник администрации" and an
+explicit AI disclaimer. Desktop duty must also be switched on by its owner.
+
+The separate herald_duty Topic supports ONLY snapshot and reply; no punishment,
+claim/close, SQL, SDQL, paths, proc calls or dynamic fields. It pauses for ANY
+connected staff member, including AFK, hidden and deadminned staff, not merely
+when an admin is actively responding. Unknown presence also refuses replies.
+Any human ticket intervention permanently yields that ticket to the human.
+Human PMs through admin_pm/admin_ticket_log touch the typed state without changing
+the existing ticket chat/webhook rendering. Snapshot typed history is bounded to
+10 active tickets and the last 3 observations of 200 characters each; omitted
+tickets are explicitly reported. New unhandled player messages are prioritized
+ahead of old handled/answered tickets; a delivered duty reply drops that priority
+until another player message arrives. Runtime data consists only of total/skipped
+counters, not raw stacks or additional log reads. No language model runs in DM.
+
+Each reply is limited to 30 whitespace-separated words and 1000 characters, must
+match the current round, ckey, active/connected ticket and exact revision. The
+server rechecks staff presence, human handler and revision AFTER reserving its
+receipt, immediately before delivery. A new player message is required after
+each duty reply; replies are limited to one per minute per ticket and one per
+10 seconds globally. Snapshot reads are limited to one every 2 seconds.
+
+The canonical snapshot request is duty_snapshot|UNIX_MINUTE|NONCE|OPERATOR; response
+signature covers duty_snapshot_response|NONCE|DATA_STRING. Snapshot query fields
+are herald_duty=snapshot, minute, nonce, operator, signature. Reply fields are
+herald_duty=reply, round, ckey, payload, minute, request_id, operator, signature;
+payload is exactly {ticket_id,version,text}. Reply signature covers
+duty_request|ROUND|CKEY|SHA256(PAYLOAD)|UNIX_MINUTE|REQUEST_ID|OPERATOR; response
+signature covers duty_response|REQUEST_ID|DATA_STRING. Same signature function
+and transport confidentiality caveat as the other bridge endpoints apply.
+
+Alternating data/herald_duty_receipts_0.json/_1.json reserve each effect before
+delivery, capped at 512 per round. Keep these files between server deployments.
+Uncertain receipts must NOT be repeated automatically; a fresh request ID must
+never be generated merely because the earlier result is unknown. Isolated probes
+exercise staff/race/revision/word-limit/idempotency guards and real signed wire
+requests with a FAKE recipient. Real client delivery remains a deployment test.
+Unreadable or malformed receipt checkpoints pause new replies, even if another
+checkpoint is readable; they require host review, not automatic ledger deletion.
+Snapshot envelopes also enforce a byte budget by omitting trailing tickets and
+marking truncated, rather than sending an oversized BYOND frame.

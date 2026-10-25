@@ -531,6 +531,13 @@ GLOBAL_DATUM_INIT(ahelp_tickets, /datum/admin_help_tickets, new)
 	var/heard_by_no_admins = FALSE
 
 	var/list/_interactions	//use AddInteraction() or, preferably, admin_ticket_log()
+	// Typed, bounded duty observations; never parsed from rendered HTML/history.
+	var/herald_revision = 0
+	var/herald_handler = ""
+	var/herald_player_revision = 0
+	var/herald_last_duty_player_revision = 0
+	var/herald_duty_next_reply = 0
+	var/list/herald_interactions = list()
 
 	var/obj/effect/statclick/ahelp/statclick
 
@@ -596,7 +603,34 @@ GLOBAL_DATUM_INIT(ahelp_tickets, /datum/admin_help_tickets, new)
 	GLOB.ahelp_tickets.resolved_tickets -= src
 	return ..()
 
-/datum/admin_help/proc/AddInteraction(formatted_message)
+/datum/admin_help/proc/HeraldRecord(formatted_message, kind, actor, client/source_client)
+	if(!source_client)
+		source_client = usr?.client
+	if(!kind)
+		if(source_client?.holder)
+			kind = "human"
+			actor = source_client.ckey
+		else if(source_client?.ckey == initiator_ckey)
+			kind = "player"
+			actor = initiator_ckey
+		else
+			kind = "system"
+	if(!(kind in list("human", "player", "system", "duty")))
+		return
+	herald_revision++
+	if(kind == "human")
+		// Human intervention keeps the bot out for this ticket's lifetime.
+		herald_handler = copytext_char("[actor || "human"]", 1, 65)
+	if(kind == "player")
+		herald_player_revision = herald_revision
+	var/body = copytext_char(ahelp_relay_plaintext(formatted_message), 1, 201)
+	herald_interactions += list(list("seq" = herald_revision, "kind" = kind,
+		"actor" = copytext_char("[actor || ""]", 1, 65), "text" = body, "at" = herald_duty_now()))
+	if(length(herald_interactions) > 12)
+		herald_interactions.Cut(1, length(herald_interactions) - 11)
+
+/datum/admin_help/proc/AddInteraction(formatted_message, herald_kind, herald_actor)
+	HeraldRecord(formatted_message, herald_kind, herald_actor)
 	if(heard_by_no_admins && usr && usr.ckey != initiator_ckey)
 		heard_by_no_admins = FALSE
 		send2irc(initiator_ckey, "Ticket #[id]: Answered by [key_name(usr)]")
@@ -651,7 +685,7 @@ GLOBAL_DATUM_INIT(ahelp_tickets, /datum/admin_help_tickets, new)
 	// Simplified message to be sent to all admins, including title and action links
 	var/admin_msg = span_adminnotice("<font color='#c87941'><b>Ticket #[id]: [display_name] ([initiator_ckey]) - [TicketHref("Show Ticket", ref_src)][ClosureLinks(ref_src)]</b><br><span class='linkify' style='font-weight:normal;color:#c87941'>[msg]</span></font>")
 
-	AddInteraction("<font color='red'>[LinkedReplyName(ref_src)]: [msg]</font>")
+	AddInteraction("<font color='red'>[LinkedReplyName(ref_src)]: [msg]</font>", "player", initiator_ckey)
 
 	// Log full player message content in addition to title
 	log_admin_private("Ticket #[id]: [initiator_key_name] -> Admins: [msg]")
@@ -792,7 +826,7 @@ GLOBAL_DATUM_INIT(ahelp_tickets, /datum/admin_help_tickets, new)
 	msg = "Ticket [TicketHref("#[id]")] is being handled by [key_name]"
 	message_admins(msg)
 	log_admin_private(msg)
-	AddInteraction("Being handled by [display_name]")
+	AddInteraction("Being handled by [display_name]", "human", usr?.ckey || "human")
 
 //Show the ticket panel
 /datum/admin_help/proc/TicketPanel()
@@ -1117,7 +1151,7 @@ GLOBAL_DATUM_INIT(ahelp_tickets, /datum/admin_help_tickets, new)
 
 //Use this proc when an admin takes action that may be related to an open ticket on what
 //what can be a client, ckey, or mob
-/proc/admin_ticket_log(what, message)
+/proc/admin_ticket_log(what, message, client/herald_sender, herald_kind, herald_actor)
 	var/client/C
 	var/mob/Mob = what
 	if(istype(Mob))
@@ -1126,12 +1160,14 @@ GLOBAL_DATUM_INIT(ahelp_tickets, /datum/admin_help_tickets, new)
 		C = what
 	if(istype(C) && C.current_ticket)
 		var/datum/admin_help/AH = C.current_ticket
+		AH.HeraldRecord(message, herald_kind, herald_actor, herald_sender)
 		// Only log to admin logs; do not expose as a ticket chat message
 		log_admin_private("Ticket #[AH.id]: [message]")
 		return AH
 	if(istext(what))	//ckey
 		var/datum/admin_help/AH = GLOB.ahelp_tickets.CKey2ActiveTicket(what)
 		if(AH)
+			AH.HeraldRecord(message, herald_kind, herald_actor, herald_sender)
 			// Only log to admin logs; do not expose as a ticket chat message
 			log_admin_private("Ticket #[AH.id]: [message]")
 			return AH

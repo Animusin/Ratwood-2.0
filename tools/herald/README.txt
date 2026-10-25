@@ -241,3 +241,77 @@ Unreadable or malformed receipt checkpoints pause new replies, even if another
 checkpoint is readable; they require host review, not automatic ledger deletion.
 Snapshot envelopes also enforce a byte budget by omitting trailing tickets and
 marking truncated, rather than sending an oversized BYOND frame.
+
+Optional owner-confirmed FULL native SDQL (dangerous, disabled by default)
+-----------------------------------------------------------------------
+This is NOT part of duty, read-only or the four manual fixed admin endpoints.
+It is a separate herald_sdql Topic and is never an execution tool for a model.
+The client may prepare a proposal, but only a literal confirmation by the owner
+in the configured PRIVATE admin channel authorizes the exact displayed query.
+
+To allow it after deployment, add to the SAME main config/config.txt:
+HERALD_SDQL_ENABLED 1
+HERALD_SDQL_APPROVAL_CHANNEL_ID 1252341888023789568
+
+The approval-channel setting already defaults to that ID. The client must check
+that it belongs to the correct guild and is private; the game server does not
+contact Discord and cannot independently verify a message or its channel ACL.
+It trusts only the authenticated client attestation, bound to operator, approval
+message/channel IDs, proposal ID, query SHA-256, exact current round and expiry.
+The same existing read key/admin mapping/operator allowlist are required, plus
+the native SDQL verb's R_DEBUG permission. No second key or human client is
+invented. usr/marked are absent when no actual game usr exists.
+
+All four native forms SELECT/UPDATE/DELETE/CALL, IN/MAP/WHERE, nested calls and
+native USING options are supported by the existing parser/query engine. Queries
+use superuser=FALSE and ordinary CanProcCall/vv guards. Remote proccalls establish
+an explicit authenticated caller context so advanced-proccall protections are
+not skipped merely because usr is null. KEEP_ALIVE retains query data for
+inspection, not permission for an automatic unconfirmed re-execution.
+
+IMPORTANT: full SDQL is inherently capable of destructive world changes and
+arbitrary proccalls. A non-yielding/infinite proc, HIGH priority, huge SELECT,
+runtime, memory exhaustion, spawned child proc or engine bug can lag, hang or
+crash the game. This interface is NOT a sandbox or rollback mechanism. Transport
+timeouts, asynchronous status and output limits do NOT stop the engine. Native
+completion does not prove every target accepted an edit or that all side effects
+spawned by called procs are finished. Never automatically re-execute an unknown
+operation, including with a new request/proposal ID. Human review is mandatory.
+
+Bounded wrapper: 8000 UTF-8 bytes of exact query text, at most 64 parsed statements,
+one live bridge job, 30-second new-job cooldown, 128 durable receipts per round,
+12000 characters of plain result text and a further 48000-byte envelope cap.
+These are interface bounds, NOT CPU/memory/loop limits on native SDQL evaluation.
+The normal engine may build a much larger result before output is shortened.
+
+Execute query fields: herald_sdql=execute, round, payload, minute, request_id,
+operator, signature. payload is exactly {query,query_sha256,proposal_id,
+approval_message_id,approval_channel_id,approved_at,expires_at}. IDs/timestamps
+are strings; proposal_id/request_id are 32 lowercase hex. approved_at/expires_at
+are decimal Unix SECOND strings. The server validates exact seconds without
+lossy 32-bit Unix-second arithmetic: no future approval, expired approval or
+duration over 600 seconds. A proposal/approval message can be used only once.
+Canonical execute signature:
+sdql_request|ROUND|SHA256(PAYLOAD)|UNIX_MINUTE|REQUEST_ID|OPERATOR
+Execute response signature: sdql_response|REQUEST_ID|DATA_STRING
+
+After reservation is saved BEFORE any native query evaluation, execute returns
+accepted and the native job runs asynchronously. Read-only polling fields:
+herald_sdql=status, round, request_id, minute, nonce, operator, signature.
+Canonical status signature:
+sdql_status|ROUND|REQUEST_ID|UNIX_MINUTE|NONCE|OPERATOR
+Status response signature: sdql_status_response|NONCE|DATA_STRING
+Both responses bind action=execute, round, request_id, query_sha256, proposal_id;
+statuses are accepted/running/completed/operation_uncertain/refused. Status reads
+are paced to one per two seconds and never start/repeat a query. Authenticated
+execution refusals are signed. Unsigned errors are not proof that no effect ran.
+
+Keep data/herald_sdql_receipts_0.json and _1.json between updates. They retain
+approval/digest metadata and bounded results, not the raw query. Corrupt receipts
+block new executions. A pending/running receipt after restart becomes uncertain,
+never a new execution. If final persistence fails, the earlier reservation still
+prevents repetition. Existing endpoints retain their prior capabilities.
+
+Isolated probes use only local dummy datums, synthetic approvals/credentials and
+localhost Topic. They must never run against production. Real-server deployment
+and any actual SDQL execution require a separate deliberate owner action.

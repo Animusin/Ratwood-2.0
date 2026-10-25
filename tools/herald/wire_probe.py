@@ -101,6 +101,41 @@ def validated_duty(port, values):
     return json.loads(envelope['data'])
 
 
+def sdql_request(round_id, query_text):
+    now = int(time.time())
+    payload = json.dumps({'query': query_text, 'query_sha256': hashlib.sha256(query_text.encode()).hexdigest(),
+                          'proposal_id': secrets.token_hex(16),
+                          'approval_message_id': str(200000000000000000 + secrets.randbelow(1000000000)),
+                          'approval_channel_id': '1252341888023789568',
+                          'approved_at': str(now), 'expires_at': str(now + 600)},
+                         ensure_ascii=False, sort_keys=True, separators=(',', ':'))
+    values = {'herald_sdql': 'execute', 'round': round_id, 'payload': payload,
+              'minute': str(now // 60), 'request_id': secrets.token_hex(16), 'operator': '2'}
+    values['signature'] = sign(f'sdql_request|{round_id}|{hashlib.sha256(payload.encode()).hexdigest()}|'
+                               f'{values["minute"]}|{values["request_id"]}|2')
+    return values
+
+
+def sdql_status(execution):
+    values = {'herald_sdql': 'status', 'round': execution['round'], 'request_id': execution['request_id'],
+              'minute': str(int(time.time() // 60)), 'nonce': secrets.token_hex(16), 'operator': '2'}
+    values['signature'] = sign(f'sdql_status|{values["round"]}|{values["request_id"]}|{values["minute"]}|{values["nonce"]}|2')
+    return values
+
+
+def validated_sdql(port, values):
+    envelope = query(port, values)
+    assert 'data' in envelope, envelope
+    status = values['herald_sdql'] == 'status'
+    prefix = 'sdql_status_response' if status else 'sdql_response'
+    identity = values['nonce'] if status else values['request_id']
+    assert hmac.compare_digest(envelope['signature'], sign(f'{prefix}|{identity}|' + envelope['data']))
+    result = json.loads(envelope['data'])
+    assert result['request_id'] == values['request_id'] and result['round'] == values['round']
+    assert len(result['output']) <= 12000
+    return result
+
+
 def main():
     port = int(sys.argv[1])
     for action in ('status', 'players', 'character'):
@@ -152,6 +187,20 @@ def main():
     assert query(port, long_reply)['error'] == 'invalid_argument'
     assert query(port, {'herald_duty': 'ban'})['error'] == 'unsupported_action'
     print('PASS duty_signed_snapshot_ai_reply_dedup_word_limit_no_punishment')
+    execution = sdql_request(round_id, 'CALL set_value(11) ON /datum IN global.herald_sdql_probe_targets')
+    result = validated_sdql(port, execution)
+    assert result['status'] == 'accepted', result
+    expected = json.loads(execution['payload'])
+    for _ in range(5):
+        time.sleep(2.2)
+        result = validated_sdql(port, sdql_status(execution))
+        if result['status'] not in {'accepted', 'running'}:
+            break
+    assert result['status'] == 'completed', result
+    assert result['query_sha256'] == expected['query_sha256'] and result['proposal_id'] == expected['proposal_id']
+    assert validated_sdql(port, execution)['duplicate'] == 1
+    assert query(port, {'herald_sdql': 'proccall'})['error'] == 'unsupported_action'
+    print('PASS sdql_signed_async_native_proccall_status_and_idempotency')
 
 
 if __name__ == '__main__':

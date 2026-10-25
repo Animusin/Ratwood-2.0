@@ -59,6 +59,7 @@ try {
       'WEBHOOK_CUSTOM_EMOTES https://discord.com/api/webhooks/456/emotetesttoken',
       'HERALD_ADMIN_OPERATOR_IDS 2',
       'HERALD_DUTY_ENABLED 1',
+      'HERALD_SDQL_ENABLED 1',
       'HERALD_ADMIN_CKEY heraldadminprobe')|Set-Content -LiteralPath (Join-Path $cfg 'config.txt') -Encoding ascii
     Get-ChildItem -LiteralPath $repo -File -Filter '*.dll'|Copy-Item -Destination $runtime
     foreach($icon in @('title_static.png','rogueworld_title.dmi','tg_32.png')){

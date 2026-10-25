@@ -200,9 +200,11 @@ the recipient sees "Геральд — автоматический помощн
 explicit AI disclaimer. Desktop duty must also be switched on by its owner.
 
 The separate herald_duty Topic supports ONLY snapshot and reply; no punishment,
-claim/close, SQL, SDQL, paths, proc calls or dynamic fields. It pauses for ANY
-connected staff member, including AFK, hidden and deadminned staff, not merely
-when an admin is actively responding. Unknown presence also refuses replies.
+claim/close, SQL, SDQL, paths, proc calls or dynamic fields. In the snapshot,
+admins.active counts connected staff WITH a current admin holder, including AFK,
+hidden and holders without R_AHELP. admins.total additionally includes deadminned
+staff. Replies pause while active > 0; deadmin-only presence (total > 0, active=0)
+does not pause them. Unknown presence still refuses replies.
 Any human ticket intervention permanently yields that ticket to the human.
 Human PMs through admin_pm/admin_ticket_log touch the typed state without changing
 the existing ticket chat/webhook rendering. Snapshot typed history is bounded to
@@ -232,8 +234,9 @@ Alternating data/herald_duty_receipts_0.json/_1.json reserve each effect before
 delivery, capped at 512 per round. Keep these files between server deployments.
 Uncertain receipts must NOT be repeated automatically; a fresh request ID must
 never be generated merely because the earlier result is unknown. Isolated probes
-exercise staff/race/revision/word-limit/idempotency guards and real signed wire
-requests with a FAKE recipient. Real client delivery remains a deployment test.
+exercise held/AFK/hidden/deadmin staff, race/revision/word-limit/idempotency guards
+and real signed wire requests with a FAKE recipient. Real client delivery remains
+a deployment test.
 Unreadable or malformed receipt checkpoints pause new replies, even if another
 checkpoint is readable; they require host review, not automatic ledger deletion.
 Snapshot envelopes also enforce a byte budget by omitting trailing tickets and

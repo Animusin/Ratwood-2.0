@@ -27,10 +27,11 @@
 		if(!C || QDELETED(C))
 			result["known"] = FALSE
 			continue
-		// ANY connected staff pauses game replies: AFK, stealth and deadmin too.
+		// Total retains all connected staff, including deadmin. Only staff
+		// with a current holder pause replies; AFK/stealth do not waive that.
 		if(C.holder || GLOB.admin_datums[C.ckey] || GLOB.deadmins[C.ckey])
 			result["total"]++
-			if(C.holder?.rank && (C.holder.rank.rights & R_AHELP) && !C.is_afk())
+			if(C.holder)
 				result["active"]++
 	return result
 
@@ -162,7 +163,7 @@
 	var/list/staff = admin_presence()
 	if(!staff["known"])
 		return "snapshot_unknown"
-	if(staff["total"] > 0)
+	if(staff["active"] > 0)
 		return "human_present"
 	if(!T || T.state != AHELP_ACTIVE || T.initiator_ckey != ck || T.herald_revision != version)
 		return "ticket_changed"

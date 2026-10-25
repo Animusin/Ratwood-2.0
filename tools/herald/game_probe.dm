@@ -240,6 +240,7 @@ var/global/datum/herald_game_probe/herald_game_probe = new
 	var/saved = ..()
 	if(test_human_after_reservation)
 		test_staff_total = 1
+		test_staff_active = 1
 		test_human_after_reservation = FALSE
 	return saved
 
@@ -295,9 +296,12 @@ var/global/datum/herald_game_probe/herald_game_probe = new
 	invalid["herald_duty"] = "ban"
 	result = duty_result(api, invalid)
 	check("duty_punishment_not_exposed", result["error"] == "unsupported_action")
-	api.test_staff_total = 1 // Active=0 deliberately models AFK/stealth/deadmin staff.
+	api.test_staff_total = 1
+	api.test_staff_active = 1 // Held staff pause even if AFK/hidden or lacking R_AHELP.
 	result = duty_result(api, reply)
 	check("duty_afk_or_hidden_staff_still_pauses", result["status"] == "human_present" && !T.duty_reply_count)
+	api.test_staff_active = 0 // Deadmin stays visible in total but does not pause.
+	check("duty_deadmin_only_not_a_pause", isnull(api.guard(T, T.initiator_ckey, T.herald_revision)) && !T.duty_reply_count)
 	api.test_staff_total = 0
 	api.test_known = FALSE
 	result = duty_result(api, reply)
@@ -327,11 +331,14 @@ var/global/datum/herald_game_probe/herald_game_probe = new
 	api.test_human_after_reservation = TRUE
 	result = duty_result(api, reply)
 	check("duty_rechecks_staff_after_reservation", result["status"] == "human_present" && !T.duty_reply_count)
-	api.test_staff_total = 0
+	api.test_staff_active = 0
+	api.test_staff_total = 1 // Only a deadmin remains connected during delivery.
 	api.next_reply = 0
 	reply = duty_request(T.herald_revision, "Проверяю обращение. Уточни обстоятельства.", "d6666666666666666666666666666666")
 	result = duty_result(api, reply)
+	check("duty_deadmin_only_allows_reply", result["status"] == "delivered" && T.duty_reply_count == 1)
 	check("duty_reply_once_explicit_ai_actor", result["status"] == "delivered" && T.duty_reply_count == 1 && !findtext(T._interactions[1], "heraldadminprobe") && findtext(T._interactions[1], "Геральд"))
+	api.test_staff_total = 0
 	result = duty_result(api, reply)
 	check("duty_retry_does_not_repeat", result["duplicate"] && T.duty_reply_count == 1)
 	invalid = reply.Copy()

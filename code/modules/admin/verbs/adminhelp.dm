@@ -919,67 +919,64 @@ GLOBAL_DATUM_INIT(ahelp_tickets, /datum/admin_help_tickets, new)
 		var/iterations = 0
 		while(iterations < max_iterations)
 			iterations++
-			var/tag_start = findtext(clean_text, "<")
+			var/tag_start = findtext_char(clean_text, "<")
 			if(!tag_start || tag_start == 0)
 				break
-			var/tag_end = findtext(clean_text, ">", tag_start)
+			var/tag_end = findtext_char(clean_text, ">", tag_start)
 			if(!tag_end || tag_end == 0)
 				// Broken tag at end, just remove everything from < onwards
-				// Use copytext (byte-based) to match findtext's byte positions
-				clean_text = copytext(clean_text, 1, tag_start)
+				clean_text = copytext_char(clean_text, 1, tag_start)
 				break
 			
 			// Check if this is a link tag - extract the link text
-			// copytext uses byte positions, consistent with findtext
-			var/tag_section = copytext(clean_text, tag_start, tag_end + 1)
-			if(findtext(tag_section, "<A ") == 1 || findtext(tag_section, "<a ") == 1)
+			// Keep every search/slice in Unicode character coordinates.
+			var/tag_section = copytext_char(clean_text, tag_start, tag_end + 1)
+			if(findtext_char(tag_section, "<A ") == 1 || findtext_char(tag_section, "<a ") == 1)
 				// Find the closing </A>
-				var/close_pos = findtext(clean_text, "</A>", tag_end)
+				var/close_pos = findtext_char(clean_text, "</A>", tag_end)
 				if(!close_pos)
-					close_pos = findtext(clean_text, "</a>", tag_end)
+					close_pos = findtext_char(clean_text, "</a>", tag_end)
 				if(close_pos && close_pos > 0)
-					// Extract text between tags (all byte-based to match findtext)
-					var/link_text = copytext(clean_text, tag_end + 1, close_pos)
-					clean_text = copytext(clean_text, 1, tag_start) + link_text + copytext(clean_text, close_pos + 4)
+					var/link_text = copytext_char(clean_text, tag_end + 1, close_pos)
+					clean_text = copytext_char(clean_text, 1, tag_start) + link_text + copytext_char(clean_text, close_pos + 4)
 					continue
 			
-			// Remove this tag (byte-based to match findtext)
-			clean_text = copytext(clean_text, 1, tag_start) + copytext(clean_text, tag_end + 1)
+			clean_text = copytext_char(clean_text, 1, tag_start) + copytext_char(clean_text, tag_end + 1)
 
 		// Decode HTML entities so special characters like ', <, > display correctly
 		clean_text = html_decode(clean_text)
 		
 		// Detect message type and parse accordingly
-		if(findtext(rest, "<font color='red'>"))
+		if(findtext_char(rest, "<font color='red'>"))
 			// Uses the first colon instead. The last one truncates the message in a silly way for admins
 
 			msg_data["is_admin"] = FALSE
 			msg_data["author"] = initiator_key_name
 			var/search_from = 1 // Anchor past the initial colon, so a colon inside can't shift the boundary
-			var/name_pos = findtext(clean_text, initiator_key_name)
+			var/name_pos = findtext_char(clean_text, initiator_key_name)
 			if(name_pos)
-				search_from = name_pos + length(initiator_key_name) - 1
-			var/colon_pos = findtext(clean_text, ": ", search_from)
+				search_from = name_pos + length_char(initiator_key_name) - 1
+			var/colon_pos = findtext_char(clean_text, ": ", search_from)
 			if(colon_pos)
-				msg_data["message"] = trim(copytext(clean_text, colon_pos + 2))
+				msg_data["message"] = trim(copytext_char(clean_text, colon_pos + 2))
 			else
 				msg_data["message"] = trim(clean_text)
-		else if(findtext(rest, "<font color='blue'>") || findtext(rest, "PM from"))
+		else if(findtext_char(rest, "<font color='blue'>") || findtext_char(rest, "PM from"))
 			msg_data["is_admin"] = TRUE
 			msg_data["author"] = "Admin"
 			var/search_from = 1 // Again, like the admin shit, we want to ensure we start looking from the FIRST colon. So, we can properly truncate the incoming text field
-			if(findtext(clean_text, "PM from"))
-				var/name_start = findtext(clean_text, "PM from") + 8
-				var/name_end = findtext(clean_text, ":", name_start)
+			if(findtext_char(clean_text, "PM from"))
+				var/name_start = findtext_char(clean_text, "PM from") + 8
+				var/name_end = findtext_char(clean_text, ":", name_start)
 				if(name_end)
-					msg_data["author"] = trim(copytext(clean_text, name_start, name_end))
+					msg_data["author"] = trim(copytext_char(clean_text, name_start, name_end))
 					search_from = name_end
-			var/colon_pos = findtext(clean_text, ": ", search_from)
+			var/colon_pos = findtext_char(clean_text, ": ", search_from)
 			if(colon_pos)
-				msg_data["message"] = trim(copytext(clean_text, colon_pos + 2))
+				msg_data["message"] = trim(copytext_char(clean_text, colon_pos + 2))
 			else
 				msg_data["message"] = trim(clean_text)
-		else if(findtext(rest, "<font color='green'>"))
+		else if(findtext_char(rest, "<font color='green'>"))
 			// System message (positive/info)
 			msg_data["is_admin"] = FALSE
 			msg_data["author"] = "System"
@@ -993,13 +990,13 @@ GLOBAL_DATUM_INIT(ahelp_tickets, /datum/admin_help_tickets, new)
 		// Detect embedded media — EMBED_IMAGE: and EMBED_VIDEO: are 12 chars each,
 		// so the URL starts at position 13.
 		var/raw_msg = msg_data["message"]
-		if(raw_msg && findtext(raw_msg, "EMBED_IMAGE:") == 1)
+		if(raw_msg && findtext_char(raw_msg, "EMBED_IMAGE:") == 1)
 			msg_data["embed_type"] = "image"
-			msg_data["embed_url"] = copytext(raw_msg, 13)
+			msg_data["embed_url"] = copytext_char(raw_msg, 13)
 			msg_data["message"] = "(image embed)"
-		else if(raw_msg && findtext(raw_msg, "EMBED_VIDEO:") == 1)
+		else if(raw_msg && findtext_char(raw_msg, "EMBED_VIDEO:") == 1)
 			msg_data["embed_type"] = "video"
-			msg_data["embed_url"] = copytext(raw_msg, 13)
+			msg_data["embed_url"] = copytext_char(raw_msg, 13)
 			msg_data["message"] = "(video embed)"
 
 		data["messages"] += list(msg_data)

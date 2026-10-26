@@ -144,7 +144,41 @@ var/global/datum/herald_game_probe/herald_game_probe = new
 	qdel(A)
 	qdel(B)
 
+/datum/herald_game_probe/proc/test_ahelp_unicode()
+	var/datum/admin_help/herald_probe/T = new
+	var/mob/viewer = new
+	T.initiator_key_name = "Игрок 🐟"
+	T._interactions = list("12:34:56: <font color='blue'>PM from <a href='?admin_token=HIDDEN'>Геральд 🐟</a>: Привет 🐟: проверка<br>Новая строка</font>")
+	var/list/data = T.ui_data(viewer)
+	var/list/messages = data["messages"]
+	var/list/message = messages[1]
+	check("ahelp_unicode_admin_author_and_html_positions", message["author"] == "Геральд 🐟" && message["message"] == "Привет 🐟: проверка\nНовая строка" && message["timestamp"] == "12:34:56")
+	T._interactions = list("12:34:56: <font color='red'>Игрок 🐟: Сообщение: с двоеточием 😺</font>")
+	data = T.ui_data(viewer)
+	messages = data["messages"]
+	message = messages[1]
+	check("ahelp_unicode_player_name_and_message_boundary", message["author"] == "Игрок 🐟" && message["message"] == "Сообщение: с двоеточием 😺")
+	T._interactions = list("12:34:56: Рыба 🐟 <broken")
+	data = T.ui_data(viewer)
+	messages = data["messages"]
+	message = messages[1]
+	check("ahelp_unicode_broken_html_preserves_preceding_text", message["message"] == "Рыба 🐟")
+	T._interactions = list("12:34:56: <font color='red'>Игрок 🐟: EMBED_IMAGE:https://example.invalid/рыба🐟.png</font>")
+	data = T.ui_data(viewer)
+	messages = data["messages"]
+	message = messages[1]
+	check("ahelp_unicode_embedded_url_preserved", message["embed_type"] == "image" && message["embed_url"] == "https://example.invalid/рыба🐟.png")
+	var/long_unicode = ""
+	for(var/i in 1 to 201)
+		long_unicode += i % 2 ? "я" : "🐟"
+	T.HeraldRecord(long_unicode, "player", "heraldtest")
+	var/list/observation = T.herald_interactions[1]
+	check("ahelp_typed_observation_limit_is_characters_not_bytes", length_char(observation["text"]) == 200 && observation["text"] == copytext_char(long_unicode, 1, 201))
+	qdel(viewer)
+	qdel(T)
+
 /datum/herald_game_probe/proc/run_tests()
+	test_ahelp_unicode()
 	check("key_loaded_from_main_config", CONFIG_GET(string/herald_readonly_key) == "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
 	check("webhook_loaded_from_main_config", CONFIG_GET(string/webhook_adminhelp) == "https://discord.com/api/webhooks/123/testtoken")
 	SSahelp_relay.can_fire = FALSE

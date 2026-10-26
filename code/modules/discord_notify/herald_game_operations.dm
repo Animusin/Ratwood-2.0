@@ -89,7 +89,7 @@ GLOBAL_DATUM_INIT(herald_game_operations, /datum/herald_game_operations, new)
 		 :reason, :ckey, :admin_ckey, 0, '', :who, :adminwho)
 	"}, list("server_ip" = world.internet_address || "0", "port" = world.port,
 		"round_id" = GLOB.round_id, "minutes" = minutes ? minutes : null, "reason" = audit_reason,
-		"ckey" = ck, "admin_ckey" = admin_ckey, "who" = copytext(GLOB.clients.Join(", "), 1, 2001), "adminwho" = actor))
+		"ckey" = ck, "admin_ckey" = admin_ckey, "who" = copytext_char(GLOB.clients.Join(", "), 1, 2001), "adminwho" = actor))
 	if(!Q.Execute())
 		qdel(Q)
 		return list("status" = "operation_uncertain") // INSERT might have committed before a lost ACK.

@@ -187,3 +187,215 @@ SQL parameter binding with a MOCK database. Recipient delivery is a FAKE test
 fixture because no real BYOND client connects. No production ban/kick/PQ/reply was
 performed. After deployment, separately test delivery with a volunteer account
 and standard ban-table compatibility in the host's staging database.
+
+Optional autonomous duty replies (disabled by default)
+-----------------------------------------------------
+After deploying this update, enable only if the owner has deliberately authorized
+AI duty replies. Add to the SAME main config/config.txt:
+HERALD_DUTY_ENABLED 1
+
+The existing read key, operator allowlist and configured R_AHELP authority are
+required. The authority permits this feature but is NOT presented as its speaker:
+the recipient sees "Геральд — автоматический помощник администрации" and an
+explicit AI disclaimer. Desktop duty must also be switched on by its owner.
+
+The separate herald_duty Topic supports ONLY snapshot and reply; no punishment,
+claim/close, SQL, SDQL, paths, proc calls or dynamic fields. In the snapshot,
+admins.active counts connected staff WITH a current admin holder, including AFK,
+hidden and holders without R_AHELP. admins.total additionally includes deadminned
+staff. Replies pause while active > 0; deadmin-only presence (total > 0, active=0)
+does not pause them. Unknown presence still refuses replies.
+Any human ticket intervention permanently yields that ticket to the human.
+Human PMs through admin_pm/admin_ticket_log touch the typed state without changing
+the existing ticket chat/webhook rendering. Snapshot typed history is bounded to
+10 active tickets and the last 3 observations of 200 characters each; omitted
+tickets are explicitly reported. New unhandled player messages are prioritized
+ahead of old handled/answered tickets; a delivered duty reply drops that priority
+until another player message arrives. Runtime data consists only of total/skipped
+counters, not raw stacks or additional log reads. No language model runs in DM.
+
+Each reply is limited to 30 whitespace-separated words and 1000 characters, must
+match the current round, ckey, active/connected ticket and exact revision. The
+server rechecks staff presence, human handler and revision AFTER reserving its
+receipt, immediately before delivery. A new player message is required after
+each duty reply; replies are limited to one per minute per ticket and one per
+10 seconds globally. Snapshot reads are limited to one every 2 seconds.
+
+The canonical snapshot request is duty_snapshot|UNIX_MINUTE|NONCE|OPERATOR; response
+signature covers duty_snapshot_response|NONCE|DATA_STRING. Snapshot query fields
+are herald_duty=snapshot, minute, nonce, operator, signature. Reply fields are
+herald_duty=reply, round, ckey, payload, minute, request_id, operator, signature;
+payload is exactly {ticket_id,version,text}. Reply signature covers
+duty_request|ROUND|CKEY|SHA256(PAYLOAD)|UNIX_MINUTE|REQUEST_ID|OPERATOR; response
+signature covers duty_response|REQUEST_ID|DATA_STRING. Same signature function
+and transport confidentiality caveat as the other bridge endpoints apply.
+
+Alternating data/herald_duty_receipts_0.json/_1.json reserve each effect before
+delivery, capped at 512 per round. Keep these files between server deployments.
+Uncertain receipts must NOT be repeated automatically; a fresh request ID must
+never be generated merely because the earlier result is unknown. Isolated probes
+exercise held/AFK/hidden/deadmin staff, race/revision/word-limit/idempotency guards
+and real signed wire requests with a FAKE recipient. Real client delivery remains
+a deployment test.
+Unreadable or malformed receipt checkpoints pause new replies, even if another
+checkpoint is readable; they require host review, not automatic ledger deletion.
+Snapshot envelopes also enforce a byte budget by omitting trailing tickets and
+marking truncated, rather than sending an oversized BYOND frame.
+
+Optional owner-confirmed FULL native SDQL (dangerous, disabled by default)
+-----------------------------------------------------------------------
+This is NOT part of duty, read-only or the four manual fixed admin endpoints.
+It is a separate herald_sdql Topic and is never an execution tool for a model.
+The client may prepare a proposal, but only a literal confirmation by the owner
+in the configured PRIVATE admin channel authorizes the exact displayed query.
+
+To allow it after deployment, add to the SAME main config/config.txt:
+HERALD_SDQL_ENABLED 1
+HERALD_SDQL_APPROVAL_CHANNEL_ID 1252341888023789568
+
+The approval-channel setting already defaults to that ID. The client must check
+that it belongs to the correct guild and is private; the game server does not
+contact Discord and cannot independently verify a message or its channel ACL.
+It trusts only the authenticated client attestation, bound to operator, approval
+message/channel IDs, proposal ID, query SHA-256, exact current round and expiry.
+The same existing read key/admin mapping/operator allowlist are required, plus
+the native SDQL verb's R_DEBUG permission. No second key or human client is
+invented. usr/marked are absent when no actual game usr exists.
+
+All four native forms SELECT/UPDATE/DELETE/CALL, IN/MAP/WHERE, nested calls and
+native USING options are supported by the existing parser/query engine. Queries
+use superuser=FALSE and ordinary CanProcCall/vv guards. Remote proccalls establish
+an explicit authenticated caller context so advanced-proccall protections are
+not skipped merely because usr is null. KEEP_ALIVE retains query data for
+inspection, not permission for an automatic unconfirmed re-execution. Remote
+queries are one-shot: only their job can schedule the initial Run; native UI RUN,
+ARun/Run proc calls and edits of launch flags cannot replay or start a future
+sequential query early. Native HALT/delete remain available for stopping/review.
+
+IMPORTANT: full SDQL is inherently capable of destructive world changes and
+arbitrary proccalls. A non-yielding/infinite proc, HIGH priority, huge SELECT,
+runtime, memory exhaustion, spawned child proc or engine bug can lag, hang or
+crash the game. This interface is NOT a sandbox or rollback mechanism. Transport
+timeouts, asynchronous status and output limits do NOT stop the engine. Native
+completion does not prove every target accepted an edit or that all side effects
+spawned by called procs are finished. Never automatically re-execute an unknown
+operation, including with a new request/proposal ID. Human review is mandatory.
+
+Bounded wrapper: 8000 UTF-8 bytes of exact query text, at most 64 parsed statements,
+one live bridge job, 30-second new-job cooldown, 128 durable receipts per round,
+12000 characters of plain result text and a further 48000-byte envelope cap.
+These are interface bounds, NOT CPU/memory/loop limits on native SDQL evaluation.
+The normal engine may build a much larger result before output is shortened.
+
+Execute query fields: herald_sdql=execute, round, payload, minute, request_id,
+operator, signature. payload is exactly {query,query_sha256,proposal_id,
+approval_message_id,approval_channel_id,approved_at,expires_at}. IDs/timestamps
+are strings; proposal_id/request_id are 32 lowercase hex. approved_at/expires_at
+are decimal Unix SECOND strings. The server validates exact seconds without
+lossy 32-bit Unix-second arithmetic: no future approval, expired approval or
+duration over 600 seconds. A proposal/approval message can be used only once.
+Canonical execute signature:
+sdql_request|ROUND|SHA256(PAYLOAD)|UNIX_MINUTE|REQUEST_ID|OPERATOR
+Execute response signature: sdql_response|REQUEST_ID|DATA_STRING
+
+After reservation is saved BEFORE any native query evaluation, execute returns
+accepted and the native job runs asynchronously. Read-only polling fields:
+herald_sdql=status, round, request_id, minute, nonce, operator, signature.
+Canonical status signature:
+sdql_status|ROUND|REQUEST_ID|UNIX_MINUTE|NONCE|OPERATOR
+Status response signature: sdql_status_response|NONCE|DATA_STRING
+Both responses bind action=execute, round, request_id, query_sha256, proposal_id;
+statuses are accepted/running/completed/operation_uncertain/refused. Status reads
+are paced to one per two seconds and never start/repeat a query. Authenticated
+execution refusals are signed. Unsigned errors are not proof that no effect ran.
+
+Keep data/herald_sdql_receipts_0.json and _1.json between updates. They retain
+approval/digest metadata and bounded results, not the raw query. Corrupt receipts
+block new executions. A pending/running receipt after restart becomes uncertain,
+never a new execution. If final persistence fails, the earlier reservation still
+prevents repetition. Existing endpoints retain their prior capabilities.
+
+Isolated probes use only local dummy datums, synthetic approvals/credentials and
+localhost Topic. They must never run against production. Real-server deployment
+and any actual SDQL execution require a separate deliberate owner action.
+
+Explicit staff case handoff and approved fixed sanctions (default OFF)
+---------------------------------------------------------------------
+These are separate signed Topics, NOT extra model execution tools, and do not
+change ordinary duty's active-admin guard or OWNER-ONLY full SDQL approval.
+For deployment add to the SAME main config/config.txt (actual configured roles):
+HERALD_CASES_ENABLED 1
+HERALD_CASE_ROLE_IDS 1253098611412172800,1254790670028242975
+HERALD_DELEGATED_ADMIN_ENABLED 1
+HERALD_SANCTION_ROLE_IDS 1253098611412172800
+HERALD_SANCTION_APPROVAL_CHANNEL_ID 1252341888023789568
+
+HERALD_CASE_ROLE_IDS permits Royal Guard and Town Watch handoff/reclaim.
+HERALD_SANCTION_ROLE_IDS permits only Royal Guard sanctions confirmation.
+Configured owner operators are also accepted; empty role lists mean OWNER ONLY,
+not all roles. Existing HERALD_READONLY_KEY, HERALD_ADMIN_OPERATOR_IDS and real
+HERALD_ADMIN_CKEY rights are required: R_AHELP for handoff/reply, R_BAN for ban,
+R_ADMIN for kick/PQ. The transport operator remains a configured owner proxy.
+
+IMPORTANT TRUST BOUNDARY: the game does NOT contact Discord. It trusts only the
+signed backend's attestation of the ACTUAL staff actor, currently held role IDs,
+source/approval message, private approval channel and exact action. The backend
+must fetch roles afresh at confirmation and reject player-supplied identities,
+edited/stale proposals or unconfirmed model output. Town Watch must never pass
+the sanctions gate. Audit text distinguishes actual Discord approver from game
+authority/proxy; a Royal Guard action is not falsely described as the owner.
+The existing ban/PQ records retain the configured game authority in their native
+a_ckey/adminckey column; actual approval identity is recorded in reason/audit.
+
+herald_case=delegate|reclaim|snapshot|reply uses exactly the outer fields:
+round, ckey, payload, minute, request_id, operator, signature. Canonical signature:
+case_request|ACTION|ROUND|CKEY|SHA256(PAYLOAD)|UNIX_MINUTE|REQUEST_ID|OPERATOR
+Response signature: case_response|REQUEST_ID|DATA_STRING
+request_id and case_id are 32 lowercase hex; Discord IDs are strings.
+delegate/reclaim payload: {ticket_id,version,case_id,actor_id,actor_role_ids,
+source_message_id,source_channel_id}. Version must match the active native AH.
+snapshot payload: {ticket_id,case_id}; it needs no existing lease, and returns
+fresh version/handler/online/lease_active/lease_revision/revoked_reason plus
+bounded typed interactions. Thus it supports initial handoff even if ordinary
+duty's capped snapshot omits that ticket. Snapshots are read-only/paced 2 sec.
+reply payload: {ticket_id,version,case_id,lease_token,lease_revision,text}.
+
+Only an explicit handoff returns a current opaque lease_token+lease_revision.
+While that exact active lease matches the current round/ticket/ckey/case, the
+reply endpoint ignores general admin presence and earlier human handling. Reply
+still requires fresh ticket version, a connected recipient, <=30 words, <=1000
+characters and per-ticket 60-second pacing. Player follow-up does not revoke a
+lease. A NEW native human reply/claim, ticket closure/removal or explicit Discord
+reclaim revokes it immediately. Discord staff feedback is local context, not a
+native human intervention, unless they explicitly reclaim. A reclaim uses fresh
+version and source staff provenance; it does not need access to the old token.
+
+Active leases are intentionally RAM-only: restart never resurrects automated
+handling from a receipt. Durable handoff/reply receipts are audit/idempotency,
+not authority to resume. An old duplicate may describe the prior handoff; client
+recovery MUST inspect lease_active, and request new explicit staff assignment if
+inactive. Never regenerate a request ID to retry an unknown write.
+
+herald_delegated_admin=ban|kick|pq uses the same outer fields; canonical signature:
+delegated_admin_request|ACTION|ROUND|CKEY|SHA256(PAYLOAD)|MINUTE|REQUEST_ID|OPERATOR
+Response signature: delegated_admin_response|REQUEST_ID|DATA_STRING
+Payload exactly {case_id,proposal_id,approval_message_id,approval_channel_id,
+approved_by,approved_role_ids,approved_at,expires_at,operation}. operation is the
+existing fixed typed ban/kick/PQ payload, never raw code/SDQL/SQL. proposal_id is
+32 lowercase hex; approved_at/expires_at are Unix-second decimal STRINGS, exact
+validity <=600 seconds. Current GAME round must match, but a complaint may concern
+an old round/offline player and need not have an active AH. Exact action/target,
+case, proposal, role proof and approval metadata are bound by the signature.
+Proposal and approval message are single-use even under a different request ID.
+An exact saved receipt remains readable after approval expiry; this never starts
+an operation. A new expired approval returns approval_expired without mutation.
+Approval/rights/config/round are rechecked after reservation and again immediately
+before a ban INSERT after yielding database reads. Normal native target/rights
+checks remain; full SDQL is not reachable through this endpoint.
+
+Alternating data/herald_case_receipts_0.json/_1.json reserve every effect BEFORE
+mutation, max512 per round, and must survive updates. Corrupt/partial checkpoints
+fail closed, unknown effects are never retried. Ban/kick/PQ use native helpers,
+with explicit actual Discord approver and configured game authority in audit.
+Local probes use fake AH recipients and a fake SQL seam only. No production
+player, Discord message, ban, PQ record or arbitrary game world is touched.

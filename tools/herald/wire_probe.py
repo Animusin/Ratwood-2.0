@@ -76,6 +76,87 @@ def validated_admin(port, values):
     return data
 
 
+def duty_request(action, round_id=None, ck=None, data=None, request_id=None):
+    values = {'herald_duty': action, 'minute': str(int(time.time() // 60)), 'operator': '2'}
+    if action == 'snapshot':
+        values['nonce'] = secrets.token_hex(16)
+        canonical = f'duty_snapshot|{values["minute"]}|{values["nonce"]}|2'
+    else:
+        payload = json.dumps(data, ensure_ascii=False, sort_keys=True, separators=(',', ':'))
+        values.update({'round': round_id, 'ckey': ck, 'payload': payload,
+                       'request_id': request_id or secrets.token_hex(16)})
+        digest = hashlib.sha256(payload.encode()).hexdigest()
+        canonical = f'duty_request|{round_id}|{ck}|{digest}|{values["minute"]}|{values["request_id"]}|2'
+    values['signature'] = sign(canonical)
+    return values
+
+
+def validated_duty(port, values):
+    envelope = query(port, values)
+    assert 'data' in envelope, envelope
+    snapshot = values['herald_duty'] == 'snapshot'
+    prefix = 'duty_snapshot_response' if snapshot else 'duty_response'
+    identity = values['nonce'] if snapshot else values['request_id']
+    assert hmac.compare_digest(envelope['signature'], sign(f'{prefix}|{identity}|' + envelope['data']))
+    return json.loads(envelope['data'])
+
+
+def sdql_request(round_id, query_text):
+    now = int(time.time())
+    payload = json.dumps({'query': query_text, 'query_sha256': hashlib.sha256(query_text.encode()).hexdigest(),
+                          'proposal_id': secrets.token_hex(16),
+                          'approval_message_id': str(200000000000000000 + secrets.randbelow(1000000000)),
+                          'approval_channel_id': '1252341888023789568',
+                          'approved_at': str(now), 'expires_at': str(now + 600)},
+                         ensure_ascii=False, sort_keys=True, separators=(',', ':'))
+    values = {'herald_sdql': 'execute', 'round': round_id, 'payload': payload,
+              'minute': str(now // 60), 'request_id': secrets.token_hex(16), 'operator': '2'}
+    values['signature'] = sign(f'sdql_request|{round_id}|{hashlib.sha256(payload.encode()).hexdigest()}|'
+                               f'{values["minute"]}|{values["request_id"]}|2')
+    return values
+
+
+def sdql_status(execution):
+    values = {'herald_sdql': 'status', 'round': execution['round'], 'request_id': execution['request_id'],
+              'minute': str(int(time.time() // 60)), 'nonce': secrets.token_hex(16), 'operator': '2'}
+    values['signature'] = sign(f'sdql_status|{values["round"]}|{values["request_id"]}|{values["minute"]}|{values["nonce"]}|2')
+    return values
+
+
+def validated_sdql(port, values):
+    envelope = query(port, values)
+    assert 'data' in envelope, envelope
+    status = values['herald_sdql'] == 'status'
+    prefix = 'sdql_status_response' if status else 'sdql_response'
+    identity = values['nonce'] if status else values['request_id']
+    assert hmac.compare_digest(envelope['signature'], sign(f'{prefix}|{identity}|' + envelope['data']))
+    result = json.loads(envelope['data'])
+    assert result['request_id'] == values['request_id'] and result['round'] == values['round']
+    assert len(result['output']) <= 12000
+    return result
+
+
+def case_request(action, round_id, ck, data, endpoint='herald_case', request_id=None):
+    payload = json.dumps(data, ensure_ascii=False, sort_keys=True, separators=(',', ':'))
+    values = {endpoint: action, 'round': round_id, 'ckey': ck, 'payload': payload,
+              'minute': str(int(time.time() // 60)), 'request_id': request_id or secrets.token_hex(16), 'operator': '2'}
+    prefix = 'case_request' if endpoint == 'herald_case' else 'delegated_admin_request'
+    values['signature'] = sign(f'{prefix}|{action}|{round_id}|{ck}|{hashlib.sha256(payload.encode()).hexdigest()}|'
+                               f'{values["minute"]}|{values["request_id"]}|2')
+    return values
+
+
+def validated_case(port, values, endpoint='herald_case'):
+    envelope = query(port, values)
+    assert 'data' in envelope, envelope
+    prefix = 'case_response' if endpoint == 'herald_case' else 'delegated_admin_response'
+    assert hmac.compare_digest(envelope['signature'], sign(f'{prefix}|{values["request_id"]}|' + envelope['data']))
+    result = json.loads(envelope['data'])
+    assert result['request_id'] == values['request_id'] and result['round'] == values['round']
+    assert result['ckey'] == values['ckey']
+    return result
+
+
 def main():
     port = int(sys.argv[1])
     for action in ('status', 'players', 'character'):
@@ -83,10 +164,10 @@ def main():
         snapshot = validated(port, values)
         round_id = str(snapshot['round'])
         print('PASS local_signed_' + action)
-        time.sleep(1.1)
+        time.sleep(2.2)  # World time can lag wall time during map startup.
     values = request('status')
     validated(port, values)
-    time.sleep(1.1)
+    time.sleep(2.2)
     assert query(port, values)['error'] == 'replayed_or_busy'
     assert query(port, {'herald_read': 'sdql'})['error'] == 'unsupported_action'
     invalid = request('status')
@@ -99,7 +180,7 @@ def main():
     duplicate = validated_admin(port, reply)
     assert duplicate['status'] == 'delivered' and duplicate['duplicate'] == 1
     print('PASS real_topic_admin_reply_and_idempotent_replay')
-    time.sleep(2.1)
+    time.sleep(3.1)
     pq = admin_request('pq', round_id, 'heraldpqprobe', {'delta': -1, 'reason': 'Local wire check'})
     result = validated_admin(port, pq)
     assert result['status'] == 'pq_adjusted' and result['before'] == 35 and result['after'] == 34
@@ -112,6 +193,69 @@ def main():
     assert query(port, bad)['error'] == 'unauthorized'
     assert query(port, {'herald_admin': 'sdql'})['error'] == 'unsupported_action'
     print('PASS admin_old_round_bad_signature_and_arbitrary_command_refused')
+    snapshot = validated_duty(port, duty_request('snapshot'))
+    assert snapshot['read_only'] == 1 and snapshot['duty_enabled'] == 1
+    assert snapshot['admins'] == {'known': 1, 'active': 0, 'total': 0}
+    ticket = next(row for row in snapshot['tickets'] if row['id'] == 995)
+    assert ticket['ckey'] == 'heralddutywire' and ticket['last_interactions'][-1]['kind'] == 'player'
+    reply = duty_request('reply', round_id, ticket['ckey'],
+                         {'ticket_id': ticket['id'], 'version': ticket['version'], 'text': 'Я Геральд, автоматический дежурный. Проверяю обращение.'})
+    result = validated_duty(port, reply)
+    assert result['status'] == 'delivered' and result['new_version'] > ticket['version']
+    assert validated_duty(port, reply)['duplicate'] == 1
+    long_reply = duty_request('reply', round_id, ticket['ckey'],
+                              {'ticket_id': ticket['id'], 'version': result['new_version'], 'text': 'слово ' * 31})
+    assert query(port, long_reply)['error'] == 'invalid_argument'
+    assert query(port, {'herald_duty': 'ban'})['error'] == 'unsupported_action'
+    print('PASS duty_signed_snapshot_ai_reply_dedup_word_limit_no_punishment')
+    execution = sdql_request(round_id, 'CALL set_value(11) ON /datum IN global.herald_sdql_probe_targets')
+    result = validated_sdql(port, execution)
+    assert result['status'] == 'accepted', result
+    expected = json.loads(execution['payload'])
+    for _ in range(5):
+        time.sleep(2.2)
+        result = validated_sdql(port, sdql_status(execution))
+        if result['status'] not in {'accepted', 'running'}:
+            break
+    assert result['status'] == 'completed', result
+    assert result['query_sha256'] == expected['query_sha256'] and result['proposal_id'] == expected['proposal_id']
+    assert validated_sdql(port, execution)['duplicate'] == 1
+    assert query(port, {'herald_sdql': 'proccall'})['error'] == 'unsupported_action'
+    print('PASS sdql_signed_async_native_proccall_status_and_idempotency')
+    case_id = secrets.token_hex(16)
+    snapshot = validated_case(port, case_request('snapshot', round_id, 'heraldcasewire', {'ticket_id': 992, 'case_id': case_id}))
+    assert snapshot['status'] == 'ok' and not snapshot['lease_active'] and snapshot['handler'] == 'humanprobe'
+    provenance = {'ticket_id': 992, 'version': snapshot['version'], 'case_id': case_id, 'actor_id': '30',
+                  'actor_role_ids': ['4'], 'source_message_id': '200000000000001111',
+                  'source_channel_id': '1252341888023789568'}
+    assignment = case_request('delegate', round_id, 'heraldcasewire', provenance)
+    delegated = validated_case(port, assignment)
+    assert delegated['status'] == 'delegated' and len(delegated['lease_token']) == 32
+    assert validated_case(port, assignment)['duplicate'] == 1
+    time.sleep(2.2)
+    reply = case_request('reply', round_id, 'heraldcasewire', {
+        'ticket_id': 992, 'version': delegated['version'], 'case_id': case_id,
+        'lease_token': delegated['lease_token'], 'lease_revision': delegated['lease_revision'],
+        'text': 'Я Геральд, мне явно передали это обращение. Проверяю факты.'})
+    response = validated_case(port, reply)
+    assert response['status'] == 'delivered'
+    assert validated_case(port, reply)['duplicate'] == 1
+    provenance['version'] = response['version']
+    reclaimed = validated_case(port, case_request('reclaim', round_id, 'heraldcasewire', provenance))
+    assert reclaimed['status'] == 'reclaimed'
+    print('PASS case_signed_explicit_handoff_reply_prior_handler_reclaim_idempotency')
+    now = int(time.time())
+    approval = {'case_id': case_id, 'proposal_id': secrets.token_hex(16),
+                'approval_message_id': '200000000000001112', 'approval_channel_id': '1252341888023789568',
+                'approved_by': '30', 'approved_role_ids': ['3'], 'approved_at': str(now), 'expires_at': str(now + 600),
+                'operation': {'minutes': 10, 'reason': 'Synthetic local signed approval'}}
+    sanction = case_request('ban', round_id, 'heraldtarget', approval, 'herald_delegated_admin')
+    outcome = validated_case(port, sanction, 'herald_delegated_admin')
+    assert outcome['status'] == 'banned' and outcome['approved_by'] == '30'
+    assert validated_case(port, sanction, 'herald_delegated_admin')['duplicate'] == 1
+    reused = case_request('ban', round_id, 'heraldtarget', approval, 'herald_delegated_admin')
+    assert validated_case(port, reused, 'herald_delegated_admin')['status'] == 'approval_already_used'
+    print('PASS sanction_signed_royalguard_approval_exact_typed_operation_single_use')
 
 
 if __name__ == '__main__':

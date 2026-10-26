@@ -179,6 +179,9 @@ var/global/datum/herald_game_probe/herald_game_probe = new
 	CONFIG_SET(string/webhook_adminhelp, "")
 	test_emote_relay()
 	test_admin_actions()
+	test_duty()
+	test_sdql_gateway()
+	test_cases()
 	var/mob/living/carbon/human/consistent/M = new(locate(1, 1, 1))
 	M.name = "Herald Probe"
 	GLOB.player_list |= M
@@ -202,6 +205,211 @@ var/global/datum/herald_game_probe/herald_game_probe = new
 		qdel(Q)
 	check("sdql_did_not_mutate_character", !QDELETED(M) && M.health == old_health && M.stat == old_stat && M.loc == old_location && M.name == "Herald Probe")
 	qdel(M)
+
+// Synthetic recipients and staff counts below exist ONLY in this test world.
+/datum/admin_help/herald_duty_probe
+	var/duty_reply_count = 0
+	var/test_connected = TRUE
+
+/datum/admin_help/herald_duty_probe/New()
+	id = 996
+	initiator_ckey = "heraldduty"
+	_interactions = list()
+
+/datum/admin_help/herald_duty_probe/HeraldDutyConnected()
+	return test_connected
+
+/datum/admin_help/herald_duty_probe/HeraldDutyReply(message)
+	duty_reply_count++
+	AddInteraction("Геральд: [herald_ahelp_body(message)]", "duty", "Геральд")
+	herald_last_duty_player_revision = herald_player_revision
+	herald_duty_next_reply = world.time + 1 MINUTES
+	return "delivered" // Fake client; does not assert delivery to a real player.
+
+/datum/world_topic/herald_duty/herald_probe
+	var/test_staff_total = 0
+	var/test_staff_active = 0
+	var/test_known = TRUE
+	var/test_storage_failure = FALSE
+	var/test_human_after_reservation = FALSE
+
+/datum/world_topic/herald_duty/herald_probe/admin_presence()
+	return list("known" = test_known, "active" = test_staff_active, "total" = test_staff_total)
+
+/datum/world_topic/herald_duty/herald_probe/persist()
+	if(test_storage_failure)
+		return FALSE
+	var/saved = ..()
+	if(test_human_after_reservation)
+		test_staff_total = 1
+		test_staff_active = 1
+		test_human_after_reservation = FALSE
+	return saved
+
+/datum/herald_game_probe/proc/duty_sign(list/input)
+	var/signed
+	if(input["herald_duty"] == "snapshot")
+		signed = "duty_snapshot|[input["minute"]]|[input["nonce"]]|[input["operator"]]"
+	else
+		var/hash = rustg_hash_string(RUSTG_HASH_SHA256, input["payload"])
+		signed = "duty_request|[input["round"]]|[input["ckey"]]|[hash]|[input["minute"]]|[input["request_id"]]|[input["operator"]]"
+	input["signature"] = herald_read_signature(CONFIG_GET(string/herald_readonly_key), signed)
+	return input
+
+/datum/herald_game_probe/proc/duty_request(version, message, request_id)
+	return duty_sign(list("herald_duty" = "reply", "round" = "[GLOB.rogue_round_id]", "ckey" = "heraldduty",
+		"payload" = json_encode(list("ticket_id" = 996, "version" = version, "text" = message)),
+		"minute" = num2text(round(world.realtime / 600) + 15778080, 10), "request_id" = request_id, "operator" = "2"))
+
+/datum/herald_game_probe/proc/duty_result(datum/world_topic/herald_duty/api, list/input)
+	var/list/envelope = json_decode(api.TryRun(input))
+	if(envelope["data"])
+		var/prefix = input["herald_duty"] == "snapshot" ? "duty_snapshot_response" : "duty_response"
+		var/identity = input["herald_duty"] == "snapshot" ? input["nonce"] : input["request_id"]
+		check("signed_duty_response", envelope["signature"] == herald_read_signature(CONFIG_GET(string/herald_readonly_key), "[prefix]|[identity]|[envelope["data"]]"))
+		return json_decode(envelope["data"])
+	return envelope
+
+/datum/herald_game_probe/proc/test_duty()
+	check("duty_loaded_from_main_config", CONFIG_GET(flag/herald_duty_enabled))
+	var/datum/world_topic/herald_duty/herald_probe/api = new
+	var/datum/admin_help/herald_duty_probe/T = new
+	GLOB.ahelp_tickets.active_tickets += T
+	T.HeraldRecord("Нужна помощь 🐟", "player", "heraldduty")
+	var/list/read = duty_sign(list("herald_duty" = "snapshot", "minute" = num2text(round(world.realtime / 600) + 15778080, 10),
+		"nonce" = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "operator" = "2"))
+	CONFIG_SET(flag/herald_duty_enabled, FALSE)
+	var/list/result = duty_result(api, read)
+	check("duty_disabled_without_optin", result["error"] == "disabled")
+	CONFIG_SET(flag/herald_duty_enabled, TRUE)
+	result = duty_result(api, read)
+	var/list/staff = result["admins"]
+	check("duty_bounded_read_snapshot", result["read_only"] && length(result["tickets"]) <= 10 && staff["known"] && staff["total"] == 0 && findtext(result["generated_at"], "Z"))
+	var/list/reply = duty_request(T.herald_revision, "Проверяю обращение. Расскажи, что случилось.", "d1111111111111111111111111111111")
+	var/list/invalid = reply.Copy()
+	invalid["signature"] = "bad"
+	result = duty_result(api, invalid)
+	check("duty_signature_denied", result["error"] == "unauthorized")
+	invalid = reply.Copy()
+	invalid["query"] = "SELECT * FROM world"
+	result = duty_result(api, invalid)
+	check("duty_arbitrary_query_denied", result["error"] == "invalid_argument")
+	invalid = reply.Copy()
+	invalid["herald_duty"] = "ban"
+	result = duty_result(api, invalid)
+	check("duty_punishment_not_exposed", result["error"] == "unsupported_action")
+	api.test_staff_total = 1
+	api.test_staff_active = 1 // Held staff pause even if AFK/hidden or lacking R_AHELP.
+	result = duty_result(api, reply)
+	check("duty_afk_or_hidden_staff_still_pauses", result["status"] == "human_present" && !T.duty_reply_count)
+	api.test_staff_active = 0 // Deadmin stays visible in total but does not pause.
+	check("duty_deadmin_only_not_a_pause", isnull(api.guard(T, T.initiator_ckey, T.herald_revision)) && !T.duty_reply_count)
+	api.test_staff_total = 0
+	api.test_known = FALSE
+	result = duty_result(api, reply)
+	check("duty_unknown_presence_denies", result["status"] == "snapshot_unknown" && !T.duty_reply_count)
+	api.test_known = TRUE
+	T.HeraldRecord("Человек взял тикет", "human", "humanprobe")
+	result = duty_result(api, duty_request(T.herald_revision, "Не отправлять", "d2222222222222222222222222222222"))
+	check("duty_human_claim_pauses", result["status"] == "human_handled" && !T.duty_reply_count)
+	T.herald_handler = "" // Test fixture reset, not a remotely exposed operation.
+	result = duty_result(api, reply)
+	check("duty_stale_revision_denied", result["status"] == "ticket_changed")
+	T.test_connected = FALSE
+	result = duty_result(api, duty_request(T.herald_revision, "Не отправлять", "d3333333333333333333333333333333"))
+	check("duty_offline_player_denied", result["status"] == "player_offline")
+	T.test_connected = TRUE
+	var/list/too_many = list()
+	for(var/i in 1 to 31)
+		too_many += "слово"
+	result = duty_result(api, duty_request(T.herald_revision, jointext(too_many, " "), "d4444444444444444444444444444444"))
+	check("duty_thirty_word_limit_enforced", result["error"] == "invalid_argument")
+	check("duty_unicode_whitespace_word_count", herald_duty_word_count(jointext(too_many, "\u00a0")) == 31 && herald_duty_word_count("Привет\tмир\nрыба") == 3)
+	reply = duty_request(T.herald_revision, "Краткий ответ от Геральда.", "d5555555555555555555555555555555")
+	api.test_storage_failure = TRUE
+	result = duty_result(api, reply)
+	check("duty_requires_durable_reservation", result["error"] == "receipt_storage_failed" && !T.duty_reply_count)
+	api.test_storage_failure = FALSE
+	api.test_human_after_reservation = TRUE
+	result = duty_result(api, reply)
+	check("duty_rechecks_staff_after_reservation", result["status"] == "human_present" && !T.duty_reply_count)
+	api.test_staff_active = 0
+	api.test_staff_total = 1 // Only a deadmin remains connected during delivery.
+	api.next_reply = 0
+	reply = duty_request(T.herald_revision, "Проверяю обращение. Уточни обстоятельства.", "d6666666666666666666666666666666")
+	result = duty_result(api, reply)
+	check("duty_deadmin_only_allows_reply", result["status"] == "delivered" && T.duty_reply_count == 1)
+	check("duty_reply_once_explicit_ai_actor", result["status"] == "delivered" && T.duty_reply_count == 1 && !findtext(T._interactions[1], "heraldadminprobe") && findtext(T._interactions[1], "Геральд"))
+	api.test_staff_total = 0
+	result = duty_result(api, reply)
+	check("duty_retry_does_not_repeat", result["duplicate"] && T.duty_reply_count == 1)
+	invalid = reply.Copy()
+	invalid["payload"] = json_encode(list("ticket_id" = 996, "version" = T.herald_revision, "text" = "Другой ответ"))
+	result = duty_result(api, duty_sign(invalid))
+	check("duty_id_payload_conflict_denied", result["error"] == "request_id_conflict")
+	api.receipts = list()
+	api.generation = 0
+	api.recovered = FALSE
+	result = duty_result(api, reply)
+	check("duty_receipt_recovers_without_repeat", result["duplicate"] && T.duty_reply_count == 1)
+	var/list/invalid_receipts = list("d0000000000000000000000000000000" = list("fingerprint" = "shape only", "result" = "not a result object"))
+	check("duty_malformed_receipt_entries_denied", !api.valid_receipts(invalid_receipts))
+	var/checkpoint = "data/herald_duty_receipts_0.json"
+	var/checkpoint_backup = file2text(checkpoint)
+	fdel(checkpoint)
+	text2file("not valid JSON", checkpoint)
+	api.recovered = FALSE
+	result = duty_result(api, reply)
+	check("duty_corrupt_receipt_recovery_fails_closed", result["error"] == "receipt_storage_failed" && T.duty_reply_count == 1)
+	fdel(checkpoint)
+	text2file(checkpoint_backup, checkpoint)
+	api.recovery_failed = FALSE // Isolated fixture restored its exact checkpoint.
+	api.recovered = FALSE
+	result = duty_result(api, reply)
+	check("duty_restored_receipt_still_deduplicates", result["duplicate"] && T.duty_reply_count == 1)
+	api.next_reply = 0
+	result = duty_result(api, duty_request(T.herald_revision, "Не отвечать себе", "d7777777777777777777777777777777"))
+	check("duty_no_reply_without_new_player_message", result["status"] == "no_new_player_message")
+	T.HeraldRecord("Ещё вопрос", "player", "heraldduty")
+	result = duty_result(api, duty_request(T.herald_revision, "Рано", "d8888888888888888888888888888888"))
+	check("duty_per_ticket_cooldown", result["status"] == "cooldown")
+	check("duty_typed_recent_interactions", length(T.herald_interactions) <= 12 && T.herald_revision == 4)
+	var/list/old_tickets = list()
+	for(var/i in 1 to 11)
+		var/datum/admin_help/herald_duty_probe/old = new
+		old.id = 900 + i
+		old.HeraldRecord("Тикет уже у человека", "human", "humanprobe")
+		GLOB.ahelp_tickets.active_tickets.Insert(1, old)
+		old_tickets += old
+	var/datum/admin_help/herald_duty_probe/new_pending = new
+	new_pending.id = 994
+	new_pending.HeraldRecord("Новый вопрос после старых тикетов", "player", "heraldduty")
+	GLOB.ahelp_tickets.active_tickets += new_pending
+	T.herald_last_duty_player_revision = T.herald_player_revision
+	var/list/prioritized = api.snapshot()
+	var/list/first_pending = prioritized["tickets"][1]
+	check("duty_snapshot_prioritizes_new_pending_over_old_handled", first_pending["id"] == 994 && length(prioritized["tickets"]) == 10 && prioritized["truncated"] && prioritized["total_active"] == length(GLOB.ahelp_tickets.active_tickets))
+	for(var/datum/admin_help/old in old_tickets)
+		GLOB.ahelp_tickets.active_tickets -= old
+		qdel(old)
+	GLOB.ahelp_tickets.active_tickets -= new_pending
+	qdel(new_pending)
+	var/list/oversized_tickets = list()
+	for(var/i in 1 to 10)
+		var/body = ""
+		for(var/j in 1 to 1000)
+			body += ascii2text(1)
+		oversized_tickets += list(list("text" = body))
+	var/list/bounded = json_decode(api.envelope("duty_snapshot_response", "test", list("tickets" = oversized_tickets, "truncated" = FALSE)))
+	var/list/bounded_data = json_decode(bounded["data"])
+	check("duty_snapshot_envelope_byte_bound", length(json_encode(bounded)) < 60000 && bounded_data["truncated"])
+	GLOB.ahelp_tickets.active_tickets -= T
+	qdel(T)
+	var/datum/admin_help/herald_duty_probe/wire = new
+	wire.id = 995
+	wire.initiator_ckey = "heralddutywire"
+	wire.HeraldRecord("Локальная проверка дежурного", "player", "heralddutywire")
+	GLOB.ahelp_tickets.active_tickets += wire
 
 // Test-only identities and database seam; never loaded by production roguetown.dme.
 /datum/admins/herald_probe/New(datum/admin_rank/R, ck)
@@ -267,7 +475,7 @@ var/global/datum/herald_game_probe/herald_game_probe = new
 	// The tiny probe stays in the lobby, before normal round ID assignment.
 	GLOB.rogue_round_id = "HeraldProbe1"
 	check("admin_mapping_loaded_from_main_config", CONFIG_GET(string/herald_admin_operator_ids) == "2" && CONFIG_GET(string/herald_admin_ckey) == "heraldadminprobe")
-	var/datum/admin_rank/R = new("Herald local probe", R_ADMIN | R_BAN | R_AHELP)
+	var/datum/admin_rank/R = new("Herald local probe", R_ADMIN | R_BAN | R_AHELP | R_DEBUG)
 	var/datum/admins/herald_probe/holder = new(R, "heraldadminprobe")
 	GLOB.admin_datums["heraldadminprobe"] = holder
 	var/datum/admin_help/herald_reply_probe/ticket = new
@@ -346,7 +554,7 @@ var/global/datum/herald_game_probe/herald_game_probe = new
 	R.rights = R_AHELP
 	result = admin_result(api, admin_sign(ban_request.Copy()))
 	check("game_admin_rights_rechecked_even_for_retry", result["error"] == "admin_rights_denied")
-	R.rights = R_ADMIN | R_BAN | R_AHELP
+	R.rights = R_ADMIN | R_BAN | R_AHELP | R_DEBUG
 	api.receipts = list()
 	api.generation = 0
 	api.recovered = FALSE
@@ -354,3 +562,260 @@ var/global/datum/herald_game_probe/herald_game_probe = new
 	result = admin_result(api, pq)
 	check("server_receipts_recovered_without_duplicate_pq", result["duplicate"] && get_playerquality("heraldpqprobe") == 35)
 	api.next_action = 0
+
+GLOBAL_LIST_EMPTY(herald_sdql_probe_targets)
+GLOBAL_LIST_EMPTY(herald_sdql_probe_deletes)
+
+/datum/herald_sdql_probe_target
+	var/value = 0
+	var/calls = 0
+	var/guard_seen = FALSE
+	var/expected_request
+	var/reservation_seen = FALSE
+	var/usr_seen = FALSE
+	var/sealed = 12
+	var/forbidden_calls = 0
+
+/datum/herald_sdql_probe_target/CanProcCall(procname)
+	return procname != "forbidden" && ..()
+
+/datum/herald_sdql_probe_target/vv_edit_var(name, value)
+	return name == "sealed" ? FALSE : ..()
+
+/datum/herald_sdql_probe_target/proc/forbidden()
+	forbidden_calls++
+
+/datum/herald_sdql_probe_target/proc/set_value(new_value)
+	calls++
+	value = new_value
+	guard_seen = IsAdminAdvancedProcCall()
+	usr_seen = !!usr
+	for(var/path in list("data/herald_sdql_receipts_0.json", "data/herald_sdql_receipts_1.json"))
+		if(fexists(path) && findtext(file2text(path), expected_request))
+			reservation_seen = TRUE
+	return value
+
+/datum/herald_sdql_probe_target/proc/increment()
+	calls++
+	value++
+	return value
+
+/datum/herald_sdql_probe_target/proc/delayed_value(new_value)
+	sleep(5)
+	return set_value(new_value)
+
+/datum/herald_sdql_probe_target/proc/slow_value(new_value)
+	sleep(2 SECONDS)
+	return set_value(new_value)
+
+/datum/world_topic/herald_sdql/herald_probe
+	var/test_storage_failure = FALSE
+
+/datum/world_topic/herald_sdql/herald_probe/persist()
+	return test_storage_failure ? FALSE : ..()
+
+/datum/herald_game_probe/proc/sdql_time(delta = 0)
+	var/text = herald_sdql_now_seconds()
+	var/split = length(text) - 5
+	var/high = text2num(copytext(text, 1, split))
+	var/low = text2num(copytext(text, split)) + delta
+	while(low < 0)
+		high--
+		low += 1000000
+	while(low >= 1000000)
+		high++
+		low -= 1000000
+	var/tail = num2text(low, 10)
+	while(length(tail) < 6)
+		tail = "0[tail]"
+	return "[num2text(high, 10)][tail]"
+
+/datum/herald_game_probe/proc/sdql_sign(list/input)
+	var/hash = rustg_hash_string(RUSTG_HASH_SHA256, input["payload"])
+	input["signature"] = herald_read_signature(CONFIG_GET(string/herald_readonly_key), "sdql_request|[input["round"]]|[hash]|[input["minute"]]|[input["request_id"]]|[input["operator"]]")
+	return input
+
+/datum/herald_game_probe/proc/sdql_request(query, request_id, serial)
+	var/proposal_id = rustg_hash_string(RUSTG_HASH_MD5, "proposal[serial]")
+	var/list/data = list("query" = query, "query_sha256" = rustg_hash_string(RUSTG_HASH_SHA256, query), "proposal_id" = proposal_id,
+		"approval_message_id" = "20000000000000[serial]", "approval_channel_id" = CONFIG_GET(string/herald_sdql_approval_channel_id), "approved_at" = sdql_time(), "expires_at" = sdql_time(600))
+	return sdql_sign(list("herald_sdql" = "execute", "round" = "[GLOB.rogue_round_id]", "payload" = json_encode(data),
+		"minute" = num2text(round(world.realtime / 600) + 15778080, 10), "request_id" = request_id, "operator" = "2"))
+
+/datum/herald_game_probe/proc/sdql_result(datum/world_topic/herald_sdql/api, list/input)
+	var/list/envelope = json_decode(api.TryRun(input))
+	if(envelope["data"])
+		check("signed_sdql_response", envelope["signature"] == herald_read_signature(CONFIG_GET(string/herald_readonly_key), "sdql_response|[input["request_id"]]|[envelope["data"]]"))
+		return json_decode(envelope["data"])
+	return envelope
+
+/datum/herald_game_probe/proc/sdql_wait(datum/world_topic/herald_sdql/api, request_id)
+	var/limit = world.time + 10 SECONDS
+	var/list/entry = api.receipts[request_id]
+	var/list/result = entry["result"]
+	while(result["status"] in list("accepted", "running"))
+		if(world.time > limit)
+			break
+		sleep(1)
+	return result
+
+/datum/herald_game_probe/proc/test_sdql_gateway()
+	check("sdql_loaded_from_main_config_default_approval_channel", CONFIG_GET(flag/herald_sdql_enabled) && CONFIG_GET(string/herald_sdql_approval_channel_id) == "1252341888023789568")
+	check("sdql_approval_exact_seconds_boundary", herald_sdql_approval_current(sdql_time(), sdql_time(600)) && !herald_sdql_approval_current(sdql_time(), sdql_time(601)) && !herald_sdql_approval_current(sdql_time(-700), sdql_time(-100)))
+	var/datum/world_topic/herald_sdql/herald_probe/api = new
+	var/datum/herald_sdql_probe_target/T = new
+	GLOB.herald_sdql_probe_targets += T
+	var/list/input = sdql_request("UPDATE /datum IN global.herald_sdql_probe_targets SET value = 3", "e1111111111111111111111111111111", 1)
+	CONFIG_SET(flag/herald_sdql_enabled, FALSE)
+	var/list/result = sdql_result(api, input)
+	check("sdql_disabled_by_default_optin_guard", result["status"] == "refused" && result["error"] == "disabled" && T.value == 0)
+	CONFIG_SET(flag/herald_sdql_enabled, TRUE)
+	var/datum/admins/holder = GLOB.admin_datums["heraldadminprobe"]
+	holder.rank.rights = R_ADMIN | R_AHELP
+	result = sdql_result(api, input)
+	check("sdql_requires_native_debug_permission", result["error"] == "admin_rights_denied" && T.value == 0)
+	holder.rank.rights = R_ADMIN | R_BAN | R_AHELP | R_DEBUG
+	var/list/bad = input.Copy()
+	bad["signature"] = "bad"
+	result = sdql_result(api, bad)
+	check("sdql_bad_signature_denied", result["error"] == "unauthorized")
+	var/list/data = json_decode(input["payload"])
+	data["approval_channel_id"] = "200000000000000000"
+	bad = input.Copy()
+	bad["payload"] = json_encode(data)
+	result = sdql_result(api, sdql_sign(bad))
+	check("sdql_approval_channel_bound", result["error"] == "approval_mismatch" && T.value == 0)
+	data = json_decode(input["payload"])
+	data["expires_at"] = sdql_time(601)
+	bad = input.Copy()
+	bad["payload"] = json_encode(data)
+	result = sdql_result(api, sdql_sign(bad))
+	check("sdql_expiry_no_longer_than_ten_minutes", result["error"] == "approval_expired" && T.value == 0)
+	api.test_storage_failure = TRUE
+	result = sdql_result(api, input)
+	check("sdql_no_execution_without_durable_reservation", result["error"] == "receipt_storage_failed" && T.value == 0)
+	api.test_storage_failure = FALSE
+	result = sdql_result(api, input)
+	check("sdql_execute_returns_accepted_before_work", result["status"] == "accepted" && T.value == 0, json_encode(result))
+	if(result["status"] != "accepted")
+		return
+	var/list/other = sdql_request("UPDATE /datum IN global.herald_sdql_probe_targets SET value = 99", "e2222222222222222222222222222222", 2)
+	result = sdql_result(api, other)
+	check("sdql_only_one_job_at_a_time", result["error"] == "busy_or_limited")
+	result = sdql_wait(api, input["request_id"])
+	check("sdql_native_update_runs", result["status"] == "completed" && T.value == 3, json_encode(result))
+	result = sdql_result(api, input)
+	check("sdql_replay_returns_same_receipt_no_repeat", result["duplicate"] && T.value == 3)
+	bad = input.Copy()
+	bad["request_id"] = "e3333333333333333333333333333333"
+	result = sdql_result(api, sdql_sign(bad))
+	check("sdql_approval_single_use_across_request_ids", result["error"] == "approval_already_used")
+	api.next_execute = 0
+	input = sdql_request("CALL set_value(increment()) ON /datum IN global.herald_sdql_probe_targets", "e4444444444444444444444444444444", 4)
+	T.expected_request = input["request_id"]
+	result = sdql_result(api, input)
+	result = sdql_wait(api, input["request_id"])
+	check("sdql_native_nested_proccalls_and_guard_context", result["status"] == "completed" && T.value == 4 && T.calls == 2 && T.guard_seen && T.reservation_seen && !T.usr_seen, json_encode(result))
+	check("sdql_proc_context_cleans_up", !GLOB.AdminProcCaller && !GLOB.AdminProcCallCount && !GLOB.herald_sdql_proc_caller)
+	api.next_execute = 0
+	input = sdql_request("SELECT /datum IN global.herald_sdql_probe_targets MAP global._abs(-3)", "e5555555555555555555555555555555", 5)
+	result = sdql_result(api, input)
+	result = sdql_wait(api, input["request_id"])
+	check("sdql_native_global_proccalls_output", result["status"] == "completed" && findtext(result["output"], "3"), json_encode(result))
+	api.next_execute = 0
+	input = sdql_request("USING SEQUENTIAL = TRUE UPDATE /datum IN global.herald_sdql_probe_targets SET value = 7; SELECT /datum IN global.herald_sdql_probe_targets MAP value", "e6666666666666666666666666666666", 6)
+	result = sdql_result(api, input)
+	result = sdql_wait(api, input["request_id"])
+	check("sdql_native_batch_and_select_output", result["status"] == "completed" && T.value == 7 && findtext(result["output"], "7"), json_encode(result))
+	api.next_execute = 0
+	var/list/barrier = sdql_request("UPDATE /datum IN global.herald_sdql_probe_targets SET sealed = 99; CALL forbidden() ON /datum IN global.herald_sdql_probe_targets", "e7777777777777777777777777777777", 7)
+	result = sdql_result(api, barrier)
+	result = sdql_wait(api, barrier["request_id"])
+	check("sdql_native_vv_and_proccall_barriers_not_bypassed", result["status"] == "completed" && T.sealed == 12 && T.forbidden_calls == 0, json_encode(result))
+	api.next_execute = 0
+	var/list/explain = sdql_request("EXPLAIN SELECT /datum IN global.herald_sdql_probe_targets", "e8888888888888888888888888888888", 8)
+	result = sdql_result(api, explain)
+	result = sdql_wait(api, explain["request_id"])
+	check("sdql_explain_releases_busy", result["status"] == "completed" && !api.busy_id, json_encode(result))
+	var/datum/herald_sdql_probe_target/D = new
+	GLOB.herald_sdql_probe_deletes += D
+	api.next_execute = 0
+	var/list/deletion = sdql_request("DELETE /datum IN global.herald_sdql_probe_deletes", "e9999999999999999999999999999999", 9)
+	result = sdql_result(api, deletion)
+	result = sdql_wait(api, deletion["request_id"])
+	check("sdql_native_delete_owned_dummy_only", result["status"] == "completed" && QDELETED(D), json_encode(result))
+	api.next_execute = 0
+	var/list/async_call = sdql_request("USING PROCCALL = BLOCKING CALL delayed_value(8) ON /datum IN global.herald_sdql_probe_targets", "eaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", 10)
+	result = sdql_result(api, async_call)
+	sleep(1)
+	check("sdql_tracks_native_async_call_until_return", api.busy_id == async_call["request_id"] && T.value == 7)
+	result = sdql_wait(api, async_call["request_id"])
+	check("sdql_async_result_after_tracked_call", result["status"] == "completed" && T.value == 8 && !api.busy_id, json_encode(result))
+	api.next_execute = 0
+	var/list/halting = sdql_request("CALL delayed_value(9) ON /datum IN global.herald_sdql_probe_targets", "ebbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", 11)
+	result = sdql_result(api, halting)
+	sleep(1)
+	for(var/datum/SDQL2_query/herald_remote/Q in GLOB.sdql2_queries)
+		if(Q.herald_job && Q.herald_job.request_id == halting["request_id"])
+			Q.admin_halt()
+	result = sdql_wait(api, halting["request_id"])
+	check("sdql_halt_releases_busy_but_does_not_rollback_proc", result["status"] == "operation_uncertain" && T.value == 9 && !api.busy_id, json_encode(result))
+	api.next_execute = 0
+	var/list/replay_race = sdql_request("CALL increment() ON /datum IN global.herald_sdql_probe_targets; CALL slow_value(40) ON /datum IN global.herald_sdql_probe_targets", "eccccccccccccccccccccccccccccccc", 12)
+	result = sdql_result(api, replay_race)
+	sleep(1)
+	var/datum/herald_sdql_job/race_job
+	for(var/datum/SDQL2_query/herald_remote/Q in GLOB.sdql2_queries)
+		if(Q.herald_job && Q.herald_job.request_id == replay_race["request_id"])
+			race_job = Q.herald_job
+			break
+	if(!race_job || length(race_job.queries) != 2)
+		check("sdql_replay_race_fixture", FALSE)
+		return
+	var/datum/SDQL2_query/herald_remote/finished_query = race_job.queries[1]
+	var/datum/SDQL2_query/herald_remote/yielding_query = race_job.queries[2]
+	var/race_calls = T.calls
+	var/finished_rejected = !finished_query.Run() && !finished_query.ARun() && !finished_query.admin_run()
+	WrapAdminProcCall(finished_query, "Run", list())
+	WrapAdminProcCall(finished_query, "ARun", list())
+	check("sdql_finished_remote_query_cannot_replay_while_sibling_alive", finished_query.herald_returned && finished_rejected && !finished_query.CanProcCall("Run") && T.calls == race_calls)
+	var/yielding_rejected = !yielding_query.Run() && !yielding_query.ARun() && !yielding_query.admin_run()
+	check("sdql_concurrent_run_cannot_fake_returned_or_release_busy", yielding_rejected && yielding_query.herald_started && !yielding_query.herald_returned && api.busy_id == replay_race["request_id"])
+	check("sdql_remote_launch_flags_not_vv_editable", !yielding_query.vv_edit_var("herald_started", FALSE) && !yielding_query.vv_edit_var("herald_launch_allowed", TRUE) && !yielding_query.can_vv_get("vars"))
+	result = sdql_wait(api, replay_race["request_id"])
+	check("sdql_race_original_calls_execute_once", result["status"] == "completed" && T.value == 40 && T.calls == race_calls + 1 && !api.busy_id, json_encode(result))
+	api.next_execute = 0
+	var/list/early_run = sdql_request("USING SEQUENTIAL = TRUE CALL slow_value(41) ON /datum IN global.herald_sdql_probe_targets; CALL increment() ON /datum IN global.herald_sdql_probe_targets", "eddddddddddddddddddddddddddddddd", 13)
+	result = sdql_result(api, early_run)
+	sleep(1)
+	var/datum/herald_sdql_job/sequential_job
+	for(var/datum/SDQL2_query/herald_remote/Q in GLOB.sdql2_queries)
+		if(Q.herald_job && Q.herald_job.request_id == early_run["request_id"])
+			sequential_job = Q.herald_job
+			break
+	if(!sequential_job || length(sequential_job.queries) != 2)
+		check("sdql_early_run_fixture", FALSE)
+		return
+	var/datum/SDQL2_query/herald_remote/waiting_query = sequential_job.queries[2]
+	check("sdql_sequential_future_query_cannot_launch_early", !waiting_query.herald_started && !waiting_query.herald_scheduled && !waiting_query.Run() && !waiting_query.ARun() && !waiting_query.admin_run())
+	result = sdql_wait(api, early_run["request_id"])
+	check("sdql_sequential_future_query_runs_once_when_job_permits", result["status"] == "completed" && T.value == 42, json_encode(result))
+	T.value = 7 // Restore this owned test datum for the recovery check below.
+	var/old_calls = T.calls
+	var/list/entry = api.receipts[input["request_id"]]
+	var/list/pending_result = entry["result"]
+	pending_result["status"] = "running"
+	api.persist()
+	api.receipts = list()
+	api.generation = 0
+	api.recovered = FALSE
+	api.recover()
+	entry = api.receipts[input["request_id"]]
+	result = entry["result"]
+	check("sdql_restart_pending_becomes_unknown_without_reexecution", result["status"] == "operation_uncertain" && T.calls == old_calls && T.value == 7)
+	var/list/huge = list("output" = "", "truncated" = FALSE)
+	for(var/i in 1 to 20000)
+		huge["output"] += ascii2text(1)
+	var/encoded = api.envelope("sdql_response", input["request_id"], huge)
+	check("sdql_output_frame_bounded", length(encoded) <= 48000)
+	api.next_execute = 0

@@ -119,7 +119,9 @@ GLOBAL_PROTECT(AdminProcCallSpamPrevention)
 //adv proc call this, ya nerds
 /world/proc/WrapAdminProcCall(datum/target, procname, list/arguments)
 	if(target == GLOBAL_PROC)
-		return call("/proc/[procname]")(arglist(arguments))
+		// SDQL already supplies /proc/name; interactive callproc supplies name.
+		var/procpath = copytext(procname, 1, 7) == "/proc/" ? procname : "/proc/[procname]"
+		return call(procpath)(arglist(arguments))
 	else if(target != world)
 		return call(target, procname)(arglist(arguments))
 	else
@@ -129,6 +131,10 @@ GLOBAL_PROTECT(AdminProcCallSpamPrevention)
 #ifdef TESTING
 	return FALSE
 #else
+	// Authenticated Herald SDQL has no synthetic usr/client. Preserve the
+	// same advanced-proccall guards while its native wrapper owns a call.
+	if(!usr && GLOB.herald_sdql_proc_caller && GLOB.AdminProcCaller == GLOB.herald_sdql_proc_caller && GLOB.AdminProcCallCount > 0)
+		return TRUE
 	return usr && usr.client && GLOB.AdminProcCaller == usr.client.ckey
 #endif
 

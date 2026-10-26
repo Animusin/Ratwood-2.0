@@ -257,7 +257,7 @@ var/global/datum/herald_game_probe/herald_game_probe = new
 	duty_reply_count++
 	AddInteraction("Геральд: [herald_ahelp_body(message)]", "duty", "Геральд")
 	herald_last_duty_player_revision = herald_player_revision
-	herald_duty_next_reply = world.time + 1 MINUTES
+	herald_duty_next_reply = world.time + HERALD_AHELP_REPLY_COOLDOWN_SECONDS SECONDS
 	return "delivered" // Fake client; does not assert delivery to a real player.
 
 /datum/world_topic/herald_duty/herald_probe
@@ -319,6 +319,7 @@ var/global/datum/herald_game_probe/herald_game_probe = new
 	result = duty_result(api, read)
 	var/list/staff = result["admins"]
 	check("duty_bounded_read_snapshot", result["read_only"] && length(result["tickets"]) <= 10 && staff["known"] && staff["total"] == 0 && findtext(result["generated_at"], "Z"))
+	check("duty_snapshot_advertises_twenty_second_interval", result["reply_cooldown_seconds"] == 20)
 	var/list/reply = duty_request(T.herald_revision, "Проверяю обращение. Расскажи, что случилось.", "d1111111111111111111111111111111")
 	var/list/invalid = reply.Copy()
 	invalid["signature"] = "bad"
@@ -373,6 +374,7 @@ var/global/datum/herald_game_probe/herald_game_probe = new
 	reply = duty_request(T.herald_revision, "Проверяю обращение. Уточни обстоятельства.", "d6666666666666666666666666666666")
 	result = duty_result(api, reply)
 	check("duty_deadmin_only_allows_reply", result["status"] == "delivered" && T.duty_reply_count == 1)
+	check("duty_reply_uses_twenty_second_ticket_interval", T.herald_duty_next_reply - world.time == 20 SECONDS)
 	check("duty_reply_once_explicit_ai_actor", result["status"] == "delivered" && T.duty_reply_count == 1 && !findtext(T._interactions[1], "heraldadminprobe") && findtext(T._interactions[1], "Геральд"))
 	api.test_staff_total = 0
 	result = duty_result(api, reply)

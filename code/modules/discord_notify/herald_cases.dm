@@ -279,6 +279,7 @@ GLOBAL_DATUM_INIT(herald_case_ledger, /datum/herald_case_ledger, new)
 				result["handler"] = T.herald_handler
 				result["online"] = !!T.HeraldDutyConnected()
 				result["lease_active"] = !!(T.herald_case_lease && T.herald_case_lease["case_id"] == data["case_id"])
+				result["reply_cooldown_seconds"] = HERALD_AHELP_REPLY_COOLDOWN_SECONDS
 				result["lease_revision"] = T.herald_case_epoch
 				result["revoked_reason"] = T.herald_case_revoked_reason
 				result["interactions"] = T.herald_interactions.Copy()

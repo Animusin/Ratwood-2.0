@@ -619,7 +619,9 @@ GLOBAL_DATUM_INIT(ahelp_tickets, /datum/admin_help_tickets, new)
 		return
 	herald_revision++
 	if(kind == "human")
-		// Human intervention keeps the bot out for this ticket's lifetime.
+		// A fresh native human intervention revokes an explicit Discord lease.
+		// Staff feedback in Discord is handled locally and does not call this.
+		HeraldCaseRevoke("native human intervention by [actor || "human"]")
 		herald_handler = copytext_char("[actor || "human"]", 1, 65)
 	if(kind == "player")
 		herald_player_revision = herald_revision
@@ -733,6 +735,7 @@ GLOBAL_DATUM_INIT(ahelp_tickets, /datum/admin_help_tickets, new)
 
 //private
 /datum/admin_help/proc/RemoveActive()
+	HeraldCaseRevoke("ticket removed from active queue")
 	if(state != AHELP_ACTIVE)
 		return
 	closed_at = world.time

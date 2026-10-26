@@ -7,19 +7,22 @@ GLOBAL_DATUM_INIT(herald_game_operations, /datum/herald_game_operations, new)
 /datum/herald_game_operations/proc/new_query(sql, list/arguments)
 	return SSdbcore.NewQuery(sql, arguments)
 
-/datum/herald_game_operations/proc/execute(action, ck, list/data, operator, admin_ckey)
+/datum/herald_game_operations/proc/execute(action, ck, list/data, operator, admin_ckey, audit_actor, ticket_actor, datum/callback/permission_guard, ticket_kind = "human")
 	var/datum/admins/holder = GLOB.admin_datums[admin_ckey] || GLOB.deadmins[admin_ckey]
 	var/required_right = action == "ban" ? R_BAN : R_ADMIN
 	if(!holder?.rank || !(holder.rank.rights & required_right))
 		return list("status" = "admin_rights_denied")
+	if(permission_guard && !permission_guard.Invoke())
+		return list("status" = "approval_or_authority_changed")
 	var/reason = html_encode(data["reason"])
-	var/actor = "[admin_ckey] via Herald Discord [operator]"
+	var/actor = audit_actor || "[admin_ckey] via Herald Discord [operator]"
+	var/interaction_actor = ticket_actor || admin_ckey
 	if(action in list("ban", "kick"))
 		if(GLOB.admin_datums[ck] || GLOB.deadmins[ck])
 			return list("status" = "admin_target_protected")
 	switch(action)
 		if("ban")
-			return ban(ck, data["minutes"], data["reason"], actor, admin_ckey)
+			return ban(ck, data["minutes"], data["reason"], actor, admin_ckey, interaction_actor, permission_guard, ticket_kind)
 		if("kick")
 			var/client/C = GLOB.directory[ck]
 			if(!C)
@@ -27,7 +30,7 @@ GLOBAL_DATUM_INIT(herald_game_operations, /datum/herald_game_operations, new)
 			to_chat(C, span_adminhelp("[actor] отключил вас от сервера. Причина: [reason]"))
 			log_admin("[actor] kicked [ck]. Reason: [reason]")
 			message_admins("[actor] kicked [ck]. Reason: [reason]")
-			GLOB.ahelp_tickets.CKey2ActiveTicket(ck)?.AddInteraction("[actor] kicked [ck]. Reason: [reason]", "human", admin_ckey)
+			GLOB.ahelp_tickets.CKey2ActiveTicket(ck)?.AddInteraction("[actor] kicked [ck]. Reason: [reason]", ticket_kind, interaction_actor)
 			qdel(C)
 			return list("status" = "kicked")
 		if("pq")
@@ -46,11 +49,11 @@ GLOBAL_DATUM_INIT(herald_game_operations, /datum/herald_game_operations, new)
 			var/client/C = GLOB.directory[ck]
 			if(C)
 				to_chat(C, span_adminhelp("[actor] изменил ПК: [before] → [after]. Причина: [reason]"))
-			GLOB.ahelp_tickets.CKey2ActiveTicket(ck)?.AddInteraction("[actor] adjusted PQ [before] → [after]. Reason: [reason]", "human", admin_ckey)
+			GLOB.ahelp_tickets.CKey2ActiveTicket(ck)?.AddInteraction("[actor] adjusted PQ [before] → [after]. Reason: [reason]", ticket_kind, interaction_actor)
 			return list("status" = "pq_adjusted", "before" = before, "after" = after, "applied_delta" = after - before)
 	return list("status" = "unsupported_action")
 
-/datum/herald_game_operations/proc/ban(ck, minutes, reason, actor, admin_ckey)
+/datum/herald_game_operations/proc/ban(ck, minutes, reason, actor, admin_ckey, ticket_actor, datum/callback/permission_guard, ticket_kind = "human")
 	if(!connect_database())
 		return list("status" = "database_unavailable")
 	var/datum/DBQuery/Q = new_query("SELECT ckey FROM [format_table_name("player")] WHERE ckey = :ckey LIMIT 1", list("ckey" = ck))
@@ -74,6 +77,8 @@ GLOBAL_DATUM_INIT(herald_game_operations, /datum/herald_game_operations, new)
 	var/datum/admins/holder = GLOB.admin_datums[admin_ckey] || GLOB.deadmins[admin_ckey]
 	if(!holder?.rank || !(holder.rank.rights & R_BAN) || GLOB.admin_datums[ck] || GLOB.deadmins[ck])
 		return list("status" = "admin_rights_denied")
+	if(permission_guard && !permission_guard.Invoke())
+		return list("status" = "approval_or_authority_changed")
 	var/audit_reason = "[reason] ([actor])"
 	Q = new_query({"
 		INSERT INTO [format_table_name("ban")]
@@ -96,7 +101,7 @@ GLOBAL_DATUM_INIT(herald_game_operations, /datum/herald_game_operations, new)
 	var/body = html_encode(audit_reason)
 	log_admin_private("[actor] server-banned [ck] for [duration]. Ban #[ban_id]. Reason: [body]")
 	message_admins("[actor] server-banned [ck] for [duration]. Ban #[ban_id]. Reason: [body]")
-	GLOB.ahelp_tickets.CKey2ActiveTicket(ck)?.AddInteraction("[actor] server-banned [ck] for [duration]. Ban #[ban_id]. Reason: [body]", "human", admin_ckey)
+	GLOB.ahelp_tickets.CKey2ActiveTicket(ck)?.AddInteraction("[actor] server-banned [ck] for [duration]. Ban #[ban_id]. Reason: [body]", ticket_kind, ticket_actor || admin_ckey)
 	var/client/C = GLOB.directory[ck]
 	if(C && !GLOB.admin_datums[ck] && !GLOB.deadmins[ck])
 		to_chat(C, span_adminhelp("[actor] заблокировал доступ на сервер на [duration]. Причина: [body]"))

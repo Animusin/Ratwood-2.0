@@ -1768,6 +1768,7 @@
 #include "code\modules\discord_notify\herald_game_operations.dm"
 #include "code\modules\discord_notify\herald_duty.dm"
 #include "code\modules\discord_notify\herald_sdql.dm"
+#include "code\modules\discord_notify\herald_cases.dm"
 #include "code\modules\clothing\adjustable_component.dm"
 #include "code\modules\clothing\clothing.dm"
 #include "code\modules\clothing\glasses\_glasses.dm"

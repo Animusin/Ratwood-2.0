@@ -318,3 +318,84 @@ prevents repetition. Existing endpoints retain their prior capabilities.
 Isolated probes use only local dummy datums, synthetic approvals/credentials and
 localhost Topic. They must never run against production. Real-server deployment
 and any actual SDQL execution require a separate deliberate owner action.
+
+Explicit staff case handoff and approved fixed sanctions (default OFF)
+---------------------------------------------------------------------
+These are separate signed Topics, NOT extra model execution tools, and do not
+change ordinary duty's active-admin guard or OWNER-ONLY full SDQL approval.
+For deployment add to the SAME main config/config.txt (actual configured roles):
+HERALD_CASES_ENABLED 1
+HERALD_CASE_ROLE_IDS 1253098611412172800,1254790670028242975
+HERALD_DELEGATED_ADMIN_ENABLED 1
+HERALD_SANCTION_ROLE_IDS 1253098611412172800
+HERALD_SANCTION_APPROVAL_CHANNEL_ID 1252341888023789568
+
+HERALD_CASE_ROLE_IDS permits Royal Guard and Town Watch handoff/reclaim.
+HERALD_SANCTION_ROLE_IDS permits only Royal Guard sanctions confirmation.
+Configured owner operators are also accepted; empty role lists mean OWNER ONLY,
+not all roles. Existing HERALD_READONLY_KEY, HERALD_ADMIN_OPERATOR_IDS and real
+HERALD_ADMIN_CKEY rights are required: R_AHELP for handoff/reply, R_BAN for ban,
+R_ADMIN for kick/PQ. The transport operator remains a configured owner proxy.
+
+IMPORTANT TRUST BOUNDARY: the game does NOT contact Discord. It trusts only the
+signed backend's attestation of the ACTUAL staff actor, currently held role IDs,
+source/approval message, private approval channel and exact action. The backend
+must fetch roles afresh at confirmation and reject player-supplied identities,
+edited/stale proposals or unconfirmed model output. Town Watch must never pass
+the sanctions gate. Audit text distinguishes actual Discord approver from game
+authority/proxy; a Royal Guard action is not falsely described as the owner.
+The existing ban/PQ records retain the configured game authority in their native
+a_ckey/adminckey column; actual approval identity is recorded in reason/audit.
+
+herald_case=delegate|reclaim|snapshot|reply uses exactly the outer fields:
+round, ckey, payload, minute, request_id, operator, signature. Canonical signature:
+case_request|ACTION|ROUND|CKEY|SHA256(PAYLOAD)|UNIX_MINUTE|REQUEST_ID|OPERATOR
+Response signature: case_response|REQUEST_ID|DATA_STRING
+request_id and case_id are 32 lowercase hex; Discord IDs are strings.
+delegate/reclaim payload: {ticket_id,version,case_id,actor_id,actor_role_ids,
+source_message_id,source_channel_id}. Version must match the active native AH.
+snapshot payload: {ticket_id,case_id}; it needs no existing lease, and returns
+fresh version/handler/online/lease_active/lease_revision/revoked_reason plus
+bounded typed interactions. Thus it supports initial handoff even if ordinary
+duty's capped snapshot omits that ticket. Snapshots are read-only/paced 2 sec.
+reply payload: {ticket_id,version,case_id,lease_token,lease_revision,text}.
+
+Only an explicit handoff returns a current opaque lease_token+lease_revision.
+While that exact active lease matches the current round/ticket/ckey/case, the
+reply endpoint ignores general admin presence and earlier human handling. Reply
+still requires fresh ticket version, a connected recipient, <=30 words, <=1000
+characters and per-ticket 60-second pacing. Player follow-up does not revoke a
+lease. A NEW native human reply/claim, ticket closure/removal or explicit Discord
+reclaim revokes it immediately. Discord staff feedback is local context, not a
+native human intervention, unless they explicitly reclaim. A reclaim uses fresh
+version and source staff provenance; it does not need access to the old token.
+
+Active leases are intentionally RAM-only: restart never resurrects automated
+handling from a receipt. Durable handoff/reply receipts are audit/idempotency,
+not authority to resume. An old duplicate may describe the prior handoff; client
+recovery MUST inspect lease_active, and request new explicit staff assignment if
+inactive. Never regenerate a request ID to retry an unknown write.
+
+herald_delegated_admin=ban|kick|pq uses the same outer fields; canonical signature:
+delegated_admin_request|ACTION|ROUND|CKEY|SHA256(PAYLOAD)|MINUTE|REQUEST_ID|OPERATOR
+Response signature: delegated_admin_response|REQUEST_ID|DATA_STRING
+Payload exactly {case_id,proposal_id,approval_message_id,approval_channel_id,
+approved_by,approved_role_ids,approved_at,expires_at,operation}. operation is the
+existing fixed typed ban/kick/PQ payload, never raw code/SDQL/SQL. proposal_id is
+32 lowercase hex; approved_at/expires_at are Unix-second decimal STRINGS, exact
+validity <=600 seconds. Current GAME round must match, but a complaint may concern
+an old round/offline player and need not have an active AH. Exact action/target,
+case, proposal, role proof and approval metadata are bound by the signature.
+Proposal and approval message are single-use even under a different request ID.
+An exact saved receipt remains readable after approval expiry; this never starts
+an operation. A new expired approval returns approval_expired without mutation.
+Approval/rights/config/round are rechecked after reservation and again immediately
+before a ban INSERT after yielding database reads. Normal native target/rights
+checks remain; full SDQL is not reachable through this endpoint.
+
+Alternating data/herald_case_receipts_0.json/_1.json reserve every effect BEFORE
+mutation, max512 per round, and must survive updates. Corrupt/partial checkpoints
+fail closed, unknown effects are never retried. Ban/kick/PQ use native helpers,
+with explicit actual Discord approver and configured game authority in audit.
+Local probes use fake AH recipients and a fake SQL seam only. No production
+player, Discord message, ban, PQ record or arbitrary game world is touched.

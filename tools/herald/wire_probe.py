@@ -136,6 +136,27 @@ def validated_sdql(port, values):
     return result
 
 
+def case_request(action, round_id, ck, data, endpoint='herald_case', request_id=None):
+    payload = json.dumps(data, ensure_ascii=False, sort_keys=True, separators=(',', ':'))
+    values = {endpoint: action, 'round': round_id, 'ckey': ck, 'payload': payload,
+              'minute': str(int(time.time() // 60)), 'request_id': request_id or secrets.token_hex(16), 'operator': '2'}
+    prefix = 'case_request' if endpoint == 'herald_case' else 'delegated_admin_request'
+    values['signature'] = sign(f'{prefix}|{action}|{round_id}|{ck}|{hashlib.sha256(payload.encode()).hexdigest()}|'
+                               f'{values["minute"]}|{values["request_id"]}|2')
+    return values
+
+
+def validated_case(port, values, endpoint='herald_case'):
+    envelope = query(port, values)
+    assert 'data' in envelope, envelope
+    prefix = 'case_response' if endpoint == 'herald_case' else 'delegated_admin_response'
+    assert hmac.compare_digest(envelope['signature'], sign(f'{prefix}|{values["request_id"]}|' + envelope['data']))
+    result = json.loads(envelope['data'])
+    assert result['request_id'] == values['request_id'] and result['round'] == values['round']
+    assert result['ckey'] == values['ckey']
+    return result
+
+
 def main():
     port = int(sys.argv[1])
     for action in ('status', 'players', 'character'):
@@ -201,6 +222,40 @@ def main():
     assert validated_sdql(port, execution)['duplicate'] == 1
     assert query(port, {'herald_sdql': 'proccall'})['error'] == 'unsupported_action'
     print('PASS sdql_signed_async_native_proccall_status_and_idempotency')
+    case_id = secrets.token_hex(16)
+    snapshot = validated_case(port, case_request('snapshot', round_id, 'heraldcasewire', {'ticket_id': 992, 'case_id': case_id}))
+    assert snapshot['status'] == 'ok' and not snapshot['lease_active'] and snapshot['handler'] == 'humanprobe'
+    provenance = {'ticket_id': 992, 'version': snapshot['version'], 'case_id': case_id, 'actor_id': '30',
+                  'actor_role_ids': ['4'], 'source_message_id': '200000000000001111',
+                  'source_channel_id': '1252341888023789568'}
+    assignment = case_request('delegate', round_id, 'heraldcasewire', provenance)
+    delegated = validated_case(port, assignment)
+    assert delegated['status'] == 'delegated' and len(delegated['lease_token']) == 32
+    assert validated_case(port, assignment)['duplicate'] == 1
+    time.sleep(2.2)
+    reply = case_request('reply', round_id, 'heraldcasewire', {
+        'ticket_id': 992, 'version': delegated['version'], 'case_id': case_id,
+        'lease_token': delegated['lease_token'], 'lease_revision': delegated['lease_revision'],
+        'text': 'Я Геральд, мне явно передали это обращение. Проверяю факты.'})
+    response = validated_case(port, reply)
+    assert response['status'] == 'delivered'
+    assert validated_case(port, reply)['duplicate'] == 1
+    provenance['version'] = response['version']
+    reclaimed = validated_case(port, case_request('reclaim', round_id, 'heraldcasewire', provenance))
+    assert reclaimed['status'] == 'reclaimed'
+    print('PASS case_signed_explicit_handoff_reply_prior_handler_reclaim_idempotency')
+    now = int(time.time())
+    approval = {'case_id': case_id, 'proposal_id': secrets.token_hex(16),
+                'approval_message_id': '200000000000001112', 'approval_channel_id': '1252341888023789568',
+                'approved_by': '30', 'approved_role_ids': ['3'], 'approved_at': str(now), 'expires_at': str(now + 600),
+                'operation': {'minutes': 10, 'reason': 'Synthetic local signed approval'}}
+    sanction = case_request('ban', round_id, 'heraldtarget', approval, 'herald_delegated_admin')
+    outcome = validated_case(port, sanction, 'herald_delegated_admin')
+    assert outcome['status'] == 'banned' and outcome['approved_by'] == '30'
+    assert validated_case(port, sanction, 'herald_delegated_admin')['duplicate'] == 1
+    reused = case_request('ban', round_id, 'heraldtarget', approval, 'herald_delegated_admin')
+    assert validated_case(port, reused, 'herald_delegated_admin')['status'] == 'approval_already_used'
+    print('PASS sanction_signed_royalguard_approval_exact_typed_operation_single_use')
 
 
 if __name__ == '__main__':

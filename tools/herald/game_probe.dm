@@ -181,6 +181,7 @@ var/global/datum/herald_game_probe/herald_game_probe = new
 	test_admin_actions()
 	test_duty()
 	test_sdql_gateway()
+	test_cases()
 	var/mob/living/carbon/human/consistent/M = new(locate(1, 1, 1))
 	M.name = "Herald Probe"
 	GLOB.player_list |= M

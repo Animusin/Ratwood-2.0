@@ -619,9 +619,12 @@ GLOBAL_REAL(Master, /datum/controller/master)
 
 			tick_remaining = TICK_LIMIT_RUNNING - TICK_USAGE
 
+			// Fractional priorities accumulate rounding error as earlier nodes leave the queue.
+			if(queue_node_priority > 0 && abs(current_tick_budget - queue_node_priority) < 0.001)
+				current_tick_budget = queue_node_priority
 			if (queue_node_priority >= 0 && current_tick_budget > 0 && current_tick_budget >= queue_node_priority)
 				//Give the subsystem a precentage of the remaining tick based on the remaining priority
-				tick_precentage = tick_remaining / (current_tick_budget / queue_node_priority)
+				tick_precentage = tick_remaining * (queue_node_priority / current_tick_budget)
 			else
 				//error state
 				if (. == 0)

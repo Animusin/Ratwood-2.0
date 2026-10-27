@@ -885,11 +885,9 @@
 	known_by -= tracker
 	if(ishuman(tracker))
 		var/mob/living/carbon/human/human_tracker = tracker
-		human_tracker.tracking_only_known_tracks -= src
-		UNSETEMPTY(human_tracker.tracking_only_known_tracks)
+		LAZYREMOVE(human_tracker.tracking_only_known_tracks, src)
 		if(ordinary_track)
-			human_tracker.known_ordinary_tracks -= src
-			UNSETEMPTY(human_tracker.known_ordinary_tracks)
+			LAZYREMOVE(human_tracker.known_ordinary_tracks, src)
 	if(ordinary_track)
 		tracker.refresh_visible_ordinary_tracks(track_turf)
 	if(creator == tracker)

@@ -86,7 +86,7 @@
  * return bool - TRUE if a new pooled window is opened, FALSE in all other situations including if a new pooled window didn't open because one already exists.
  */
 /datum/tgui/proc/open()
-	if(!user.client)
+	if(closing || QDELETED(user) || QDELETED(src_object) || !user.client)
 		return FALSE
 	var/client/opening_client = user.client
 	if(window)
@@ -160,10 +160,11 @@
 		// the error message properly.
 		window.release_lock()
 		window.close(can_be_suspended)
-		src_object.ui_close(user)
+		if(!QDELETED(src_object))
+			src_object.ui_close(user)
 		SStgui.on_close(src)
 
-		if(user.client)
+		if(user?.client)
 			terminate_byondui_elements()
 
 	state = null
@@ -225,7 +226,7 @@
  * optional force bool Send an update even if UI is not interactive.
  */
 /datum/tgui/proc/send_full_update(custom_data, force)
-	if(!user.client || !initialized || closing)
+	if(closing || QDELETED(user) || QDELETED(src_object) || QDELETED(window) || !user.client || !initialized)
 		return
 	if(!COOLDOWN_FINISHED(src, refresh_cooldown))
 		refreshing = TRUE
@@ -248,7 +249,7 @@
  * optional force bool Send an update even if UI is not interactive.
  */
 /datum/tgui/proc/send_update(custom_data, force)
-	if(!user.client || !initialized || closing)
+	if(closing || QDELETED(user) || QDELETED(src_object) || QDELETED(window) || !user.client || !initialized)
 		return
 	var/should_update_data = force || status >= UI_UPDATE
 	window.send_message("update", get_payload(
@@ -310,6 +311,9 @@
 /datum/tgui/process(seconds_per_tick, force = FALSE)
 	if(closing)
 		return
+	if(QDELETED(src_object) || QDELETED(user) || QDELETED(window))
+		close(can_be_suspended = FALSE)
+		return
 	var/datum/host = src_object.ui_host(user)
 	// If the object or user died (or something else), abort.
 	if(QDELETED(src_object) || QDELETED(host) || QDELETED(user) || QDELETED(window))
@@ -341,7 +345,10 @@
  */
 /datum/tgui/proc/process_status()
 	var/prev_status = status
-	status = src_object.ui_status(user, state)
+	if(closing || QDELETED(src_object) || QDELETED(user))
+		status = UI_CLOSE
+	else
+		status = src_object.ui_status(user, state)
 	return prev_status != status
 
 /**
@@ -350,6 +357,8 @@
  * Callback for handling incoming tgui messages.
  */
 /datum/tgui/proc/on_message(type, list/payload, list/href_list)
+	if(closing || QDELETED(src_object) || QDELETED(user))
+		return FALSE
 	// Pass act type messages to ui_act
 	if(type && copytext(type, 1, 5) == "act/")
 		var/act_type = copytext(type, 5)

@@ -218,8 +218,10 @@ Each reply is limited to 30 whitespace-separated words and 1000 characters, must
 match the current round, ckey, active/connected ticket and exact revision. The
 server rechecks staff presence, human handler and revision AFTER reserving its
 receipt, immediately before delivery. A new player message is required after
-each duty reply; replies are limited to one per minute per ticket and one per
-10 seconds globally. Snapshot reads are limited to one every 2 seconds.
+each duty reply; replies are limited to one per 20 seconds per ticket and one per
+10 seconds globally. Snapshot reads are limited to one every 2 seconds. Signed
+duty and explicit-case snapshots advertise reply_cooldown_seconds=20, allowing
+updated clients to retain a safe 60-second fallback with an older server.
 
 The canonical snapshot request is duty_snapshot|UNIX_MINUTE|NONCE|OPERATOR; response
 signature covers duty_snapshot_response|NONCE|DATA_STRING. Snapshot query fields
@@ -364,7 +366,7 @@ Only an explicit handoff returns a current opaque lease_token+lease_revision.
 While that exact active lease matches the current round/ticket/ckey/case, the
 reply endpoint ignores general admin presence and earlier human handling. Reply
 still requires fresh ticket version, a connected recipient, <=30 words, <=1000
-characters and per-ticket 60-second pacing. Player follow-up does not revoke a
+characters and shared per-ticket 20-second pacing. Player follow-up does not revoke a
 lease. A NEW native human reply/claim, ticket closure/removal or explicit Discord
 reclaim revokes it immediately. Discord staff feedback is local context, not a
 native human intervention, unless they explicitly reclaim. A reclaim uses fresh

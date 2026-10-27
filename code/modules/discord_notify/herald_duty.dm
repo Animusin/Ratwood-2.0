@@ -1,4 +1,5 @@
 // Explicitly enabled autonomous replies only. No punishment or general proccall.
+#define HERALD_AHELP_REPLY_COOLDOWN_SECONDS 20
 /datum/config_entry/flag/herald_duty_enabled
 
 /proc/herald_duty_now()
@@ -45,7 +46,7 @@
 	var/body = herald_ahelp_body(message)
 	AddInteraction("<font color='blue'>PM from Геральд (автоматический дежурный): [body]</font>", "duty", "Геральд")
 	herald_last_duty_player_revision = herald_player_revision
-	herald_duty_next_reply = world.time + 1 MINUTES
+	herald_duty_next_reply = world.time + HERALD_AHELP_REPLY_COOLDOWN_SECONDS SECONDS
 	to_chat(initiator, span_adminhelp("<b>Геральд — автоматический помощник администрации</b>: [body]<br><i>Это ответ ИИ, а не решение человека. Ответить можно в текущем Adminhelp.</i>"))
 	SEND_SOUND(initiator, sound('sound/adminhelp.ogg'))
 	window_flash(initiator, ignorepref = TRUE)
@@ -156,6 +157,7 @@
 				"handler" = T.herald_handler, "human_active" = !!length(T.herald_handler), "online" = !!T.HeraldDutyConnected(),
 				"last_interactions" = interactions))
 	return list("read_only" = TRUE, "duty_enabled" = TRUE, "round" = "[GLOB.rogue_round_id]", "generated_at" = herald_duty_now(),
+		"reply_cooldown_seconds" = HERALD_AHELP_REPLY_COOLDOWN_SECONDS,
 		"admins" = admin_presence(), "tickets" = tickets, "truncated" = total > 10, "total_active" = total,
 		"runtimes" = list("total" = GLOB.total_runtimes, "skipped" = GLOB.total_runtimes_skipped))
 

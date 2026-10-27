@@ -133,6 +133,7 @@
 	api.next_read = 0
 	result = case_result(api, case_request("snapshot", list("ticket_id" = T.id, "case_id" = handoff["case_id"]), "f9999999999999999999999999999999"))
 	check("case_snapshot_exposes_revoked_state_typed_history", result["status"] == "ok" && !result["lease_active"] && length(result["interactions"]) <= 12)
+	check("case_snapshot_advertises_shared_twenty_second_interval", result["reply_cooldown_seconds"] == 20)
 	var/datum/world_topic/herald_delegated_admin/herald_probe/sanctions = new
 	var/datum/herald_game_operations/herald_probe/ops = GLOB.herald_game_operations
 	var/before_inserts = ops.ban_inserts

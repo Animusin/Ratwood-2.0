@@ -119,7 +119,7 @@ GLOBAL_VAR_INIT(next_forensic_blood_decal_warning, 0)
 
 /atom/proc/add_fibers(mob/living/carbon/human/M)
 	var/old = blood_DNA_length()
-	if(M.gloves && istype(M.gloves, /obj/item/clothing))
+	if(istype(M.gloves, /obj/item/clothing/gloves))
 		var/obj/item/clothing/gloves/G = M.gloves
 		if(G.transfer_blood > 1) //bloodied gloves transfer blood to touched objects
 			if(add_blood_DNA(G.return_blood_DNA()) && blood_DNA_length() > old) //only reduce the blood supply when this atom gained a new sample

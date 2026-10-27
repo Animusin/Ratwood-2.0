@@ -222,12 +222,15 @@
 				if(WLENGTH_GREAT)
 					html += "Great<br>"
 
-		if(bookweapon.has_altgrip_modes())
+		// bookweapon is a type path; proc calls require a temporary instance.
+		var/obj/item/altgrip_preview = get_altgrip_preview_item()
+		if(altgrip_preview)
 			html += "\n<b>GRIP: ALT-GRIP (RCLICK/HOTKEY(B)/CTRL+SCRLWHL)</b><br>"
-			var/list/alt_grip_lines = bookweapon.get_altgrip_lines(src, user)
+			var/list/alt_grip_lines = altgrip_preview.get_altgrip_lines(src, user)
 			if(length(alt_grip_lines))
 				for(var/alt_grip_line in alt_grip_lines)
 					html += "[alt_grip_line]<br>"
+			qdel(altgrip_preview)
 		if(bookweapon.gripped_intents)
 			html += "\n<b>TWO-HANDED: Yes</b><br>"
 

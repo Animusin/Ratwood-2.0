@@ -52,7 +52,23 @@
 					(isnull(magic) ? src.magic : magic))
 
 /datum/armor/proc/getRating(rating)
-	return vars[rating]
+	// Unspecified or unsupported damage flags do not receive armor protection.
+	switch(rating)
+		if("blunt")
+			return blunt
+		if("slash")
+			return slash
+		if("stab")
+			return stab
+		if("piercing")
+			return piercing
+		if("fire")
+			return fire
+		if("acid")
+			return acid
+		if("magic")
+			return magic
+	return 0
 
 /datum/armor/proc/getList()
 	return list("blunt" = blunt, "slash" = slash, "stab" = stab, "piercing" = piercing, "fire" = fire, "acid" = acid, "magic" = magic)

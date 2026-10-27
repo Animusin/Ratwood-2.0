@@ -496,7 +496,7 @@
 	for(var/obj/item/organ/organ as anything in target.internal_organs)
 		if(organ.enslavement_mark)
 			return TRUE
-		if("branded_writing" in organ.vars && length(organ.vars["branded_writing"]))
+		if(("branded_writing" in organ.vars) && length(organ.vars["branded_writing"]))
 			return TRUE
 	return FALSE
 

@@ -651,8 +651,7 @@ GLOBAL_VAR_INIT(farm_animals, FALSE)
 	var/perfect_count = 0
 	var/normal_count = 0
 
-	for(var/path in butcher_results)
-		var/amount = butcher_results[path]
+	for(var/path in butcher_results?.Copy())
 		if(!do_after(user, time_per_cut, target = src))
 			if(botch_count || normal_count || perfect_count)
 				to_chat(user, "<span class='notice'>I stop butchering: [butcher_summary(botch_count, normal_count, perfect_count, botch_chance, perfect_chance)].</span>")
@@ -660,6 +659,12 @@ GLOBAL_VAR_INIT(farm_animals, FALSE)
 				to_chat(user, "<span class='notice'>I stop butchering for now.</span>")
 			break
 
+		// Another butcher can consume this entry while do_after yields.
+		if(!(path in butcher_results))
+			continue
+		var/amount = butcher_results[path]
+		if(!isnum(amount))
+			continue
 		// Check for botch first
 		if(prob(botch_chance))
 			botch_count++

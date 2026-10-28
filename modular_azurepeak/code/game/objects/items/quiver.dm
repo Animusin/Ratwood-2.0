@@ -82,6 +82,7 @@
 						if(HAS_TRAIT(M, TRAIT_COMBAT_AWARE))
 							M.balloon_alert(M, "[length(arrows)] left...")
 					break
+			update_icon()
 		return
 	..()
 

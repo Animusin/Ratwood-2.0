@@ -23,12 +23,13 @@
 	bar = image('icons/effects/progessbar.dmi', target, "prog_bar_0", HUD_LAYER)
 	bar.plane = ABOVE_HUD_PLANE
 	bar.appearance_flags = APPEARANCE_UI_IGNORE_ALPHA
+	bar.mouse_opacity = MOUSE_OPACITY_TRANSPARENT
 	user = User
 	our_cells = new(world.view, world.view, 1)
 	set_new_cells()
 	// late log-ins or walking into the range afterwards are handled by the cell tracker
 	for(var/mob/M in our_cells.get_type_members(SPATIAL_GRID_CONTENTS_TYPE_CLIENTS))
-		if(M.client)
+		if(M.client && can_show_to(M))
 			M.client.images |= bar
 	RegisterSignal(target, COMSIG_MOVABLE_MOVED, PROC_REF(set_new_cells))
 
@@ -93,9 +94,12 @@
 // we never remove these when clients exit, they all get cleaned up when the mob leaves
 /datum/progressbar/proc/on_client_enter(datum/source, mob/client_holder)
 	SIGNAL_HANDLER
-	if(!istype(client_holder) || !client_holder.client)
+	if(!istype(client_holder) || !client_holder.client || !can_show_to(client_holder))
 		return
 	client_holder.client.images |= bar
+
+/datum/progressbar/proc/can_show_to(mob/viewer)
+	return !is_hidden_from_ghosts(user, viewer) && !is_hidden_from_ghosts(bar?.loc, viewer)
 
 /datum/progressbar/proc/remove_from_clients()
 	for(var/client/C in GLOB.clients) // this is genuinely faster than tracking clients we've sent it to

@@ -78,7 +78,9 @@
 /obj/item/undies/loinclothunder
 	name = "Small Loincloth"
 	desc = "A tight loincloth adjusted to fit like underwear, for those who like a breeze."
-	icon_state = "loinclothunder"
+	icon = 'icons/roguetown/clothing/pants.dmi'
+	icon_state = "loincloth"
+	sprite_acc = /datum/sprite_accessory/underwear/loinclothunder
 	covers_rear = FALSE
 
 // Craft

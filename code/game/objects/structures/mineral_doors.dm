@@ -178,11 +178,14 @@
 	var/mob/living/carbon/human/human = user
 	if(human.received_resident_key)
 		return FALSE
+	var/housing_claim_override = FALSE
 	if(resident_role)
 		var/datum/job/job = SSjob.name_occupations[human.job]
 		if(job?.type != resident_role)
 			if(!HAS_TRAIT(human, TRAIT_RESIDENT))
-				return FALSE
+				housing_claim_override = GLOB.supporter_housing.can_claim_entrance(human, src)
+				if(!housing_claim_override)
+					return FALSE
 	if(resident_advclass)
 		if(!human.advjob)
 			return FALSE
@@ -197,6 +200,8 @@
 	if(!grant_resident_key)
 		return
 	var/spare_key = alert(user, "Have I got a spare key?", "Home", "Yes", "No")
+	if(housing_claim_override && !GLOB.supporter_housing.can_claim_entrance(human, src))
+		return FALSE
 	if(!grant_resident_key)
 		return
 	if(spare_key == "Yes")
@@ -213,6 +218,7 @@
 		key.lockhash = lockhash
 		human.put_in_hands(key)
 	human.received_resident_key = TRUE
+	housing_resident_ckey = human.ckey
 	grant_resident_key = FALSE
 	if(resident_key_amount > 1)
 		to_chat(human, span_notice("They're just where I left them..."))
@@ -375,6 +381,7 @@
 
 /obj/structure/mineral_door/update_icon()
 	icon_state = "[base_state][door_opened ? "open":""]"
+	supporter_home?.update_entrance()
 
 /obj/structure/mineral_door/examine(mob/user)
 	. = ..()

@@ -2675,6 +2675,8 @@ GLOBAL_LIST_INIT(blueprint_buildable_types, init_blueprint_buildable_types())
 
 	if(target_turf && info)
 		var/build_path = info["path"]
+		if(!housing_allows_blueprint(target_turf, build_path))
+			return
 
 		if(ispath(build_path, /turf))
 			if(!(ispath(build_path, /turf/closed) && isclosedturf(target_turf)))

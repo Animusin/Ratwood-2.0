@@ -1,0 +1,6 @@
+author: "Animusin"
+delete-after: true
+changes:
+  - bugfix: "Cancelled, replaced, or deleted fog restores the areas it changed without altering areas it never affected."
+  - bugfix: "Weather stops spawning particles while fading out and cannot remove a newer weather effect during cleanup."
+  - admin: "Particle weather start and cleanup are recorded in the game log."

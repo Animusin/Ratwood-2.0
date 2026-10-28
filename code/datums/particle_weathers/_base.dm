@@ -103,6 +103,8 @@
 	var/severityStepsTaken = 0
 
 	var/running = FALSE
+	/// Prevent an old scheduled start from reviving weather that is already fading.
+	var/started = FALSE
 
 	//Current severity - used for scaling effects, particle appearance, etc.
 	var/severity = 0
@@ -140,24 +142,25 @@
 	return
 
 /datum/particle_weather/Destroy()
-
-	// Remove particle effect if it exists
-	if(SSParticleWeather?.particleEffect)
-		qdel(SSParticleWeather.particleEffect)
-		SSParticleWeather.particleEffect = null
-
-	// Clear subsystem references
-	if(SSParticleWeather?.runningWeather == src)
-		SSParticleWeather.runningWeather = null
-
-	if(SSParticleWeather?.queued_weather == src)
-		SSParticleWeather.queued_weather = null
+	var/datum/controller/subsystem/ParticleWeather/weather_controller = SSParticleWeather
+	// A stale or never-started datum must not remove another weather's particles.
+	if(weather_controller?.runningWeather == src)
+		log_game("WEATHER: Removing [type] (queued=[weather_controller.queued_weather == src], running=[running]).")
+		weather_controller.runningWeather = null
+		weather_controller.clear_weather_effect()
+	if(weather_controller?.queued_weather == src)
+		weather_controller.queued_weather = null
+		weather_controller.queued_weather_start_time = null
+		GLOB.forecast = null
+	running = FALSE
 
 	for(var/S in currentSounds)
 		var/datum/looping_sound/looping_sound = currentSounds[S]
 		if(istype(looping_sound))
 			looping_sound.stop()
 			qdel(looping_sound)
+	currentSounds.Cut()
+	messagedMobs.Cut()
 	return ..()
 
 /**
@@ -169,14 +172,16 @@
  */
 /datum/particle_weather/proc/start(color)
 	var/datum/controller/subsystem/ParticleWeather/PW = SSParticleWeather
+	if(QDELETED(src) || PW.runningWeather != src || started)
+		return FALSE
 
 	if(PW.queued_weather == src)	//We want to clear weather from the subsystem 'queued_weather' on start
 		PW.queued_weather = null
 		PW.queued_weather_start_time = null
-	if(running)
-		return //some cheeky git has started you early
 	weather_duration = rand(weather_duration_lower, weather_duration_upper)
+	started = TRUE
 	running = TRUE
+	log_game("WEATHER: Starting [type].")
 	addtimer(CALLBACK(src, PROC_REF(wind_down)), weather_duration)
 
 	if(particleEffectType)
@@ -186,9 +191,10 @@
 	ChangeSeverity()
 	// Once weather actually starts, forecast is consumed
 	GLOB.forecast = null
+	return TRUE
 
 /datum/particle_weather/proc/ChangeSeverity()
-	if(!running)
+	if(QDELETED(src) || !running || SSParticleWeather.runningWeather != src)
 		return
 	severityStepsTaken++
 
@@ -222,12 +228,19 @@
 /datum/particle_weather/proc/wind_down()
 	if(QDELETED(src))
 		return
+	if(SSParticleWeather.runningWeather != src)
+		end()
+		return
+	running = FALSE
 	severity = 0
 	if(SSParticleWeather.particleEffect)
-		SSParticleWeather.particleEffect.animateSeverity(severityMod())
+		// severityMod() deliberately has a nonzero floor for active weather.
+		SSParticleWeather.particleEffect.animateSeverity(0)
 
 		//Wait for the last particle to fade, then qdel yourself
 		addtimer(CALLBACK(src, PROC_REF(end)), SSParticleWeather.particleEffect.lifespan + SSParticleWeather.particleEffect.fade)
+	else
+		end()
 
 
 
@@ -239,11 +252,8 @@
  *
  */
 /datum/particle_weather/proc/end()
-	running = FALSE
-	for(var/mob/living/M in currentSounds)
-		if(M.client)
-			stop_weather_sound_effect(M)
-	SSParticleWeather.stopWeather()
+	if(!QDELETED(src))
+		qdel(src)
 
 
 /**

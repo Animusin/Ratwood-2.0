@@ -57,12 +57,6 @@ SUBSYSTEM_DEF(ParticleWeather)
 	return ..()
 
 /datum/controller/subsystem/ParticleWeather/proc/run_weather(datum/particle_weather/weather_datum_type, force = 0, color)
-
-	if(runningWeather || queued_weather)
-		if(!force)
-			return
-		if(runningWeather)
-			runningWeather.end()
 	if (istext(weather_datum_type))
 		for (var/V in subtypesof(/datum/particle_weather))
 			var/datum/particle_weather/W = V
@@ -71,6 +65,10 @@ SUBSYSTEM_DEF(ParticleWeather)
 				break
 	if (!ispath(weather_datum_type, /datum/particle_weather))
 		CRASH("run_weather called with invalid weather_datum_type: [weather_datum_type || "null"]")
+	if(runningWeather || queued_weather)
+		if(!force)
+			return
+		stopWeather()
 
 	runningWeather = new weather_datum_type()
 
@@ -105,10 +103,13 @@ SUBSYSTEM_DEF(ParticleWeather)
 	return weatherEffect
 
 /datum/controller/subsystem/ParticleWeather/proc/SetparticleEffect(particles/P, blend_type, filter_type, color, secondary_filter_type)
+	getweatherEffect()
+	weatherEffect.particles = null
+	if(particleEffect != P)
+		QDEL_NULL(particleEffect)
 	particleEffect = P
 	weatherEffect.particles = particleEffect
-	if(color)
-		weatherEffect.color = color
+	weatherEffect.color = color
 	if(!blend_type)
 		weatherEffect.blend_mode = BLEND_DEFAULT
 	else
@@ -121,12 +122,23 @@ SUBSYSTEM_DEF(ParticleWeather)
 		weatherEffect.filters += secondary_filter_type
 
 /datum/controller/subsystem/ParticleWeather/proc/stopWeather()
+	QDEL_NULL(runningWeather)
+	QDEL_NULL(queued_weather)
+	queued_weather_start_time = null
+	GLOB.forecast = null
+	clear_weather_effect()
+
+/// Clear the shared renderer only when its owner ends, or weather is explicitly stopped.
+/datum/controller/subsystem/ParticleWeather/proc/clear_weather_effect()
 	for(var/obj/act_on as anything in GLOB.weather_act_upon_list)
-		if(!act_on)	//guard against nulls from deletions
+		if(QDELETED(act_on))
 			continue
 		act_on.weather = FALSE
-	weatherEffect.particles = null
-	QDEL_NULL(runningWeather)
+	if(weatherEffect)
+		weatherEffect.particles = null
+		weatherEffect.color = null
+		weatherEffect.blend_mode = BLEND_DEFAULT
+		weatherEffect.filters = list(filter(type="alpha", render_source=WEATHER_RENDER_TARGET))
 	QDEL_NULL(particleEffect)
 
 /datum/controller/subsystem/ParticleWeather/proc/check_forecast(time_of_day)

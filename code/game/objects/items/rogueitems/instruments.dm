@@ -401,7 +401,7 @@ GLOBAL_LIST_EMPTY(instrument_band_lobbies)
 				if(user.mind && user.get_skill_level(/datum/skill/misc/music) >= 4)
 					options[" "] = " "
 					options["Upload New Song"] = "upload"
-				choice = input(user, "Which song?", "Music", name) as null|anything in options
+				choice = input(user, "Which song? Uploading a new song costs [CUSTOM_MUSIC_UPLOAD_COST] Triumphs (free for Scientist+ and admins). Replaying a song is free; cancelling an upload costs nothing.", "Music", name) as null|anything in options
 				if(!choice || !user)
 					return
 				if(choice == " ")
@@ -415,7 +415,7 @@ GLOBAL_LIST_EMPTY(instrument_band_lobbies)
 				if(!can_accept_custom_music_upload(user))
 					return
 				playsound(loc, 'sound/misc/beep.ogg', 100, FALSE, -1)
-				var/infile = input(user, "CHOOSE A NEW SONG ([CUSTOM_MUSIC_UPLOAD_COST] Triumphs per successful upload; free for Scientist+ and admins)", src) as null|file
+				var/infile = input(user, "CHOOSE A NEW SONG ([CUSTOM_MUSIC_UPLOAD_COST] Triumphs per successful upload; free for Scientist+ and admins). Replaying is free; cancelling costs nothing.", src) as null|file
 				if(!infile)
 					return
 				var/songname = stripped_input(user, "Name your song (cancel to abort without spending Triumphs):", "Song Name", max_length = 60)

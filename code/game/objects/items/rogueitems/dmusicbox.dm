@@ -143,7 +143,7 @@ GLOBAL_VAR_INIT(custom_music_upload_sequence, 0)
 	set waitfor = FALSE
 	if(!can_accept_custom_music_upload(user))
 		return
-	var/infile = input(user, "CHOOSE A NEW SONG ([CUSTOM_MUSIC_UPLOAD_COST] Triumphs per successful upload; free for Scientist+ and admins)", src) as null|file
+	var/infile = input(user, "CHOOSE A NEW SONG ([CUSTOM_MUSIC_UPLOAD_COST] Triumphs per successful upload; free for Scientist+ and admins). Replaying is free; cancelling costs nothing.", src) as null|file
 	if(!infile)
 		return
 	var/uploaded_file = store_custom_music_upload(user, infile)

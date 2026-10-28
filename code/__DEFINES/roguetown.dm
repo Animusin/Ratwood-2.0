@@ -1,7 +1,7 @@
 // Player economy prices. Keep prompts and server-side charges in sync.
 #define TRIUMPHS_PER_OPYX 20
 #define ADVENTURER_MERCENARY_ENTRY_COST 5
-#define CUSTOM_MUSIC_UPLOAD_COST 200
+#define CUSTOM_MUSIC_UPLOAD_COST 50
 
 /*STAT DEFINES*/
 #define STAT_STRENGTH "strength"

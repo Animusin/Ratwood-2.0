@@ -91,6 +91,8 @@
 	return ..()
 
 /datum/action/cooldown/spell/projectile/arcyne_volley/proc/fire_seeker_volley(atom/target)
+	if(QDELETED(owner) || !get_turf(owner) || !get_turf(target))
+		return FALSE
 	var/list/volley = list()
 	for(var/i in 1 to projectiles_per_fire)
 		var/obj/projectile/to_fire = new projectile_type(owner.loc)
@@ -103,15 +105,22 @@
 	return TRUE
 
 /datum/action/cooldown/spell/projectile/arcyne_volley/proc/fire_stream(atom/target)
+	// The clicked atom may die between shots; keep firing toward its last position.
+	var/turf/target_turf = get_turf(target)
+	if(!target_turf)
+		return
 	for(var/i in 1 to flurry_shots)
 		if(QDELETED(src) || QDELETED(owner) || !isturf(owner.loc))
 			return
 		var/obj/projectile/to_fire = new projectile_type(owner.loc)
-		ready_projectile(to_fire, target, owner, i)
+		var/atom/shot_target = QDELETED(target) ? target_turf : target
+		ready_projectile(to_fire, shot_target, owner, i)
+		if(QDELETED(to_fire))
+			return
 		if(flurry_spread)
 			var/base_angle = to_fire.Angle
 			if(isnull(base_angle))
-				base_angle = Get_Angle(owner, target)
+				base_angle = Get_Angle(owner, shot_target)
 			to_fire.setAngle(base_angle + rand(-flurry_spread, flurry_spread))
 		to_fire.fire()
 		if(i < flurry_shots)

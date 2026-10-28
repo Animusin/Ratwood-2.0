@@ -107,16 +107,20 @@
 	var/obj/item/rogueweapon/mace/weapon = allocate(/obj/item/rogueweapon/mace)
 	weapon.forceMove(strap)
 	strap.sheathed = weapon
-	strap.sheathe_time = 0.5 SECONDS
+	strap.sheathe_time = 2 SECONDS
 	var/turf/far_away = get_step(get_step(get_turf(user), NORTH), NORTH)
-	addtimer(CALLBACK(user, TYPE_PROC_REF(/atom/movable, forceMove), far_away), 1)
-	TEST_ASSERT(!strap.puke_sword(user), "Walking away from a floor strap must prevent remotely drawing its weapon.")
+	spawn(1)
+		user.forceMove(far_away)
+	var/drawn = strap.puke_sword(user)
+	TEST_ASSERT_EQUAL(get_turf(user), far_away, "The fixture must move the user during the drawing delay.")
+	TEST_ASSERT(!drawn, "Walking away from a floor strap must prevent remotely drawing its weapon.")
 	TEST_ASSERT_EQUAL(weapon.loc, strap, "The distant weapon must stay inside its strap.")
 
 	// The same movement must remain valid when the strap itself is carried.
 	strap.forceMove(user)
 	var/turf/back_again = run_loc_floor_bottom_left
-	addtimer(CALLBACK(user, TYPE_PROC_REF(/atom/movable, forceMove), back_again), 1)
+	spawn(1)
+		user.forceMove(back_again)
 	TEST_ASSERT(strap.puke_sword(user), "Drawing from a carried strap while walking must still work.")
 	TEST_ASSERT_EQUAL(weapon.loc, user, "A reachable weapon must be delivered to the user.")
 

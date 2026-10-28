@@ -1,0 +1,10 @@
+author: "Animusin"
+delete-after: true
+changes:
+  - bugfix: "Shimmering Lens vision expires even if the lens is lost or destroyed."
+  - bugfix: "Magician Apprentices receive their basic magic, and Noc's action-based miracles can be learned without duplicate charges."
+  - bugfix: "Ghost protection also hides progress bars and sound indicator images."
+  - bugfix: "Corrected the Head Physician's furniture locks and the southern wizard tower gate on Rockhill."
+  - bugfix: "Fixed missing spectacle, Small Loincloth and split tomato sprites."
+  - bugfix: "Dropped arcyne wards no longer leave invisible items, and moon hoods protect light-sensitive eyes."
+  - bugfix: "Quivers update after loading the final arrow, and drawing from a floor strap requires staying within reach."

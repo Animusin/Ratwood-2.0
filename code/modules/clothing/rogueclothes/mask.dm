@@ -973,10 +973,7 @@
 	max_integrity = ARMOR_INT_MASK_BRONZE + 50//worse protection than iron goggles so it gets a slight buff
 
 /obj/item/clothing/mask/rogue/spectacles/fancy/dark
-	name = "fancy tinted spectacles"
-	desc = "Delicate, thin-lensed spectacles of foreign make, their craft finer than most local wares. This variant has a darker tint to its lenses."
-	icon_state = "glassesb"
-	color = "#777777"
+	parent_type = /obj/item/clothing/mask/rogue/spectacles/fancy_dark
 
 /obj/item/clothing/mask/rogue/spectacles/monocle
 	name = "silver monocle"

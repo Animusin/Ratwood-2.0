@@ -139,6 +139,39 @@
 	TEST_ASSERT(QDELETED(ward), "Dropping a ward during shapeshifting must not leave an invisible clothing item on the floor.")
 	TEST_ASSERT_NULL(caster.skin_armor, "Dropping the ward must clear its protection from the old body.")
 
+/// Dismissing an equipped ward must survive the dropped callback inside item destruction.
+/datum/unit_test/dismissed_crystalhide_ward/Run()
+	var/mob/living/carbon/human/consistent/caster = allocate(/mob/living/carbon/human/consistent)
+	var/datum/action/cooldown/spell/conjure_arcyne_ward/crystalhide/spell = new
+	allocated += spell
+	spell.Grant(caster)
+	TEST_ASSERT(spell.cast(caster), "The first cast must equip a Crystalhide Ward.")
+	var/obj/item/clothing/suit/roguetown/armor/manual/arcyne_ward/ward = spell.conjured_ward
+	TEST_ASSERT(ward, "Conjuring must create a ward.")
+	TEST_ASSERT_EQUAL(ward.loc, caster, "The fixture must keep the ward in its owner's inventory during dismissal.")
+	TEST_ASSERT_EQUAL(caster.skin_armor, ward, "The conjured ward must protect the caster.")
+	TEST_ASSERT(caster.has_status_effect(/datum/status_effect/buff/crystalhide), "The conjured ward must grant its Crystalhide effect.")
+	var/runtimes_before = GLOB.total_runtimes
+	TEST_ASSERT(spell.cast(caster), "Casting again must dismiss the equipped ward.")
+	TEST_ASSERT_EQUAL(GLOB.total_runtimes, runtimes_before, "Dismissal must not recursively qdel the ward from dropped().")
+	TEST_ASSERT(QDELETED(ward), "Dismissal must delete the ward.")
+	TEST_ASSERT(!ward || ward.gc_destroyed != GC_CURRENTLY_BEING_QDELETED, "Ward destruction must finish instead of aborting inside its inventory callback.")
+	TEST_ASSERT_NULL(caster.skin_armor, "Dismissal must clear the caster's skin armor.")
+	TEST_ASSERT_NULL(spell.conjured_ward, "Dismissal must clear the spell's ward reference.")
+	TEST_ASSERT(!caster.has_status_effect(/datum/status_effect/buff/crystalhide), "Dismissal must remove the Crystalhide effect.")
+
+/datum/unit_test/destroyed_arcyne_ward/Run()
+	var/mob/living/carbon/human/consistent/caster = allocate(/mob/living/carbon/human/consistent)
+	var/obj/item/clothing/suit/roguetown/armor/manual/arcyne_ward/ward = allocate(/obj/item/clothing/suit/roguetown/armor/manual/arcyne_ward, caster)
+	caster.skin_armor = ward
+	ward.setup_ward(caster)
+	var/runtimes_before = GLOB.total_runtimes
+	qdel(ward)
+	TEST_ASSERT_EQUAL(GLOB.total_runtimes, runtimes_before, "Deleting an equipped ward must not re-enter qdel through dropped().")
+	TEST_ASSERT(QDELETED(ward), "Deleting an equipped ward must mark it deleted.")
+	TEST_ASSERT(!ward || ward.gc_destroyed != GC_CURRENTLY_BEING_QDELETED, "Ward destruction must complete its parent inventory cleanup.")
+	TEST_ASSERT_NULL(caster.skin_armor, "Deleting a ward must clear the caster's skin armor.")
+
 /datum/unit_test/conjured_spectacles_assets/Run()
 	var/datum/action/cooldown/spell/conjure_spectacles/spell = new
 	allocated += spell

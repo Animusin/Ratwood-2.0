@@ -1362,6 +1362,12 @@ var/global/list/NOC_SECRET_MIRACLES = list(
 			open_learn_ui(H)
 			return
 
+		// The href is player-controlled: only exact paths in a patron's miracles may be bought.
+		var/list/owners = get_spell_patron_names(typepath)
+		if(!length(owners))
+			open_learn_ui(H)
+			return
+
 		var/datum/Snew = new typepath
 		if(!Snew)
 			open_learn_ui(H)
@@ -1375,7 +1381,6 @@ var/global/list/NOC_SECRET_MIRACLES = list(
 
 		var/my_patron = _get_human_patron_name(H)
 		var/tier = get_spell_tier(Snew)
-		var/list/owners = get_spell_patron_names(typepath)
 		var/real_owner = ""
 
 		if(length(my_patron) && islist(owners) && (my_patron in owners))
@@ -1393,8 +1398,6 @@ var/global/list/NOC_SECRET_MIRACLES = list(
 					best_rel = r
 					best_name = "[on]"
 			real_owner = best_name
-		else
-			real_owner = my_patron
 
 		if(!istext(real_owner) || !length(real_owner))
 			qdel(Snew)

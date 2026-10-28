@@ -64,6 +64,11 @@
 	allocated += cleric.patron
 	cleric.miracle_points = 100
 	var/obj/effect/proc_holder/spell/self/learnmiracle/menu = allocate(/obj/effect/proc_holder/spell/self/learnmiracle/unit_test)
+	for(var/invalid_path in list(/datum/action/cooldown/spell/projectile/fireball, /obj/effect/proc_holder/spell/self/basic_heal))
+		TEST_ASSERT(!length(get_spell_patron_names(invalid_path)), "The forged purchase fixture must not be a patron miracle.")
+		world.PushUsr(cleric, CALLBACK(menu, TYPE_PROC_REF(/obj/effect/proc_holder/spell/self/learnmiracle/unit_test, purchase), invalid_path))
+		TEST_ASSERT(!player.has_spell(invalid_path, TRUE), "A forged purchase must not grant a non-miracle spell: [invalid_path].")
+		TEST_ASSERT_EQUAL(cleric.miracle_points, 100, "A rejected forged purchase must not consume Miracle Points.")
 	var/spell_path = /datum/action/cooldown/spell/noc/spellpack
 	TEST_ASSERT_EQUAL(get_spell_tier(spell_path), CLERIC_T3, "Action-based Noc miracles must retain their patron tier.")
 	TEST_ASSERT("Noc" in get_spell_patron_names(spell_path), "Action-based miracles must retain patron ownership.")

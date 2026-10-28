@@ -591,20 +591,6 @@ GLOBAL_REAL(Master, /datum/controller/master)
 			queue_node_flags = queue_node.flags
 			queue_node_priority = queue_node.queued_priority
 
-			//super special case, subsystems where we can't make them pause mid way through
-			//if we can't run them this tick (without going over a tick)
-			//we bump up their priority and attempt to run them next tick
-			//(unless we haven't even ran anything this tick, since its unlikely they will ever be able run
-			//	in those cases, so we just let them run)
-			if (queue_node_flags & SS_NO_TICK_CHECK)
-				if (queue_node.tick_usage > TICK_LIMIT_RUNNING - TICK_USAGE && ran_non_ticker)
-					queue_node.queued_priority += queue_priority_count * 0.1
-					queue_priority_count -= queue_node_priority
-					queue_priority_count += queue_node.queued_priority
-					current_tick_budget -= queue_node_priority
-					queue_node = queue_node.queue_next
-					continue
-
 			if ((queue_node_flags & SS_BACKGROUND))
 				if (!bg_calc)
 					current_tick_budget = queue_priority_count_bg
@@ -616,6 +602,21 @@ GLOBAL_REAL(Master, /datum/controller/master)
 				. = -1
 				current_tick_budget = queue_priority_count //this won't even be right, but is the best we have.
 				bg_calc = FALSE
+
+			// Uninterruptible subsystems can wait for a fresh tick, aging toward the highest priority.
+			// Without a cap the queue total feeds its own growth on every deferral, eventually overflowing.
+			if (queue_node_flags & SS_NO_TICK_CHECK)
+				if (queue_node.tick_usage > TICK_LIMIT_RUNNING - TICK_USAGE && ran_non_ticker)
+					var/priority_total = (queue_node_flags & SS_BACKGROUND) ? queue_priority_count_bg : queue_priority_count
+					queue_node.queued_priority = min(queue_node_priority + priority_total * 0.1, FIRE_PRIORITY_INPUT)
+					var/priority_delta = queue_node.queued_priority - queue_node_priority
+					if (queue_node_flags & SS_BACKGROUND)
+						queue_priority_count_bg += priority_delta
+					else
+						queue_priority_count += priority_delta
+					current_tick_budget -= queue_node_priority
+					queue_node = queue_node.queue_next
+					continue
 
 			tick_remaining = TICK_LIMIT_RUNNING - TICK_USAGE
 

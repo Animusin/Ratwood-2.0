@@ -449,6 +449,8 @@
 		pixel_move(1, FALSE)
 
 /obj/projectile/proc/fire(angle, atom/direct_target)
+	if(QDELETED(src))
+		return FALSE
 	if(fired_from)
 		SEND_SIGNAL(fired_from, COMSIG_PROJECTILE_BEFORE_FIRE, src, original)
 	//If no angle needs to resolve it from xo/yo!
@@ -464,6 +466,9 @@
 	if(spread)
 		setAngle(Angle + ((rand() - 0.5) * spread))
 	var/turf/starting = get_turf(src)
+	if(!starting)
+		qdel(src)
+		return FALSE
 	if(isnull(Angle))	//Try to resolve through offsets if there's no angle set.
 		if(isnull(xo) || isnull(yo))
 			stack_trace("WARNING: Projectile [type] deleted due to being unable to resolve a target after angle was null!")
@@ -675,6 +680,9 @@
 /obj/projectile/proc/preparePixelProjectile(atom/target, atom/source, params, spread = 0)
 	var/turf/curloc = get_turf(source)
 	var/turf/targloc = get_turf(target)
+	if(!curloc || (!targloc && !(isliving(source) && params)))
+		qdel(src)
+		return FALSE
 	var/turf/start_loc = curloc
 
 	if(targloc && curloc)

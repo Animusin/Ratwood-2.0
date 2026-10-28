@@ -149,7 +149,7 @@ GLOBAL_LIST_EMPTY(active_alternate_appearances)
 
 /// Re-evaluates every protected player after this observer gains or loses admin status.
 /mob/dead/observer/proc/update_ghost_protection_appearances()
-	for(var/datum/atom_hud/alternate_appearance/basic/ghost_protection/protection as anything in GLOB.active_alternate_appearances)
+	for(var/datum/atom_hud/alternate_appearance/basic/ghost_protection/protection in GLOB.active_alternate_appearances)
 		protection.update_observer(src)
 
 /mob/living/proc/update_ghost_protection_visibility()

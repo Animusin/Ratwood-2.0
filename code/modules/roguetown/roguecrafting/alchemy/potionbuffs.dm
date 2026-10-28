@@ -16,6 +16,8 @@
 /datum/status_effect/buff/alch/temperaturepot/process()
 
 	.=..()
+	if(QDELETED(src) || QDELETED(owner))
+		return .
 	if(owner.bodytemperature > BODYTEMP_NORMAL_MAX)
 		owner.adjust_bodytemperature(-5)
 	if(owner.bodytemperature < BODYTEMP_NORMAL_MIN)

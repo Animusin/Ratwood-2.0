@@ -23,6 +23,8 @@
 
 /datum/status_effect/zombie_infection/on_creation(mob/living/new_owner, time_to_transform = 5 MINUTES, from_infected_wake = "wound")
 	. = ..()
+	if(QDELETED(src))
+		return
 	if(HAS_TRAIT(new_owner, TRAIT_DEADITE_RESISTANCE))
 		time_to_transform *= 2
 	transformation_time = world.time + time_to_transform
@@ -30,6 +32,8 @@
 	infected_wake = from_infected_wake
 
 /datum/status_effect/zombie_infection/tick()
+	if(QDELETED(src) || QDELETED(owner))
+		return
 	if(world.time > message_cooldown_time)
 		var/warning_message = pick(infection_messages)
 		if(prob(10))
@@ -40,25 +44,26 @@
 	if(world.time > transformation_time)
 		var/mob/living/carbon/human/H = owner
 		if(!ishuman(H)) // zombie_check_can_convert is human only
-			owner.remove_status_effect(/datum/status_effect/zombie_infection)
+			qdel(src)
 			return
 
 		if(H.stat == DEAD || infected_wake)
 			H.zombie_check_can_convert()
+			if(QDELETED(src) || QDELETED(H))
+				return
 			var/datum/antagonist/zombie/zombie_antag = H.mind?.has_antag_datum(/datum/antagonist/zombie)
 			if(zombie_antag && !zombie_antag.has_turned)
 				zombie_antag.wake_zombie(infected_wake)
 			// Clear whether or not the rise happened. A refused conversion (vampire, werewolf, skeleton,
 			// immune, no mind) otherwise leaves this ticking and spamming messages for the rest of the round
-			owner.remove_status_effect(/datum/status_effect/zombie_infection)
+			// wake_zombie already removes the infection on a successful rise.
+			if(!QDELETED(src))
+				qdel(src)
 
 /datum/status_effect/zombie_infection/on_apply()
-	. = ..()
-	var/mob/living/carbon/human/H = owner
-	if(!ishuman(H)) // Everything below needs a human
-		owner.remove_status_effect(/datum/status_effect/zombie_infection)
-		return TRUE
-	return TRUE
+	if(!ishuman(owner))
+		return FALSE
+	return ..()
 
 /atom/movable/screen/alert/status_effect/zombie_infection
 	name = "Zombie Infection"

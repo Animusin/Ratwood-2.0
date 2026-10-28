@@ -1,30 +1,46 @@
+/mob/dead/new_player
+	/// Delayed login work belongs to the connection that scheduled it.
+	var/after_login_timer
+
 /mob/dead/new_player/Login()
+	var/client/login_client = client
+	if(!login_client)
+		return FALSE
 	// Returning during class selection must not carry that old body's selector into the lobby.
 	SSrole_class_handler.cancel_class_handler(ckey)
 	if(CONFIG_GET(flag/use_exp_tracking))
-		client.set_exp_from_db()
-		client.set_db_player_flags()
+		login_client.set_exp_from_db()
+		if(QDELETED(src) || !login_client || client != login_client)
+			return FALSE
+		login_client.set_db_player_flags()
+		if(QDELETED(src) || !login_client || client != login_client)
+			return FALSE
 	if(!mind)
 		mind = new /datum/mind(key)
 		mind.active = 1
 		mind.current = src
 
 	..()
+	if(QDELETED(src) || !login_client || client != login_client)
+		return FALSE
 
 	if(client)
 		client.update_ooc_verb_visibility()
 
 	sight |= SEE_TURFS
 
-	addtimer(CALLBACK(src, PROC_REF(do_after_login)), 4 SECONDS)
+	if(after_login_timer)
+		deltimer(after_login_timer)
+	after_login_timer = addtimer(CALLBACK(src, PROC_REF(do_after_login), login_client), 4 SECONDS, TIMER_STOPPABLE)
 	new_player_panel()
 
 	if(client)
 		client.playtitlemusic()
 
-/mob/dead/new_player/proc/do_after_login()
+/mob/dead/new_player/proc/do_after_login(client/login_client)
 	PRIVATE_PROC(TRUE)
-	if(!client)
+	after_login_timer = null
+	if(QDELETED(src) || !login_client || client != login_client || login_client.mob != src)
 		return
 
 	var/motd = global.config.motd
@@ -34,7 +50,10 @@
 	if(GLOB.rogue_round_id)
 		to_chat(src, span_info("ROUND ID: [GLOB.rogue_round_id]"))
 
-	client.sync_donation_info()
+	login_client.sync_donation_info()
+	// The database yields; logout or body transfer cancels this connection's work.
+	if(QDELETED(src) || !login_client || client != login_client || login_client.mob != src)
+		return
 
 	if(client.is_new_player())
 		to_chat(src, span_userdanger("Due to an invasion of goblins trying to play ROGUETOWN, you need to register your discord account or support us on patreon to join."))
@@ -60,7 +79,11 @@
 		to_chat(src, span_info("Donator Tier: [donation_tier_display_name(client.donation_tier)]"))
 	else if(!client.donation_database_available())
 		to_chat(src, span_warning("Donation DB is not connected."))
-	client.changelog()
+	if(QDELETED(src) || !login_client || client != login_client || login_client.mob != src)
+		return
+	login_client.changelog()
+	if(QDELETED(src) || !login_client || client != login_client || login_client.mob != src)
+		return
 
 	var/server_address = CONFIG_GET(string/server)
 	var/primary_server = server_address ? "byond://[server_address]" : null

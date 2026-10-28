@@ -262,7 +262,7 @@
 	mob_timers["aggro_time"] = world.time
 	..()
 	if(owner && (owner in enemies))
-		enemies -= owner
+		remove_enemy(owner)
 
 /mob/living/simple_animal/hostile/retaliate/rogue/attackby(obj/item/O, mob/user, params)
 	if(!stat && istype(O, /obj/item/reagent_containers/glass))

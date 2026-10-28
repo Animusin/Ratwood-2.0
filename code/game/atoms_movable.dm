@@ -758,7 +758,13 @@
 /atom/movable/proc/handle_buckled_mob_movement(newloc, direct, glide_size_override)
 	for(var/m in buckled_mobs)
 		var/mob/living/buckled_mob = m
-		if(!buckled_mob.Move(newloc, direct, glide_size_override))
+		var/moved = buckled_mob.Move(newloc, direct, glide_size_override)
+		// Exit/Bump callbacks can break the chair or release its occupant.
+		if(QDELETED(src))
+			return FALSE
+		if(QDELETED(buckled_mob) || buckled_mob.buckled != src)
+			continue
+		if(!moved)
 			forceMove(buckled_mob.loc)
 			last_move = buckled_mob.last_move
 			inertia_dir = last_move
@@ -1339,6 +1345,9 @@ GLOBAL_VAR_INIT(pixel_diff_time, 1)
 
 ///Clears the clients channel of this mob
 /mob/proc/clear_important_client_contents()
+	// Logout may run before Login registered us, or after another teardown did.
+	if(!(src in important_recursive_contents?[RECURSIVE_CONTENTS_CLIENT_MOBS]))
+		return
 	var/turf/our_turf = get_turf(src)
 	SSspatial_grid.remove_grid_membership(src, our_turf, SPATIAL_GRID_CONTENTS_TYPE_CLIENTS)
 

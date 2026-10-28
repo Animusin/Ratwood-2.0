@@ -172,6 +172,8 @@
 
 /mob/living/carbon/throw_impact(atom/hit_atom, datum/thrownthing/throwingdatum)
 	. = ..()
+	if(QDELETED(src) || QDELETED(hit_atom))
+		return
 	var/hurt = TRUE
 	if(hit_atom.density && isturf(hit_atom))
 		if(hurt)
@@ -750,8 +752,8 @@
 		if(blood)
 			if(T)
 				if(vomitrelay && blood_volume > 0)
-					var/mob/living/carbon/human/parent = vomitrelay.loc
-					var/amt = 5 * parent.physiology.bleed_mod
+					var/mob/living/carbon/human/vomiter = src
+					var/amt = 5 * vomiter.physiology.bleed_mod
 					blood_volume = max(blood_volume - amt, 0)
 					GLOB.azure_round_stats[STATS_BLOOD_SPILT] += amt
 					if(isturf(vomit_source.loc))

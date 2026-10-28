@@ -158,7 +158,7 @@
 	return !held_items[hand_index]
 
 /mob/proc/put_in_hand(obj/item/I, hand_index, forced = FALSE, ignore_anim = TRUE)
-	if(hand_index == null || (!forced && !can_put_in_hand(I, hand_index)))
+	if(QDELETED(I) || hand_index == null || (!forced && !can_put_in_hand(I, hand_index)))
 		return FALSE
 
 	if(isturf(I.loc) && !ignore_anim)
@@ -167,6 +167,8 @@
 		return FALSE
 //		dropItemToGround(get_item_for_held_index(hand_index), force = TRUE)
 	I.forceMove(src)
+	if(QDELETED(I))
+		return FALSE
 	held_items[hand_index] = I
 	I.layer = ABOVE_HUD_LAYER
 	I.plane = ABOVE_HUD_PLANE
@@ -228,11 +230,13 @@
 //If both fail it drops it on the floor and returns FALSE.
 //This is probably the main one you need to know :)
 /mob/proc/put_in_hands(obj/item/I, del_on_fail = FALSE, merge_stacks = TRUE, forced = FALSE)
-	if(!I)
+	if(QDELETED(I))
 		return FALSE
 
 	if(put_in_active_hand(I, forced))
 		return TRUE
+	if(QDELETED(I))
+		return FALSE
 
 	var/hand = get_empty_held_index_for_side(LEFT_HANDS)
 	if(!hand)
@@ -240,6 +244,8 @@
 	if(hand)
 		if(put_in_hand(I, hand, forced))
 			return TRUE
+	if(QDELETED(I))
+		return FALSE
 	if(del_on_fail)
 		qdel(I)
 		return FALSE
@@ -267,6 +273,8 @@
 	if(!can_put_in_hand(I, hand_index))
 		return FALSE
 	if(!temporarilyRemoveItemFromInventory(I, force_removal))
+		return FALSE
+	if(QDELETED(I))
 		return FALSE
 	I.remove_item_from_storage(src)
 	if(!put_in_hand(I, hand_index))

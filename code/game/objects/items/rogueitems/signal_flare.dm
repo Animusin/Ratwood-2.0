@@ -138,9 +138,15 @@ GLOBAL_LIST_EMPTY(signal_flare_codebook)
 	update_gun_icon()
 
 /obj/item/signal_flare_gun/Destroy()
-	if(canister)
-		canister.forceMove(drop_location())
-		canister = null
+	var/obj/item/signal_flare/removed_canister = canister
+	canister = null
+	if(!QDELETED(removed_canister))
+		var/atom/destination = drop_location()
+		if(!QDELETED(destination))
+			removed_canister.forceMove(destination)
+		else
+			// Preview equipment has no turf on which to leave its contents.
+			qdel(removed_canister)
 	return ..()
 
 /obj/item/signal_flare_gun/Exited(atom/movable/gone, atom/newLoc)

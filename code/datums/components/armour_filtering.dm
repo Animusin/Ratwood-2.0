@@ -76,6 +76,8 @@
 			continue
 		if(worn_thing.item_flags & IN_STORAGE)
 			continue
+		if(user.is_holding(worn_thing))
+			continue
 		var/list/datum/component/armour_filtering/comps = worn_thing.GetComponents(/datum/component/armour_filtering)
 		if(!comps)
 			continue
@@ -85,7 +87,8 @@
 			if(af_comp.positive != positive)
 				continue
 			if(!af_comp.additive)
-				handle_boons(user, TRUE)
+				// Restore the remaining armour's boon, never re-equip the item being dropped.
+				af_comp.handle_boons(user, TRUE)
 				return
 			if(af_comp.positive)
 				ADD_TRAIT(user, TRAIT_ARMOUR_LIKED, TRAIT_GENERIC)

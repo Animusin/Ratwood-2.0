@@ -77,7 +77,14 @@
 
 /mob/living/proc/on_enemy_destroyed(datum/source)
 	SIGNAL_HANDLER
-	enemies -= source
+	remove_enemy(source)
+
+/// Removing hostility must also release the deletion subscription before re-adding a mob.
+/mob/living/proc/remove_enemy(mob/living/enemy)
+	if(!(enemy in enemies))
+		return
+	enemies -= enemy
+	UnregisterSignal(enemy, COMSIG_QDELETING)
 
 /mob/living/proc/clear_enemies()
 	for(var/mob/living/enemy as anything in enemies)

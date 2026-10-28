@@ -543,6 +543,7 @@ GLOBAL_LIST_EMPTY(chosen_names)
 /datum/preferences/proc/ShowChoices(mob/user, tabchoice)
 	if(!user || !user.client)
 		return
+	var/client/player_client = user.client
 	if(slot_randomized)
 		load_character(default_slot) // Reloads the character slot. Prevents random features from overwriting the slot if saved.
 		slot_randomized = FALSE
@@ -612,10 +613,14 @@ GLOBAL_LIST_EMPTY(chosen_names)
 			dat += "</td>"
 
 			dat += "<td style='width:33%;text-align:right'>"
-			var/client/player_client = user.client
-			if(player_client?.donation_database_available())
+			var/donations_available = player_client.donation_database_available()
+			if(QDELETED(user) || !player_client || user.client != player_client || player_client.mob != user)
+				return
+			if(donations_available)
 				if(!player_client.donation_info_loaded)
 					player_client.sync_donation_info()
+					if(QDELETED(user) || !player_client || user.client != player_client || player_client.mob != user)
+						return
 				if(player_client.donation_info_loaded)
 					dat += "<b>DONATOR TIER:</b> [donation_tier_display_name(player_client.donation_tier)]<br>"
 					dat += "<b>OPYXES:</b> [player_client.opyxes]<br>"
@@ -645,7 +650,10 @@ GLOBAL_LIST_EMPTY(chosen_names)
 // 			-----------START OF IDENT TABLE-----------
 			dat += "<h2>Identity</h2>"
 			dat += "<table width='100%'><tr><td width='75%' valign='top'>"
-			if(is_banned_from(user.ckey, "Appearance"))
+			var/appearance_banned = is_banned_from(player_client.ckey, "Appearance")
+			if(QDELETED(user) || !player_client || user.client != player_client || player_client.mob != user)
+				return
+			if(appearance_banned)
 				dat += "<b>Thou are banned from using custom names and appearances. Thou can continue to adjust thy characters, but thee will be randomised once thee joins the game.</b><br>"
 //			dat += "<a href='?_src_=prefs;preference=toggle_random;random_type=[RANDOM_NAME]'>Always Random Name: [(randomise[RANDOM_NAME]) ? "Yes" : "No"]</a>"
 //			dat += "<a href='?_src_=prefs;preference=toggle_random;random_type=[RANDOM_NAME_ANTAG]'>When Antagonist: [(randomise[RANDOM_NAME_ANTAG]) ? "Yes" : "No"]</a>"
@@ -977,13 +985,19 @@ GLOBAL_LIST_EMPTY(chosen_names)
 
 			dat += "<h2>Special Role Settings</h2>"
 
-			if(is_banned_from(user.ckey, ROLE_SYNDICATE))
+			var/antag_banned = is_banned_from(player_client.ckey, ROLE_SYNDICATE)
+			if(QDELETED(user) || !player_client || user.client != player_client || player_client.mob != user)
+				return
+			if(antag_banned)
 				dat += "<font color=red><b>I am banned from antagonist roles.</b></font><br>"
 				src.be_special = list()
 
 
 			for (var/i in GLOB.special_roles_rogue)
-				if(is_banned_from(user.ckey, i))
+				var/role_banned = is_banned_from(player_client.ckey, i)
+				if(QDELETED(user) || !player_client || user.client != player_client || player_client.mob != user)
+					return
+				if(role_banned)
 					dat += "<b>[capitalize(i)]:</b> <a href='?_src_=prefs;bancheck=[i]'>BANNED</a><br>"
 				else
 					var/days_remaining = null
@@ -1152,6 +1166,8 @@ GLOBAL_LIST_EMPTY(chosen_names)
 	if(user.client?.is_new_player())
 		dat = list("<center>REGISTER!</center>")
 
+	if(QDELETED(user) || !player_client || user.client != player_client || player_client.mob != user)
+		return
 	winshow(user, "preferencess_window", TRUE)
 	winset(user, "preferencess_window", "size=820x850")
 	winset(user, "preferencess_window", "pos=280,80")

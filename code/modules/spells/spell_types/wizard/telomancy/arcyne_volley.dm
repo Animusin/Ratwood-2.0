@@ -112,6 +112,8 @@
 	for(var/i in 1 to flurry_shots)
 		if(QDELETED(src) || QDELETED(owner) || !isturf(owner.loc))
 			return
+		if(!QDELETED(target))
+			target_turf = get_turf(target) || target_turf
 		var/obj/projectile/to_fire = new projectile_type(owner.loc)
 		var/atom/shot_target = QDELETED(target) ? target_turf : target
 		ready_projectile(to_fire, shot_target, owner, i)

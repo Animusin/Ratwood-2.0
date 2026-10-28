@@ -426,6 +426,7 @@
 /obj/item/clothing/suit/roguetown/armor/manual/arcyne_ward/dropped(mob/user, silent)
 	..()
 	cleanup_ward()
+	qdel(src)
 
 /obj/item/clothing/suit/roguetown/armor/manual/arcyne_ward/Destroy()
 	cleanup_ward()

@@ -241,12 +241,15 @@ var/global/list/NOC_SECRET_MIRACLES = list(
 
 /// Tiers helpa
 
+/proc/is_miracle_spell_path(spell_path)
+	return ispath(spell_path, /obj/effect/proc_holder/spell) || ispath(spell_path, /datum/action/cooldown/spell)
+
 /proc/get_spell_patron_names(spell_input)
 	var/spell_path = null
 	if(ispath(spell_input))
 		spell_path = spell_input
-	else if(istype(spell_input, /obj/effect/proc_holder/spell))
-		var/obj/effect/proc_holder/spell/SN = spell_input
+	else if(istype(spell_input, /obj/effect/proc_holder/spell) || istype(spell_input, /datum/action/cooldown/spell))
+		var/datum/SN = spell_input
 		spell_path = SN.type
 	else
 		return list()
@@ -286,7 +289,7 @@ var/global/list/NOC_SECRET_MIRACLES = list(
 	return result
 
 /proc/_tier_from_patrons(spell_path)
-	if(!ispath(spell_path, /obj/effect/proc_holder/spell))
+	if(!is_miracle_spell_path(spell_path))
 		return 0
 
 	var/max_tier = 0
@@ -320,18 +323,18 @@ var/global/list/NOC_SECRET_MIRACLES = list(
 	return max_tier
 
 /proc/get_spell_tier(spell_any)
-	var/obj/effect/proc_holder/spell/S = null
+	var/datum/S = null
 	var/spell_path = null
 
-	if(istype(spell_any, /obj/effect/proc_holder/spell))
+	if(istype(spell_any, /obj/effect/proc_holder/spell) || istype(spell_any, /datum/action/cooldown/spell))
 		S = spell_any
 		spell_path = S.type
-	else if(ispath(spell_any))
+	else if(is_miracle_spell_path(spell_any))
 		spell_path = spell_any
 	else
 		return 0
 
-	var/obj/effect/proc_holder/spell/tmp = S
+	var/datum/tmp = S
 	if(!tmp && spell_path)
 		tmp = new spell_path
 
@@ -590,7 +593,7 @@ var/global/list/NOC_SECRET_MIRACLES = list(
 
 	var/list/already_types = list()
 	if(H.mind)
-		for(var/obj/effect/proc_holder/spell/K in H.mind.spell_list)
+		for(var/datum/K as anything in H.mind.spell_list)
 			already_types[K.type] = TRUE
 
 	var/list/all_spell_types = list()
@@ -602,7 +605,9 @@ var/global/list/NOC_SECRET_MIRACLES = list(
 	var/list/buckets = list()
 
 	for(var/st in all_spell_types)
-		var/obj/effect/proc_holder/spell/S = new st
+		if(!is_miracle_spell_path(st))
+			continue
+		var/datum/S = new st
 		if(!S)
 			continue
 
@@ -642,8 +647,8 @@ var/global/list/NOC_SECRET_MIRACLES = list(
 			var/cost = (owner_name == my_patron) ? CLERIC_PRICE_PATRON : CLERIC_PRICE_FOREIGN
 
 			L += list(list(
-				"name" = S.name,
-				"desc" = S.desc,
+				"name" = S.vars["name"],
+				"desc" = S.vars["desc"],
 				"tier" = tier,
 				"cost" = cost,
 				"type" = st,
@@ -1349,24 +1354,24 @@ var/global/list/NOC_SECRET_MIRACLES = list(
 		return
 
 	if(href_list["learnspell"])
+		if(!H.mind)
+			return
 		var/txt = href_list["learnspell"]
 		var/typepath = text2path(txt)
-		if(!ispath(typepath, /obj/effect/proc_holder/spell))
+		if(!is_miracle_spell_path(typepath))
 			open_learn_ui(H)
 			return
 
-		var/obj/effect/proc_holder/spell/Snew = new typepath
+		var/datum/Snew = new typepath
 		if(!Snew)
 			open_learn_ui(H)
 			return
 
-		if(H.mind)
-			for(var/obj/effect/proc_holder/spell/K in H.mind.spell_list)
-				if(K.type == typepath)
-					qdel(Snew)
-					to_chat(H, span_warning("You already know this one."))
-					open_learn_ui(H)
-					return
+		if(H.mind.has_spell(typepath, TRUE))
+			qdel(Snew)
+			to_chat(H, span_warning("You already know this one."))
+			open_learn_ui(H)
+			return
 
 		var/my_patron = _get_human_patron_name(H)
 		var/tier = get_spell_tier(Snew)
@@ -1418,9 +1423,14 @@ var/global/list/NOC_SECRET_MIRACLES = list(
 			open_learn_ui(H)
 			return
 
-		H.miracle_points = max(0, H.miracle_points - cost5)
 		H.mind.AddSpell(Snew)
-		to_chat(H, span_notice("You have learned [Snew.name]."))
+		if(!H.mind.has_spell(typepath, TRUE))
+			qdel(Snew)
+			to_chat(H, span_warning("The miracle could not be learned. No Miracle Points were spent."))
+			open_learn_ui(H)
+			return
+		H.miracle_points = max(0, H.miracle_points - cost5)
+		to_chat(H, span_notice("You have learned [Snew.vars["name"]]."))
 		open_learn_ui(H)
 		return
 

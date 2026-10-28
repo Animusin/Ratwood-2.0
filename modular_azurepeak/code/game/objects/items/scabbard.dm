@@ -106,8 +106,9 @@
 
 
 /obj/item/rogueweapon/scabbard/proc/puke_sword(mob/living/user)
-	if(!sheathed)
+	if(!sheathed || !Adjacent(user))
 		return FALSE
+	var/obj/item/rogueweapon/drawn_weapon = sheathed
 
 	if(obj_broken)
 		user.visible_message(
@@ -117,6 +118,10 @@
 		if(!move_after(user, 2 SECONDS, target = user))
 			return FALSE
 	if(!move_after(user, sheathe_time, target = user))
+		return FALSE
+
+	// Drawing from worn straps may happen while walking; floor straps must stay in reach.
+	if(QDELETED(src) || QDELETED(drawn_weapon) || sheathed != drawn_weapon || drawn_weapon.loc != src || !Adjacent(user))
 		return FALSE
 
 	sheathed.forceMove(user.loc)

@@ -363,12 +363,27 @@
 	activate(user)
 
 /obj/item/clothing/ring/active/shimmeringlens/activate(mob/user)
-	ADD_TRAIT(user, TRAIT_XRAY_VISION, "[type]")
+	if(isliving(user))
+		var/mob/living/recipient = user
+		recipient.apply_status_effect(/datum/status_effect/shimmering_lens)
 
 /obj/item/clothing/ring/active/shimmeringlens/demagicify()
-	var/mob/living/user = usr
-	REMOVE_TRAIT(user, TRAIT_XRAY_VISION, "[type]")
 	active = FALSE
+
+// The recipient owns the duration, so losing or deleting the lens cannot strand X-ray vision.
+/datum/status_effect/shimmering_lens
+	id = "shimmering_lens"
+	duration = 30 SECONDS
+	tick_interval = -1
+	status_type = STATUS_EFFECT_REFRESH
+	alert_type = null
+
+/datum/status_effect/shimmering_lens/on_apply()
+	ADD_TRAIT(owner, TRAIT_XRAY_VISION, REF(src))
+	return TRUE
+
+/datum/status_effect/shimmering_lens/on_remove()
+	REMOVE_TRAIT(owner, TRAIT_XRAY_VISION, REF(src))
 
 /obj/item/sendingstonesummoner/Initialize(mapload)
 	. = ..()

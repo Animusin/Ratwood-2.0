@@ -975,10 +975,13 @@
 /obj/item/clothing/mask/rogue/spectacles/fancy/dark
 	name = "fancy tinted spectacles"
 	desc = "Delicate, thin-lensed spectacles of foreign make, their craft finer than most local wares. This variant has a darker tint to its lenses."
-	icon_state = "glassesb_dark"
+	icon_state = "glassesb"
+	color = "#777777"
 
 /obj/item/clothing/mask/rogue/spectacles/monocle
 	name = "silver monocle"
+	icon = 'icons/obj/clothing/glasses.dmi'
+	mob_overlay_icon = 'icons/mob/clothing/eyes.dmi'
 	icon_state = "monocle"
 	max_integrity = 35
 

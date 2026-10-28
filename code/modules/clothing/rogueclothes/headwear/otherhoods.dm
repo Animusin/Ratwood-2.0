@@ -46,6 +46,7 @@
 	color = null
 	icon_state = "nochood"
 	item_state = "nochood"
+	block2add = FOV_BEHIND
 	flags_inv = HIDEEARS|HIDEFACE|HIDEHAIR|HIDEFACIALHAIR|HIDESNOUT
 	dynamic_hair_suffix = ""
 	nudist_approved = TRUE

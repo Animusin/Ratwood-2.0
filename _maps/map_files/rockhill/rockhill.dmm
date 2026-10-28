@@ -74934,6 +74934,19 @@
 /obj/item/roguestatue/glass,
 /turf/open/floor/rogue/concrete,
 /area/rogue/under/dungeon/wizarddungeon)
+"oYW" = (
+/obj/item/roguekey/physician,
+/obj/item/roguekey/physician,
+/obj/item/roguekey/physician,
+/obj/item/roguekey/courtphysician,
+/obj/item/reagent_containers/powder/sleep_powder,
+/obj/item/reagent_containers/powder/sleep_powder,
+/obj/structure/closet/crate/drawer/drawer3{
+	lockid = "cphysician";
+	keylock = 1
+	},
+/turf/open/floor/rogue/concrete,
+/area/rogue/indoors/town/manor/rockhill)
 "oZe" = (
 /obj/structure/flora/roguegrass/herb/random,
 /turf/open/floor/rogue/grassyel,
@@ -101645,26 +101658,6 @@
 	},
 /turf/open/floor/rogue/herringbone,
 /area/rogue/indoors/town)
-"uzT" = (
-/obj/item/clothing/mask/rogue/physician,
-/obj/item/clothing/neck/roguetown/psicross/pestra,
-/obj/item/clothing/head/roguetown/physician,
-/obj/item/clothing/suit/roguetown/shirt/robe/physician,
-/obj/item/clothing/suit/roguetown/shirt/tunic/red,
-/obj/item/clothing/under/roguetown/trou/leather/mourning,
-/obj/effect/decal/cobbleedge{
-	dir = 4;
-	icon_state = "borderfall";
-	pixel_x = 8
-	},
-/obj/structure/closet/crate/roguecloset/dark{
-	pixel_x = -3;
-	keylock = 1;
-	locked = "cphysician"
-	},
-/obj/item/flashlight/flare/torch/lantern,
-/turf/open/floor/rogue/concrete,
-/area/rogue/indoors/town/manor/rockhill)
 "uzX" = (
 /obj/structure/chair/stool/rogue,
 /turf/open/floor/rogue/concrete,
@@ -108146,19 +108139,6 @@
 /obj/structure/flora/roguegrass,
 /turf/open/floor/rogue/grasspurple,
 /area/rogue/under/underdark/rockhill)
-"vRP" = (
-/obj/item/roguekey/physician,
-/obj/item/roguekey/physician,
-/obj/item/roguekey/physician,
-/obj/item/roguekey/courtphysician,
-/obj/item/reagent_containers/powder/sleep_powder,
-/obj/item/reagent_containers/powder/sleep_powder,
-/obj/structure/closet/crate/drawer/drawer3{
-	lockid = "Cphysician";
-	keylock = 1
-	},
-/turf/open/floor/rogue/concrete,
-/area/rogue/indoors/town/manor/rockhill)
 "vRQ" = (
 /obj/structure/fluff/railing/border,
 /turf/open/transparent/openspace,
@@ -111537,10 +111517,6 @@
 "wBM" = (
 /turf/closed/wall/mineral/rogue/roofwall/middle/dir4,
 /area/rogue/indoors/shelter/bog)
-"wBR" = (
-/obj/structure/mineral_door/bars,
-/turf/open/floor/rogue/cobble,
-/area/rogue/indoors/town/magician/rockhill)
 "wBW" = (
 /obj/machinery/light/rogue/firebowl/standing,
 /turf/open/floor/rogue/twig,
@@ -116871,6 +116847,27 @@
 "xDH" = (
 /turf/open/floor/rogue/tile,
 /area/rogue/indoors/town/vault)
+"xDI" = (
+/obj/item/clothing/mask/rogue/physician,
+/obj/item/clothing/neck/roguetown/psicross/pestra,
+/obj/item/clothing/head/roguetown/physician,
+/obj/item/clothing/suit/roguetown/shirt/robe/physician,
+/obj/item/clothing/suit/roguetown/shirt/tunic/red,
+/obj/item/clothing/under/roguetown/trou/leather/mourning,
+/obj/effect/decal/cobbleedge{
+	dir = 4;
+	icon_state = "borderfall";
+	pixel_x = 8
+	},
+/obj/structure/closet/crate/roguecloset/dark{
+	pixel_x = -3;
+	keylock = 1;
+	locked = 1;
+	lockid = "cphysician"
+	},
+/obj/item/flashlight/flare/torch/lantern,
+/turf/open/floor/rogue/concrete,
+/area/rogue/indoors/town/manor/rockhill)
 "xDO" = (
 /obj/structure/table/wood{
 	icon_state = "map5"
@@ -398864,7 +398861,7 @@ pxN
 ibP
 fIQ
 uOl
-wBR
+uOl
 gPy
 yhZ
 yhZ
@@ -635136,7 +635133,7 @@ szJ
 uwQ
 ptE
 wtF
-vRP
+oYW
 rmU
 wtF
 wtF
@@ -636000,7 +635997,7 @@ szJ
 eJr
 ptE
 wtF
-uzT
+xDI
 kSP
 wtF
 wtF

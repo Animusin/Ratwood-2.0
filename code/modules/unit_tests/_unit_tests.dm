@@ -102,6 +102,7 @@
 #include "ooze_forms.dm"
 #include "reagent_id_typos.dm"
 #include "reagent_recipe_collisions.dm"
+#include "reported_bugs.dm"
 #include "rural_income.dm"
 #include "spawn_humans.dm"
 #include "species_whitelists.dm"

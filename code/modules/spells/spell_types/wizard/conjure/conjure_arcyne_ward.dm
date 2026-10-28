@@ -426,7 +426,9 @@
 /obj/item/clothing/suit/roguetown/armor/manual/arcyne_ward/dropped(mob/user, silent)
 	..()
 	cleanup_ward()
-	qdel(src)
+	// Item destruction also unequips the ward and calls dropped().
+	if(!QDELETED(src))
+		qdel(src)
 
 /obj/item/clothing/suit/roguetown/armor/manual/arcyne_ward/Destroy()
 	cleanup_ward()

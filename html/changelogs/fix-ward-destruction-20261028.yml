@@ -1,0 +1,4 @@
+author: "Animusin"
+delete-after: true
+changes:
+  - bugfix: "Dismissing or destroying an equipped arcyne ward no longer triggers recursive deletion."

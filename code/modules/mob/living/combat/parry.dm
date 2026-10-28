@@ -378,7 +378,7 @@
 			unarmed_knuckles.take_damage(INTEG_PARRY_DECAY_NOSHARP, BRUTE)
 		else if(unarmed_bandages)
 			unarmed_bandages.take_damage(INTEG_PARRY_DECAY_NOSHARP, "slash", armor_penetration = 100)
-		else
+		else if(used_weapon)
 			// Unarmed attacker
 			var/intdam = INTEG_PARRY_DECAY_UNARMED
 			var/sharp_loss = SHARPNESS_ONHIT_DECAY

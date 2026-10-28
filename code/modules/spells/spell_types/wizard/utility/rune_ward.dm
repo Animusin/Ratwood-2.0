@@ -143,8 +143,8 @@
 	return FALSE
 
 /datum/action/cooldown/spell/touch/rune_ward/proc/scrub_rune(obj/item/melee/new_touch_attack/hand, atom/victim, mob/living/carbon/caster)
-	var/obj/structure/trap/target_trap
-	if(istype(victim, /obj/structure/trap))
+	var/obj/structure/target_trap
+	if(istype(victim, /obj/structure/trap) || istype(victim, /obj/structure/rune_ward))
 		target_trap = victim
 	else
 		var/turf/T = get_turf(victim)
@@ -171,8 +171,14 @@
 
 	if(!do_after(caster, scrub_time, target = target_trap))
 		to_chat(caster, span_warning("My concentration breaks!"))
-		if(!skilled && target_trap.armed)
-			target_trap.trap_effect(caster)
+		if(!skilled && !QDELETED(target_trap))
+			if(istype(target_trap, /obj/structure/trap))
+				var/obj/structure/trap/trap = target_trap
+				if(trap.armed)
+					trap.trap_effect(caster)
+			else
+				var/obj/structure/rune_ward/rune = target_trap
+				rune.Crossed(caster)
 		return FALSE
 
 	if(QDELETED(target_trap))

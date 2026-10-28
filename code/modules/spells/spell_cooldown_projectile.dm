@@ -74,11 +74,14 @@
 
 /// Fire the projectile(s) at the target.
 /datum/action/cooldown/spell/projectile/proc/fire_projectile(atom/target)
+	if(QDELETED(owner) || !get_turf(owner) || !get_turf(target))
+		return FALSE
 	for(var/i in 1 to projectiles_per_fire)
 		var/active_type = (arc_mode && projectile_type_arc) ? projectile_type_arc : projectile_type
 		var/obj/projectile/to_fire = new active_type(owner.loc)
 		ready_projectile(to_fire, target, owner, i)
-		to_fire.fire()
+		if(!QDELETED(to_fire))
+			to_fire.fire()
 	return TRUE
 
 /// Configure the projectile before firing. Override for spell-specific setup (e.g., spread angles).
@@ -105,6 +108,8 @@
 		best_implement?.attune_implement(spell_color, attunement_school)
 
 	to_fire.preparePixelProjectile(target, user)
+	if(QDELETED(to_fire))
+		return
 
 	// Register hit signal so the spell knows when the projectile connects
 	RegisterSignal(to_fire, COMSIG_PROJECTILE_SELF_ON_HIT, PROC_REF(on_cast_hit))

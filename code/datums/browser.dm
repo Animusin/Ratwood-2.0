@@ -130,8 +130,16 @@
 	[get_footer()]
 	"}
 
+/datum/browser/proc/get_user_client()
+	if(ismob(user))
+		return user.client
+	var/client/direct_user = user
+	if(istype(direct_user))
+		return direct_user
+
 /datum/browser/proc/open(use_onclose = TRUE)
-	if(!user)
+	var/client/browser_client = get_user_client()
+	if(!browser_client)
 		return
 	if(isnull(window_id))	//null check because this can potentially nuke goonchat
 		WARNING("Browser [title] tried to open with a null ID")
@@ -150,14 +158,23 @@
 		SSassets.transport.send_assets(user, stylesheets)
 	if (length(scripts))
 		SSassets.transport.send_assets(user, scripts)
+	if(!browser_client || get_user_client() != browser_client)
+		return
 	DIRECT_OUTPUT(user, browse(get_content(), "window=[window_id];[window_size][window_options]"))
 	if (use_onclose)
 		setup_onclose()
 
 /datum/browser/proc/setup_onclose()
 	set waitfor = 0 //winexists sleeps, so we don't need to.
+	var/client/browser_client = get_user_client()
 	for (var/i in 1 to 10)
-		if (user && winexists(user, window_id))
+		if(!browser_client || get_user_client() != browser_client)
+			return
+		var/window_exists = winexists(browser_client, window_id)
+		// winexists yields; the old mob may have disconnected or changed owners.
+		if(!browser_client || get_user_client() != browser_client)
+			return
+		if(window_exists)
 			onclose(user, window_id, ref)
 			break
 
@@ -478,14 +495,15 @@
 // to pass a "close=1" parameter to the atom's Topic() proc for special handling.
 // Otherwise, the user mob's machine var will be reset directly.
 //
-/proc/onclose(mob/user, windowid, atom/ref=null)
-	if(!user.client)
+/proc/onclose(user, windowid, atom/ref=null)
+	var/client/target_client = CLIENT_FROM_VAR(user)
+	if(!target_client)
 		return
 	var/param = "null"
 	if(ref)
 		param = "[REF(ref)]"
 
-	winset(user, windowid, "on-close=\".windowclose [param]\"")
+	winset(target_client, windowid, "on-close=\".windowclose [param]\"")
 
 
 

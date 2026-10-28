@@ -430,6 +430,8 @@ GLOBAL_LIST_INIT(department_radio_keys, list(
 	var/listener_has_ceiling	= TRUE
 	var/speaker_has_ceiling		= TRUE
 	var/turf/speaker_turf = get_turf(source)
+	if(!speaker_turf)
+		return
 	var/turf/speaker_ceiling = GET_TURF_ABOVE(speaker_turf)
 	var/line_of_sight_only = FALSE
 
@@ -546,8 +548,12 @@ GLOBAL_LIST_INIT(department_radio_keys, list(
 		for(var/mob/hearer in get_hearers_in_view(message_range, speaker_ceiling)) // we need LOS to their location
 			speaker_ceiling_nearby[hearer] = TRUE
 	for(var/atom/movable/AM as anything in listening)
+		if(QDELETED(AM))
+			continue
 		var/hearall = FALSE
 		var/turf/listener_turf = get_turf(AM)
+		if(!listener_turf)
+			continue
 		var/turf/listener_ceiling = get_step_multiz(listener_turf, UP)
 		if(istype(AM, /obj/item/listeningdevice)) // Very evil snowflake code.
 			hearall = TRUE

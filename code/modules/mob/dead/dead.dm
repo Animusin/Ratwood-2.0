@@ -51,6 +51,7 @@ INITIALIZE_IMMEDIATE(/mob/dead)
 	set waitfor = 0
 	if(QDELETED(src) || !client || client.mob != src)
 		return
+	var/client/lobby_client = client
 
 	if(client.is_new_player())
 		return
@@ -59,17 +60,22 @@ INITIALIZE_IMMEDIATE(/mob/dead)
 	if(SSticker.HasRoundStarted() || time_remaining <= 0)
 		client << browse(null, "window=lobby_window")
 		return
-	if(!winexists(client, "lobby_window"))
+	var/window_exists = winexists(lobby_client, "lobby_window")
+	if(QDELETED(src) || !lobby_client || client != lobby_client || lobby_client.mob != src)
+		return
+	if(!window_exists)
 		open_lobby()  // creates window + browser control
 		sleep(0)
-		if(QDELETED(src) || !client || client.mob != src) // client/mob vanished while we slept
+		if(QDELETED(src) || !lobby_client || client != lobby_client || lobby_client.mob != src)
 			return
-	var/lobby_visible = winget(client, "lobby_window", "is-visible")
+	var/lobby_visible = winget(lobby_client, "lobby_window", "is-visible")
+	if(QDELETED(src) || !lobby_client || client != lobby_client || lobby_client.mob != src)
+		return
 	if(lobby_visible == "false") // winget returns a string...
 		client << browse(null, "window=lobby_window")
 		open_lobby()
 		sleep(0)
-		if(QDELETED(src) || !client || client.mob != src) // client/mob vanished while we slept
+		if(QDELETED(src) || !lobby_client || client != lobby_client || lobby_client.mob != src)
 			return
 
 	// UPDATE TIMER -- Script in html\lobby\lobby.html / .js

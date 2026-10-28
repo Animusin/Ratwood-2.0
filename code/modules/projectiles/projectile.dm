@@ -483,6 +483,8 @@
 		transform = M
 	trajectory_ignore_forcemove = TRUE
 	forceMove(starting)
+	if(QDELETED(src))
+		return FALSE
 	trajectory_ignore_forcemove = FALSE
 	trajectory = new(starting.x, starting.y, starting.z, pixel_x, pixel_y, Angle, SSprojectiles.global_pixel_speed)
 	last_projectile_move = world.time
@@ -560,7 +562,7 @@
 		pixel_move(1, TRUE)
 
 /obj/projectile/proc/pixel_move(trajectory_multiplier, hitscanning = FALSE)
-	if(!loc || !trajectory)
+	if(QDELETED(src) || !loc || !trajectory)
 		return
 	last_projectile_move = world.time
 	if(!nondirectional_sprite && !hitscanning)
@@ -583,8 +585,12 @@
 			before_z_change(loc, T)
 			trajectory_ignore_forcemove = TRUE
 			forceMove(T)
+			if(QDELETED(src))
+				return
 			trajectory_ignore_forcemove = FALSE
 			after_z_change(old, loc)
+			if(QDELETED(src) || !trajectory)
+				return
 			if(!hitscanning)
 				pixel_x = trajectory.return_px()
 				pixel_y = trajectory.return_py()
@@ -592,6 +598,8 @@
 			hitscan_last = loc
 		else if(T != loc)
 			step_towards(src, T)
+			if(QDELETED(src) || !trajectory)
+				return
 			hitscan_last = loc
 		
 		if(arcshot && starting && target_z && z > target_z)
@@ -605,6 +613,8 @@
 					before_z_change(loc, below)
 					trajectory_ignore_forcemove = TRUE
 					forceMove(below)
+					if(QDELETED(src))
+						return
 					trajectory_ignore_forcemove = FALSE
 					after_z_change(old, loc)
 					if(trajectory)

@@ -23,11 +23,14 @@
 /obj/structure/stairs/proc/on_exit(datum/source, atom/movable/leaving, atom/new_location)
 	SIGNAL_HANDLER
 
+	if(QDELETED(leaving))
+		return
 	if(isobserver(leaving))
 		return
 
 	if(user_walk_into_target_loc(leaving, get_dir(src, new_location)))
-		leaving.Bump(src)
+		if(!QDELETED(leaving))
+			leaving.Bump(src)
 		return COMPONENT_ATOM_BLOCK_EXIT
 
 /// From a cardinal direction, returns the resulting turf we'll end up at if we're uncrossing the stairs. Used for pathfinding, mostly.
@@ -126,6 +129,8 @@
 
 
 /proc/movable_travel_z_level(atom/movable/AM, turf/newtarg)
+	if(QDELETED(AM) || QDELETED(newtarg))
+		return
 	if(!isliving(AM))
 		AM.forceMove(newtarg)
 		return

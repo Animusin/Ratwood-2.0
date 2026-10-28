@@ -59,7 +59,7 @@
 	if(lumber_amount && I.tool_behaviour == TOOL_SAW)
 		playsound(get_turf(src.loc), 'sound/foley/sawing.ogg', 100)
 		user.visible_message("<span class='notice'>[user] starts sawing [src] to smaller pieces.</span>")
-		if(do_after(user, planking_time))
+		if(do_after(user, planking_time, target = src) && !QDELETED(src))
 			new /obj/item/grown/log/tree/small(get_turf(src.loc))
 			new /obj/item/grown/log/tree/small(get_turf(src.loc))
 			if(prob(skill_level + user.goodluck(2)))	// when sawing instead of essence you get extra small log
@@ -71,7 +71,8 @@
 			user.mind.add_sleep_experience(/datum/skill/labor/lumberjacking, (user.STAINT*0.5))
 			new /obj/effect/decal/cleanable/debris/woody(get_turf(src))
 			qdel(src)
-			return
+		// Cancellation also consumes the saw interaction; do not fall through to a weapon hit.
+		return TRUE
 	if(user.used_intent.blade_class == BCLASS_CHOP && lumber_amount && lumber)
 		var/lumber_time = (40 - (skill_level * 5))
 		var/minimum = 1
@@ -190,7 +191,7 @@
 	if(I.tool_behaviour == TOOL_SAW)
 		playsound(get_turf(src.loc), 'sound/foley/sawing.ogg', 100)
 		user.visible_message("<span class='notice'>[user] starts sawing planks from [src].</span>")
-		if(do_after(user, planking_time))
+		if(do_after(user, planking_time, target = src) && !QDELETED(src))
 			if(user.is_holding(src))
 				user.dropItemToGround(src)
 			for(var/i=1, i<=woodtotal, ++i)
@@ -203,7 +204,7 @@
 			user.mind.add_sleep_experience(/datum/skill/craft/carpentry, (user.STAINT*0.5))
 			new /obj/effect/decal/cleanable/debris/woody(get_turf(src))
 			qdel(src)
-			return
+		return TRUE
 	..()
 
 /obj/item/grown/log/tree/bowpartial

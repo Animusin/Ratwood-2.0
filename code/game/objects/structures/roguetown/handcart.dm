@@ -154,6 +154,8 @@
 			playsound(loc, 'sound/foley/cartadd.ogg', 100, FALSE, -1)
 
 /obj/structure/handcart/proc/put_in(atom/movable/O, mob/user)
+	if(QDELETED(O) || O.loc == src)
+		return FALSE
 	var/weight = 0
 	if(isitem(O))
 		var/obj/item/I = O
@@ -164,10 +166,14 @@
 		if((current_capacity + arbitrary_living_creature_weight) > maximum_capacity)
 			return FALSE
 		weight = arbitrary_living_creature_weight
-	if(user && !user.transferItemToLoc(O, src))
-		return FALSE
+	if(user)
+		if(!user.transferItemToLoc(O, src))
+			return FALSE
 	else
 		O.forceMove(src)
+	// Dropping an item can delete it or move it elsewhere through its callbacks.
+	if(QDELETED(O) || O.loc != src)
+		return FALSE
 	current_capacity += weight
 	stuff_shit += O
 	update_icon()

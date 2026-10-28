@@ -39,8 +39,10 @@
 		return FALSE
 	if(!p)
 		return FALSE
-	if(p.client)
+	if(p?.client)
 		var/atom/AT = get_turf(p.client.eye)
+		if(!AT)
+			return FALSE
 		if(!p.client.mouseovertext)
 			p.client.genmouseobj()
 			return FALSE
@@ -63,8 +65,10 @@
 
 /obj/structure/handle_mouseover(location, control, params)
 	var/mob/p = usr
-	if(p.client)
+	if(p?.client)
 		var/atom/AT = get_turf(p.client.eye)
+		if(!AT)
+			return FALSE
 		if(!p.client.mouseovertext)
 			p.client.genmouseobj()
 			return FALSE
@@ -94,7 +98,7 @@
 
 /atom/proc/handle_mouseexit(params)
 	var/mob/p = usr
-	if(p.client)
+	if(p?.client)
 		if(!p.client.mouseovertext)
 			p.client.genmouseobj()
 			return FALSE
@@ -126,8 +130,10 @@
 	var/mob/p = usr
 	if(QDELETED(src))
 		return FALSE
-	if(p.client)
+	if(p?.client)
 		var/atom/AT = get_turf(p.client.eye)
+		if(!AT)
+			return FALSE
 		if(!p.client.mouseovertext)
 			p.client.genmouseobj()
 			return FALSE
@@ -150,8 +156,10 @@
 	var/mob/p = usr
 	if(QDELETED(src))
 		return FALSE
-	if(p.client)
+	if(p?.client)
 		var/atom/AT = get_turf(p.client.eye)
+		if(!AT)
+			return FALSE
 		if(!p.client.mouseovertext)
 			p.client.genmouseobj()
 			return FALSE
@@ -169,8 +177,10 @@
 	var/mob/p = usr
 	if(QDELETED(src))
 		return FALSE
-	if(p.client)
+	if(p?.client)
 		var/atom/AT = get_turf(p.client.eye)
+		if(!AT)
+			return FALSE
 		if(!p.client.mouseovertext)
 			p.client.genmouseobj()
 			return FALSE

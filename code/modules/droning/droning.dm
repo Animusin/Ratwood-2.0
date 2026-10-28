@@ -142,8 +142,9 @@ SUBSYSTEM_DEF(droning)
 		listener.last_droning_sound = area_player.droning_sound
 		SEND_SOUND(listener, droning)
 	else
+		var/sound/previous_sound = listener.droning_sound
 		var/sound/sound_killer = sound()
-		sound_killer.channel = listener.droning_sound.channel
+		sound_killer.channel = previous_sound.channel
 		sound_killer.volume = get_channel_volume(listener, sound_killer.channel)
 		while(sound_killer.volume > 0)
 			if(sound_killer.volume <= 0)
@@ -152,6 +153,9 @@ SUBSYSTEM_DEF(droning)
 			sound_killer.status = SOUND_UPDATE
 			SEND_SOUND(listener, sound_killer)
 			sleep(1)
+			// Disconnects, combat music and another area transition can replace this fade.
+			if(!listener?.mob || QDELETED(area_player) || listener.droning_sound != previous_sound || get_area(listener.mob) != area_player)
+				return
 		listener.droning_sound = null
 		listener.last_droning_sound = null
 		var/sound/droning = sound(pick(area_player.droning_sound_current), area_player.droning_repeat, area_player.droning_wait, area_player.droning_channel, get_channel_volume(listener, area_player.droning_channel))

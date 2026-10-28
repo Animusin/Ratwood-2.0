@@ -2,9 +2,15 @@
 	var/mob/living/holder
 
 /datum/fellowship_ui/New(mob/living/user)
-	if(!istype(user))
-		CRASH("Fellowship UI created without a user")
+	if(!istype(user) || QDELETED(user))
+		qdel(src)
+		return
 	holder = user
+	RegisterSignal(holder, COMSIG_QDELETING, PROC_REF(holder_deleted))
+
+/datum/fellowship_ui/proc/holder_deleted(datum/source)
+	SIGNAL_HANDLER
+	qdel(src)
 
 /datum/fellowship_ui/Destroy(force)
 	if(holder && GLOB.fellowship_uis_by_mob[holder] == src)
@@ -15,7 +21,14 @@
 /datum/fellowship_ui/ui_state(mob/user)
 	return GLOB.always_state
 
+/datum/fellowship_ui/ui_status(mob/user, datum/ui_state/state)
+	if(QDELETED(holder) || user != holder)
+		return UI_CLOSE
+	return ..()
+
 /datum/fellowship_ui/ui_interact(mob/user, datum/tgui/ui)
+	if(QDELETED(src) || QDELETED(holder) || user != holder || !user.client)
+		return
 	ui = SStgui.try_update_ui(user, src, ui)
 	if(!ui)
 		ui = new(user, src, "FellowshipPanel")
@@ -37,6 +50,8 @@
 	return list("server_time" = world.time)
 
 /datum/fellowship_ui/ui_static_data(mob/user)
+	if(QDELETED(holder) || user != holder)
+		return list()
 	var/list/data = list()
 	data["user_name"] = holder.real_name
 	data["max_members"] = FELLOWSHIP_MAX_MEMBERS

@@ -91,9 +91,13 @@
 
 /obj/item/flashlight/flare/light/Initialize(mapload)
 	. = ..()
-	soundloop = new(list(src), FALSE)
+	soundloop = new(src, FALSE)
 	on = TRUE
 	START_PROCESSING(SSobj, src)
+
+/obj/item/flashlight/flare/light/Destroy()
+	QDEL_NULL(soundloop)
+	return ..()
 
 /obj/item/flashlight/flare/light/update_brightness(mob/user = null)
 	..()

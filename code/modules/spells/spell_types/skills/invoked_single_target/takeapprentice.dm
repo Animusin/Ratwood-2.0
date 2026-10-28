@@ -57,42 +57,56 @@
 	)
 
 /obj/effect/proc_holder/spell/invoked/takeapprentice/cast(list/targets, mob/user = usr)
+	if(!isliving(user) || QDELETED(user))
+		return FALSE
+	var/mob/living/L = length(targets) ? targets[1] : null
+	if(!istype(L) || QDELETED(L))
+		revert_cast(user)
+		return FALSE
 	. = ..()
 	var/list/choices = list()
-	var/mob/living/L = targets[1]
 	if(user.get_apprentice())
 		to_chat(user, span_warning("You already have an apprentice and cannot take another."))
-		revert_cast()
+		revert_cast(user)
 		return
 	if(L.get_mentor())
 		to_chat(user, span_warning("[L.name] already has a mentor and cannot take another."))
-		revert_cast()
+		revert_cast(user)
 		return
 	if(user == L)
 		to_chat(user, span_warning("You cannot take yourself as an apprentice."))
-		revert_cast()
+		revert_cast(user)
 		return
 	for(var/i in traits_to_skills)
 		if(HAS_TRAIT(user, i) && !HAS_TRAIT(L, i))
 			choices += i
 	if(!length(choices))
 		to_chat(user, span_warning("Somehow, you do not have any traits that [L.name] can learn."))
-		revert_cast()
+		revert_cast(user)
+		return FALSE
 	var/chosen_trait = input(user, "Choose a trait for [L.name] to learn.", "IMPART YOUR KNOWLEDGE") as null|anything in choices
-	if(alert(L, "[user.name] is offering to take you as an apprentice, teaching you the basics of being a [chosen_trait]. Do you accept?", "Apprenticeship", "SERVE AND LEARN", "I REFUSE") == "I REFUSE")
+	if(QDELETED(src) || QDELETED(user))
+		return FALSE
+	if(!chosen_trait || QDELETED(L))
+		revert_cast(user)
+		return FALSE
+	var/response = alert(L, "[user.name] is offering to take you as an apprentice, teaching you the basics of being a [chosen_trait]. Do you accept?", "Apprenticeship", "SERVE AND LEARN", "I REFUSE")
+	if(QDELETED(src) || QDELETED(user))
+		return FALSE
+	if(response != "SERVE AND LEARN")
 		// Daga Kotowaru
-		to_chat(user, span_warning("[L.name] has declined your offer to take them as an apprentice."))
-		revert_cast()
+		to_chat(user, span_warning("The apprenticeship offer was declined."))
+		revert_cast(user)
 		return
-	if(!chosen_trait)
-		to_chat(user, span_warning("You must choose a trait for [L.name] to learn."))
-		revert_cast()
-		return
+	// Both dialogs yield; another apprenticeship or a move may have happened meanwhile.
+	if(QDELETED(L) || !user.Adjacent(L) || user.get_apprentice() || L.get_mentor() || !HAS_TRAIT(user, chosen_trait) || HAS_TRAIT(L, chosen_trait))
+		revert_cast(user)
+		return FALSE
 	// Give the trait and skills.
 	ADD_TRAIT(L, chosen_trait, TRAIT_GENERIC)
+	to_chat(L, span_greentext("[user] has taken you as an apprentice, teaching you the basics of being an [chosen_trait]."))
 	for(var/skill in traits_to_skills[chosen_trait])
 		// We can just skip the check because it only adjust up to 1 anyway
-		to_chat(L, span_greentext("[user] has taken you as an apprentice, teaching you the basics of being an [chosen_trait]."))
 		L.adjust_skillrank_up_to(skill, SKILL_LEVEL_NOVICE)
-		L.set_mentor(user)
-		user.set_apprentice(L)
+	L.set_mentor(user)
+	user.set_apprentice(L)

@@ -841,10 +841,14 @@
 	if(!istype(src, /obj/item/paper/inqslip))
 		to_chat(user, span_info("I start to wrap [P] in [src]..."))
 		if(do_after(user, 30, 0, target = src))
+			if(QDELETED(P))
+				return
 			if(user.is_holding(P))
 				if(!user.dropItemToGround(P))
 					return
 			else if(!isturf(P.loc))
+				return
+			if(QDELETED(P))
 				return
 			var/obj/item/smallDelivery/D = new /obj/item/smallDelivery(get_turf(P.loc))
 			if(user.Adjacent(D))
@@ -990,7 +994,7 @@
 		name = "[name] ([str])"
 
 /obj/item/proc/can_be_package_wrapped() //can the item be wrapped with package wrapper into a delivery package
-	return 1
+	return !(item_flags & (ABSTRACT | DROPDEL))
 
 /obj/item/storage/can_be_package_wrapped()
 	return 0

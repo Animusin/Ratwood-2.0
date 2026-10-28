@@ -510,6 +510,8 @@ GLOBAL_VAR_INIT(mobids, 1)
 	set category = "IC"
 	set hidden = 1
 
+	if(QDELETED(A))
+		return
 	if(isturf(A) && !(sight & SEE_TURFS) && !(A in view(client ? client.view : world.view, src)))
 		// shift-click catcher may issue examinate() calls for out-of-sight turfs
 		return
@@ -527,7 +529,7 @@ GLOBAL_VAR_INIT(mobids, 1)
 				target = "themselves"
 			if(A.loc == src)
 				target = "[src.p_their()] [A.name]"
-			if(A.loc.loc == src)
+			if(A.loc?.loc == src)
 				message = "[src] looks into"
 				target = "[src.p_their()] [A.loc.name]"
 			if(isliving(A))
@@ -567,7 +569,7 @@ GLOBAL_VAR_INIT(mobids, 1)
 
 	var/list/result = A.examine(src)
 	if(result)
-		to_chat(src, usr.client.prefs.no_examine_blocks ? result.Join("\n") : examine_block(result.Join("\n")))
+		to_chat(src, client?.prefs?.no_examine_blocks ? result.Join("\n") : examine_block(result.Join("\n")))
 	SEND_SIGNAL(src, COMSIG_MOB_EXAMINATE, A)
 
 ///Can this mob resist (default FALSE)

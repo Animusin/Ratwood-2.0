@@ -213,16 +213,19 @@ But you can call procs that are of type /mob/living/carbon/human/proc/ for that 
 /client/proc/cmd_admin_dress(mob/M in GLOB.mob_list)
 	set category = "-GameMaster-"
 	set name = "Select Loadout"
+	if(!check_rights_for(src, R_ADMIN))
+		return
 	if(!(ishuman(M) || isobserver(M)))
 		alert("Invalid mob")
 		return
 
 	var/mob/living/carbon/human/H
 	if(isobserver(M))
+		var/target_ckey = M.ckey
 		H = M.change_mob_type(/mob/living/carbon/human, null, null, TRUE)
 		// Ensure the new human inherits the ckey from the observer
-		if(!H.ckey && M.ckey)
-			H.ckey = M.ckey
+		if(H && !H.ckey && target_ckey)
+			H.ckey = target_ckey
 	else
 		H = M
 	
@@ -230,8 +233,10 @@ But you can call procs that are of type /mob/living/carbon/human/proc/ for that 
 	show_loadout_panel(H)
 
 /client/proc/show_loadout_panel(mob/living/carbon/human/H)
-	if(!H)
+	if(QDELETED(H) || !check_rights_for(src, R_ADMIN))
 		return
+	// Converting the admin's own observer can delete usr; src is the surviving client.
+	var/href_token = "admin_token=[holder.href_token]"
 	
 	var/body = "<html><head><title>Loadout Manager - [H.name]</title>"
 	body += "<style>"
@@ -267,24 +272,24 @@ But you can call procs that are of type /mob/living/carbon/human/proc/ for that 
 	
 	// Job selection
 	body += "<b>Job Selection:</b><br>"
-	body += "<A href='?_src_=holder;[HrefToken()];loadout_action=select_job;target=[REF(H)]'>Select Job</A> | "
-	body += "<A href='?_src_=holder;[HrefToken()];loadout_action=select_advclass;target=[REF(H)]'>Select Advclass</A> | "
-	body += "<A href='?_src_=holder;[HrefToken()];loadout_action=copy_from_mob;target=[REF(H)]'>Copy From...</A>"
+	body += "<A href='?_src_=holder;[href_token];loadout_action=select_job;target=[REF(H)]'>Select Job</A> | "
+	body += "<A href='?_src_=holder;[href_token];loadout_action=select_advclass;target=[REF(H)]'>Select Advclass</A> | "
+	body += "<A href='?_src_=holder;[href_token];loadout_action=copy_from_mob;target=[REF(H)]'>Copy From...</A>"
 	body += "<br><br>"
 	
 	// Application section
 	body += "<b>Apply Components:</b><br>"
-	body += "<A href='?_src_=holder;[HrefToken()];loadout_action=apply_stats;target=[REF(H)]'>Apply Stats</A> | "
-	body += "<A href='?_src_=holder;[HrefToken()];loadout_action=apply_equipment_spells;target=[REF(H)]'>Apply Equipment/Spells</A> | "
-	body += "<A href='?_src_=holder;[HrefToken()];loadout_action=apply_skills;target=[REF(H)]'>Apply Skills</A> | "
-	body += "<A href='?_src_=holder;[HrefToken()];loadout_action=apply_traits;target=[REF(H)]'>Apply Traits</A> | "
-	body += "<A href='?_src_=holder;[HrefToken()];loadout_action=apply_examine_title;target=[REF(H)]'>Apply Examine Title</A><br>"
-	body += "<A href='?_src_=holder;[HrefToken()];loadout_action=apply_all;target=[REF(H)]'>Apply All</A> | "
-	body += "<A href='?_src_=holder;[HrefToken()];loadout_action=clean_slate;target=[REF(H)]'>Clean Slate</A>"
+	body += "<A href='?_src_=holder;[href_token];loadout_action=apply_stats;target=[REF(H)]'>Apply Stats</A> | "
+	body += "<A href='?_src_=holder;[href_token];loadout_action=apply_equipment_spells;target=[REF(H)]'>Apply Equipment/Spells</A> | "
+	body += "<A href='?_src_=holder;[href_token];loadout_action=apply_skills;target=[REF(H)]'>Apply Skills</A> | "
+	body += "<A href='?_src_=holder;[href_token];loadout_action=apply_traits;target=[REF(H)]'>Apply Traits</A> | "
+	body += "<A href='?_src_=holder;[href_token];loadout_action=apply_examine_title;target=[REF(H)]'>Apply Examine Title</A><br>"
+	body += "<A href='?_src_=holder;[href_token];loadout_action=apply_all;target=[REF(H)]'>Apply All</A> | "
+	body += "<A href='?_src_=holder;[href_token];loadout_action=clean_slate;target=[REF(H)]'>Clean Slate</A>"
 	
 	body += "</body></html>"
 	
-	usr << browse(body, "window=loadout_manager[REF(H)];size=500x400")
+	src << browse(body, "window=loadout_manager[REF(H)];size=500x400")
 
 // Global variables to store selected job and advclass for each target mob
 GLOBAL_LIST_EMPTY(loadout_selected_jobs)

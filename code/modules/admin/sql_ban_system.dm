@@ -9,13 +9,14 @@
 		return
 	var/client/C = GLOB.directory[player_ckey]
 	if(C)
-		if(!C.ban_cache)
-			build_ban_cache(C)
+		var/list/ban_cache = C.ban_cache
+		if(isnull(ban_cache))
+			ban_cache = build_ban_cache(C)
 		if(islist(roles))
 			for(var/R in roles)
-				if(R in C.ban_cache)
+				if(R in ban_cache)
 					return TRUE //they're banned from at least one role, no need to keep checking
-		else if(roles in C.ban_cache)
+		else if(roles in ban_cache)
 			return TRUE
 	else
 		var/values = list(
@@ -84,25 +85,29 @@
 	qdel(query_check_ban)
 
 /proc/build_ban_cache(client/C)
+	if(!istype(C))
+		return
+	var/player_ckey = C.ckey
+	var/is_admin = !!(GLOB.admin_datums[player_ckey] || GLOB.deadmins[player_ckey])
 	if(!SSdbcore.Connect())
 		return
-	if(C && istype(C))
-		C.ban_cache = list()
-		var/is_admin = FALSE
-		if(GLOB.admin_datums[C.ckey] || GLOB.deadmins[C.ckey])
-			is_admin = TRUE
-		var/datum/DBQuery/query_build_ban_cache = SSdbcore.NewQuery(
-			"SELECT role, applies_to_admins FROM [format_table_name("ban")] WHERE ckey = :ckey AND unbanned_datetime IS NULL AND (expiration_time IS NULL OR expiration_time > NOW())",
-			list("ckey" = C.ckey)
-		)
-		if(!query_build_ban_cache.warn_execute())
-			qdel(query_build_ban_cache)
-			return
-		while(query_build_ban_cache.NextRow())
-			if(is_admin && !text2num(query_build_ban_cache.item[2]))
-				continue
-			C.ban_cache[query_build_ban_cache.item[1]] = TRUE
+	var/datum/DBQuery/query_build_ban_cache = SSdbcore.NewQuery(
+		"SELECT role, applies_to_admins FROM [format_table_name("ban")] WHERE ckey = :ckey AND unbanned_datetime IS NULL AND (expiration_time IS NULL OR expiration_time > NOW())",
+		list("ckey" = player_ckey)
+	)
+	if(!query_build_ban_cache.warn_execute())
 		qdel(query_build_ban_cache)
+		return
+	var/list/ban_cache = list()
+	while(query_build_ban_cache.NextRow())
+		if(is_admin && !text2num(query_build_ban_cache.item[2]))
+			continue
+		ban_cache[query_build_ban_cache.item[1]] = TRUE
+	qdel(query_build_ban_cache)
+	// The query can finish after this connection closes. Publish only to its owner.
+	if(C && C.ckey == player_ckey)
+		C.ban_cache = ban_cache
+	return ban_cache
 
 /datum/admins/proc/ban_panel(player_key, player_ip, player_cid, role, duration = 1440, applies_to_admins, reason, edit_id, page, admin_key)
 	var/panel_height = 620

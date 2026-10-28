@@ -106,12 +106,15 @@
 				if(WLENGTH_GREAT)
 					html += "Great<br>"
 
-		if(bookweapon.has_altgrip_modes())
-			var/alt_grip_names = bookweapon.get_altgrip_names()
+		// bookweapon is a type path; grip methods require an item instance.
+		var/obj/item/grip_preview = new created_item()
+		if(grip_preview.has_altgrip_modes())
+			var/alt_grip_names = grip_preview.get_altgrip_names()
 			html += "\n<b>GRIP: ALT-GRIP (Inhand RMB / Hotkey)"
 			if(alt_grip_names)
 				html += ": [alt_grip_names]"
 			html += "</b><br>"
+		qdel(grip_preview)
 		if(bookweapon.gripped_intents)
 			html += "\n<b>TWO-HANDED: Yes</b><br>"
 

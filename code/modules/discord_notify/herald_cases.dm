@@ -294,7 +294,8 @@ GLOBAL_DATUM_INIT(herald_case_ledger, /datum/herald_case_ledger, new)
 		if(previous["fingerprint"] != fingerprint)
 			result["status"] = "request_id_conflict"
 			return envelope(request_id, result)
-		var/list/cached = previous["result"].Copy()
+		var/list/previous_result = previous["result"]
+		var/list/cached = previous_result.Copy()
 		cached["duplicate"] = TRUE
 		return envelope(request_id, cached)
 	var/refusal = guard(T, data, action)
@@ -397,7 +398,8 @@ GLOBAL_DATUM_INIT(herald_case_ledger, /datum/herald_case_ledger, new)
 		if(previous["fingerprint"] != fingerprint)
 			result["status"] = "request_id_conflict"
 			return envelope(request_id, result)
-		var/list/cached = previous["result"].Copy()
+		var/list/previous_result = previous["result"]
+		var/list/cached = previous_result.Copy()
 		cached["duplicate"] = TRUE
 		return envelope(request_id, cached)
 	if(!validate(action, data))

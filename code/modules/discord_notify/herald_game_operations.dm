@@ -30,7 +30,8 @@ GLOBAL_DATUM_INIT(herald_game_operations, /datum/herald_game_operations, new)
 			to_chat(C, span_adminhelp("[actor] отключил вас от сервера. Причина: [reason]"))
 			log_admin("[actor] kicked [ck]. Reason: [reason]")
 			message_admins("[actor] kicked [ck]. Reason: [reason]")
-			GLOB.ahelp_tickets.CKey2ActiveTicket(ck)?.AddInteraction("[actor] kicked [ck]. Reason: [reason]", ticket_kind, interaction_actor)
+			var/datum/admin_help/ticket = GLOB.ahelp_tickets.CKey2ActiveTicket(ck)
+			ticket?.AddInteraction("[actor] kicked [ck]. Reason: [reason]", ticket_kind, interaction_actor)
 			qdel(C)
 			return list("status" = "kicked")
 		if("pq")
@@ -49,7 +50,8 @@ GLOBAL_DATUM_INIT(herald_game_operations, /datum/herald_game_operations, new)
 			var/client/C = GLOB.directory[ck]
 			if(C)
 				to_chat(C, span_adminhelp("[actor] изменил ПК: [before] → [after]. Причина: [reason]"))
-			GLOB.ahelp_tickets.CKey2ActiveTicket(ck)?.AddInteraction("[actor] adjusted PQ [before] → [after]. Reason: [reason]", ticket_kind, interaction_actor)
+			var/datum/admin_help/ticket = GLOB.ahelp_tickets.CKey2ActiveTicket(ck)
+			ticket?.AddInteraction("[actor] adjusted PQ [before] → [after]. Reason: [reason]", ticket_kind, interaction_actor)
 			return list("status" = "pq_adjusted", "before" = before, "after" = after, "applied_delta" = after - before)
 	return list("status" = "unsupported_action")
 
@@ -83,10 +85,10 @@ GLOBAL_DATUM_INIT(herald_game_operations, /datum/herald_game_operations, new)
 	Q = new_query({"
 		INSERT INTO [format_table_name("ban")]
 		(bantime, server_ip, server_port, round_id, role, expiration_time, applies_to_admins,
-		 reason, ckey, a_ckey, a_ip, a_computerid, who, adminwho)
+		reason, ckey, a_ckey, a_ip, a_computerid, who, adminwho)
 		VALUES (NOW(), INET_ATON(:server_ip), :port, :round_id, 'Server',
-		 IF(:minutes IS NULL, NULL, NOW() + INTERVAL :minutes MINUTE), 0,
-		 :reason, :ckey, :admin_ckey, 0, '', :who, :adminwho)
+		IF(:minutes IS NULL, NULL, NOW() + INTERVAL :minutes MINUTE), 0,
+		:reason, :ckey, :admin_ckey, 0, '', :who, :adminwho)
 	"}, list("server_ip" = world.internet_address || "0", "port" = world.port,
 		"round_id" = GLOB.round_id, "minutes" = minutes ? minutes : null, "reason" = audit_reason,
 		"ckey" = ck, "admin_ckey" = admin_ckey, "who" = copytext_char(GLOB.clients.Join(", "), 1, 2001), "adminwho" = actor))
@@ -101,7 +103,8 @@ GLOBAL_DATUM_INIT(herald_game_operations, /datum/herald_game_operations, new)
 	var/body = html_encode(audit_reason)
 	log_admin_private("[actor] server-banned [ck] for [duration]. Ban #[ban_id]. Reason: [body]")
 	message_admins("[actor] server-banned [ck] for [duration]. Ban #[ban_id]. Reason: [body]")
-	GLOB.ahelp_tickets.CKey2ActiveTicket(ck)?.AddInteraction("[actor] server-banned [ck] for [duration]. Ban #[ban_id]. Reason: [body]", ticket_kind, ticket_actor || admin_ckey)
+	var/datum/admin_help/ticket = GLOB.ahelp_tickets.CKey2ActiveTicket(ck)
+	ticket?.AddInteraction("[actor] server-banned [ck] for [duration]. Ban #[ban_id]. Reason: [body]", ticket_kind, ticket_actor || admin_ckey)
 	var/client/C = GLOB.directory[ck]
 	if(C && !GLOB.admin_datums[ck] && !GLOB.deadmins[ck])
 		to_chat(C, span_adminhelp("[actor] заблокировал доступ на сервер на [duration]. Причина: [body]"))

@@ -152,7 +152,8 @@
 				continue
 			var/list/interactions = list()
 			for(var/j in max(1, length(T.herald_interactions) - 2) to length(T.herald_interactions))
-				interactions += list(T.herald_interactions[j].Copy())
+				var/list/interaction = T.herald_interactions[j]
+				interactions += list(interaction.Copy())
 			tickets += list(list("id" = T.id, "ckey" = T.initiator_ckey, "state" = "active", "version" = T.herald_revision,
 				"handler" = T.herald_handler, "human_active" = !!length(T.herald_handler), "online" = !!T.HeraldDutyConnected(),
 				"last_interactions" = interactions))

@@ -136,14 +136,11 @@
 /datum/particle_weather/sand_gentle/stop_weather_sound_effect(mob/living/L)
 	..() // stop sounds normally
 
-/datum/particle_weather/sand_gentle/end()
-	running = FALSE
+/datum/particle_weather/sand_gentle/Destroy()
 	for(var/mob/living/M in currentSounds)
-		if(M.client)
-			stop_weather_sound_effect(M)
 		if(HAS_TRAIT(M, TRAIT_SANDSTORMED))
 			REMOVE_TRAIT(M, TRAIT_SANDSTORMED, TRAIT_GENERIC)
-	SSParticleWeather.stopWeather()
+	return ..()
 
 /datum/particle_weather/sand_storm
 	name = "Sandstorm"
@@ -264,14 +261,11 @@
 	if(HAS_TRAIT(L, TRAIT_SANDSTORMED))
 		REMOVE_TRAIT(L, TRAIT_SANDSTORMED, TRAIT_GENERIC)
 
-/datum/particle_weather/sand_storm/end()
-	running = FALSE
+/datum/particle_weather/sand_storm/Destroy()
 	for(var/mob/living/M in currentSounds)
-		if(M.client)
-			stop_weather_sound_effect(M)
 		if(HAS_TRAIT(M, TRAIT_SANDSTORMED))
 			REMOVE_TRAIT(M, TRAIT_SANDSTORMED, TRAIT_GENERIC)
-	SSParticleWeather.stopWeather()
+	return ..()
 
 
 /mob/living/proc/has_sandstorm_hood()

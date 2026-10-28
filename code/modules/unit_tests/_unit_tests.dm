@@ -100,6 +100,7 @@
 #include "market_daily_recovery.dm"
 #include "migrant_config.dm"
 #include "ooze_forms.dm"
+#include "particle_weather.dm"
 #include "reagent_id_typos.dm"
 #include "reagent_recipe_collisions.dm"
 #include "reported_bugs.dm"

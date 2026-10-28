@@ -100,30 +100,41 @@
 	secondary_filter_type = filter(type="alpha", render_source = FOG_RENDER_TARGET, flags = MASK_INVERSE)
 	#endif
 
-	var/old_plane
+	/// Actual pre-fog appearance for each area this instance changed.
+	var/list/area_appearances = list()
 
 /datum/particle_weather/fog/start()
 	. = ..()
+	if(!.)
+		return
 	for(var/area/area as anything in GLOB.areas)
 		if(area.outdoors)
-			if(!old_plane)
-				old_plane = area.plane
+			area_appearances[area] = list(
+				"icon" = area.icon,
+				"icon_state" = area.icon_state,
+				"plane" = area.plane,
+				"blend_mode" = area.blend_mode,
+				"invisibility" = area.invisibility,
+			)
 			area.icon = 'icons/effects/weather_overlay.dmi'
 			area.icon_state = "weather_overlay"
 			area.plane = WEATHER_OVERLAY_PLANE
 			area.blend_mode = BLEND_OVERLAY
 			area.invisibility = INVISIBILITY_LIGHTING
 
-/datum/particle_weather/fog/end()
-	. = ..()
-	for(var/area/area as anything in GLOB.areas)
-		if(area.outdoors)
-			area.icon = initial(area.icon)
-			area.icon_state = ""
-			area.plane = old_plane
-			area.blend_mode = initial(area.blend_mode)
-			area.invisibility = initial(area.invisibility)
-	old_plane = null
+/datum/particle_weather/fog/Destroy()
+	// Cancellation before start has no saved areas and must leave the map alone.
+	for(var/area/area as anything in area_appearances)
+		if(QDELETED(area))
+			continue
+		var/list/appearance = area_appearances[area]
+		area.icon = appearance["icon"]
+		area.icon_state = appearance["icon_state"]
+		area.plane = appearance["plane"]
+		area.blend_mode = appearance["blend_mode"]
+		area.invisibility = appearance["invisibility"]
+	area_appearances.Cut()
+	return ..()
 
 /datum/particle_weather/fog/swamp
 	name = "Swamp Fog"

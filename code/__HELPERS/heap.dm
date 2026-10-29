@@ -37,6 +37,8 @@
 
 //Get a node down to its right position in the heap
 /datum/path_minheap/proc/Sink(index)
+	if(index < 1 || index > length(L))
+		return 0
 	. = index * 2
 	var/heap_len = length(L)
 	if(. > heap_len)
@@ -56,11 +58,16 @@
 			. += 1
 
 //Replaces a given node so it verify the heap condition
+//Returns FALSE if the node is no longer in the heap (e.g. AStar already popped/expanded it),
+//in which case there is nothing to reorder.
 /datum/path_minheap/proc/ReSort(atom/A)
 	var/index = L.Find(A)
+	if(!index)
+		return FALSE
 
 	Swim(index)
 	Sink(index)
+	return TRUE
 
 /datum/path_minheap/proc/List()
 	. = L.Copy()

@@ -15,11 +15,17 @@ T1 Enchantments below here*/
 	dropshrink = 0.8
 	obj_flags_ignore = TRUE
 
-/obj/item/enchantmentscroll/attack_obj(obj/item/O, mob/living/user)
-	if(O.unenchantable)
+/obj/item/enchantmentscroll/attack_obj(obj/O, mob/living/user)
+	// attack_obj also fires on structures and machines (vendors, tables...), which have no enchantment vars.
+	// Every subtype calls this first and stops on FALSE, so nothing is consumed on an invalid target.
+	if(!isitem(O))
+		to_chat(user, span_warning("[O] cannot hold an enchantment."))
+		return FALSE
+	var/obj/item/I = O
+	if(I.unenchantable)
 		to_chat(user, span_warning("You cannot enchant this item."))
 		return FALSE
-	var/datum/component/magic_item/M = O.GetComponent(/datum/component/magic_item, component)
+	var/datum/component/magic_item/M = I.GetComponent(/datum/component/magic_item, component)
 	if(M)
 		if(length(M.magical_effects) >= M.enchanting_capacity)
 			to_chat(user, span_warning("This item is already enchanted to its full capacity."))

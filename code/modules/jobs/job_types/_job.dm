@@ -681,8 +681,11 @@
 		var/datum/browser/popup = new(usr, "classhelp", "<div style='text-align: center'>[title]</div>", nwidth = 475, nheight = height)
 		popup.set_content(dat.Join())
 		popup.open(FALSE)
-		if(winexists(usr, "classhelp"))
-			winset(usr, "classhelp", "focus=true")
+		// winexists() yields for the client's reply, during which a lobby player can join (leaving this mob) or disconnect.
+		// Talk to the client directly and re-check it afterwards.
+		var/client/viewer = usr?.client
+		if(viewer && winexists(viewer, "classhelp") && viewer)
+			winset(viewer, "classhelp", "focus=true")
 	if(href_list["jobsubclassinfo"])
 		var/list/dat = list()
 		for(var/adv in get_all_subclass_types())
@@ -698,8 +701,9 @@
 		var/datum/browser/popup = new(usr, "subclassslots", "<div style='text-align: center'>[title]</div>", nwidth = 200, nheight = 300)
 		popup.set_content(dat.Join())
 		popup.open(FALSE)
-		if(winexists(usr, "subclassslots"))
-			winset(usr, "subclassslots", "focus=true")
+		var/client/viewer = usr?.client // see classhelp above: winexists() yields
+		if(viewer && winexists(viewer, "subclassslots") && viewer)
+			winset(viewer, "subclassslots", "focus=true")
 	if(href_list["jobadvincomp"])
 		var/mob/dead/D = usr
 		if(!isdead(D) || !D.client)
@@ -713,8 +717,9 @@
 		var/datum/browser/popup = new(usr, "subclassslots", "<div style='text-align: center'>Subclass Incompatibilities</div>", nwidth = 200, nheight = 300)
 		popup.set_content(dat.Join())
 		popup.open(FALSE)
-		if(winexists(usr, "subclassslots"))
-			winset(usr, "subclassslots", "focus=true")
+		var/client/viewer = usr?.client // see classhelp above: winexists() yields
+		if(viewer && winexists(viewer, "subclassslots") && viewer)
+			winset(viewer, "subclassslots", "focus=true")
 	. = ..()
 
 /datum/job/proc/get_blocked_subclasses(client/player)

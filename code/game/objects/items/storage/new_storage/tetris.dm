@@ -784,6 +784,11 @@
 			var/mob/carrying_mob = parent.loc
 			removed_item.dropped(carrying_mob, TRUE)
 	if(new_location)
+		if(QDELETED(removed))
+			//A dropped() handler (DROPDEL, quest hand-in, ...) deleted the item, so there is nothing left to move
+			update_icon()
+			refresh_mob_views()
+			return FALSE
 		//Reset the items values
 		_removal_reset(removed)
 		removed.forceMove(new_location)

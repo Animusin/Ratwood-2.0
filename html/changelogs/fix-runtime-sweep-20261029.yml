@@ -1,0 +1,11 @@
+author: "Animusin"
+delete-after: true
+changes:
+  - bugfix: "NPC pathfinding no longer errors when it finds a cheaper route to a tile it already explored."
+  - bugfix: "Taking a contract item out of a bag while standing on the export marker no longer deletes it mid-move; drop it on the marker to hand it in."
+  - bugfix: "Churn Wealthy, Matthios' favor, the Indebted vice, towner contract fees, the guild's cut and the admin economy panel now read and move nervelock balances correctly instead of failing on the account object."
+  - bugfix: "The Indebted vice no longer wipes out the whole nervelock account when it takes the last coins."
+  - bugfix: "If a contract paid from a player's account fails, the fee comes back. No part stays in the Crown's Purse or pays its debts."
+  - bugfix: "Verglas skating, Calcic Outburst, enchanting scrolls on non-items, and sending a black mirror through HERMES no longer throw errors."
+  - bugfix: "Ruined cauldron brews now actually use up their ingredients, and pulling ingredients out no longer grabs deleted ones."
+  - bugfix: "Footsteps on surfaces with a single step sound, the player panel for bodiless observers, class help popups and modal windows no longer error when the player disconnects or changes mob."

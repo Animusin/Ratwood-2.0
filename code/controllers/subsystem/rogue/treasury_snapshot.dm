@@ -81,7 +81,7 @@
 		var/mob/living/owner = key
 		if(!istype(owner))
 			continue
-		var/balance = bank_accounts[owner] || 0
+		var/balance = get_balance(owner)
 
 		var/category = get_poll_tax_category(owner)
 		if(category_filter && category_filter != "all")

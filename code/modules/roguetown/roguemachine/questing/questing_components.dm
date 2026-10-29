@@ -168,6 +168,12 @@
 	if(!Q || Q.complete)
 		return
 
+	// Only count items that actually lie on the marker. dropped() also fires while an item is being taken
+	// out of a bag into the hand (it is still inside the bag then), and moving into a bag that sits on the
+	// marker fires MOVED. Deleting the item in those cases broke the storage removal mid-move.
+	if(!isturf(dropped_item.loc))
+		return
+
 	var/turf/drop_turf = get_turf(dropped_item)
 
 	var/obj/effect/decal/marker_export/marker = locate() in drop_turf

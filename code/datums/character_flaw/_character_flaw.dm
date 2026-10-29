@@ -823,9 +823,8 @@ GLOBAL_LIST_INIT(character_flaws, list(
 	to_chat(user, "You are unluckier than most")
 	H.change_stat(STATKEY_LCK, -4)
 
-// bank_accounts here are integer balances keyed by mob (not
-// /datum/fund), so the debt is deducted directly, bypassing give_money_account's fine path on
-// purpose (personal debt to an NPC creditor, not a Crown fine: no fine caps, and the money
+// bank_accounts holds a /datum/fund per mob. The debt is burned straight from that fund, bypassing
+// give_money_account's fine path on purpose (personal debt to an NPC creditor, not a Crown fine: no fine caps, and the money
 // leaves the realm instead of minting back into the Crown's Purse). Bounty goes through the
 // descriptor-based add_bounty_noface().
 /datum/charflaw/indebted
@@ -873,11 +872,12 @@ GLOBAL_LIST_INIT(character_flaws, list(
 	if(bankamt > minimum)
 		if((bankamt * relative) > minimum)
 			alimony = round(bankamt * relative)
-		SStreasury.bank_accounts[deadbeat] -= alimony
+		SStreasury.burn(SStreasury.get_account(deadbeat), alimony, "Debts owed")
 		send_ooc_note("<b>NERVELOCK:</b> [alimony]m was taken in debts owed.", name = deadbeat.real_name)
 	else
 		if(bankamt > 0)
-			SStreasury.bank_accounts[deadbeat] = 0
+			// Empty the account; assigning 0 here used to replace the /datum/fund itself and lose the account.
+			SStreasury.burn(SStreasury.get_account(deadbeat), bankamt, "Defaulted debts")
 			send_ooc_note("<b>NERVELOCK:</b> [bankamt]m was taken in defaulted debts.", name = deadbeat.real_name)
 		deadbeat.add_stress(/datum/stressevent/debt)
 		if(!bounty_added)

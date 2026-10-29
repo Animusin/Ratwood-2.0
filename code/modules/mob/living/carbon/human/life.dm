@@ -41,7 +41,9 @@
 	if(advsetup)
 		Stun(50)
 
-	if(mind)
+	// mind/Destroy() only detaches the body it considers current, so a body can be left pointing at a deleted mind
+	// (its sleep advancement and antag datums are already gone). Nothing is left to process for it.
+	if(mind && !QDELETED(mind))
 		mind.sleep_adv.add_stress_cycle(get_stress_amount())
 		for(var/datum/antagonist/A as anything in mind.antag_datums)
 			A.on_life(src)
@@ -53,7 +55,7 @@
 				if(world.time > last_sleep + 35 SECONDS) //35 seconds of delay for every progress, letting people wake up before the second sleep removal happens
 					last_sleep = world.time
 					remove_sleep_depravation()
-					if(mind)
+					if(mind && !QDELETED(mind))
 						mind.sleep_adv.advance_cycle()
 	if(leprosy == 1)
 		adjustToxLoss(2)
@@ -404,7 +406,8 @@
 	if(coffin.opened)
 		return
 	remove_status_effect(/datum/status_effect/debuff/vamp_dreams)
-	mind.sleep_adv.advance_cycle()
+	if(mind && !QDELETED(mind))
+		mind.sleep_adv.advance_cycle()
 
 #undef THERMAL_PROTECTION_HEAD
 #undef THERMAL_PROTECTION_CHEST

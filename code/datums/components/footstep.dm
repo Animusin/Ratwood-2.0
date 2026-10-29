@@ -133,7 +133,13 @@
 		used_volume *= 0.7
 		used_extra_range -= 1
 	// this is fine without an explicit copy because it doesn't mutate the existing list
-	used_sound = pick(used_footsteps - last_sound) || last_sound
+	var/list/fresh_steps = used_footsteps - last_sound
+	if(length(fresh_steps))
+		used_sound = pick(fresh_steps)
+	else // a one-sound set that just played (or an empty set): pick() would runtime on the empty difference
+		used_sound = safepick(used_footsteps)
+	if(!used_sound)
+		return
 	last_sound = used_sound
 
 	if(humshoes)

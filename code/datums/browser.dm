@@ -265,17 +265,33 @@
 	if (stealfocus)
 		. = ..(use_onclose = 1)
 	else
-		var/focusedwindow = winget(user, null, "focus")
+		// winget/winexists yield until the client answers; the user can disconnect or change mobs meanwhile,
+		// and any window call on a mob without that client is a "bad client" runtime.
+		var/client/browser_client = get_user_client()
+		if(!browser_client)
+			close()
+			return
+		var/focusedwindow = winget(browser_client, null, "focus")
+		if(!browser_client || get_user_client() != browser_client)
+			close()
+			return
 		. = ..(use_onclose = 1)
 
 		//waits for the window to show up client side before attempting to un-focus it
 		//winexists sleeps until it gets a reply from the client, so we don't need to bother sleeping
 		for (var/i in 1 to 10)
-			if (user && winexists(user, window_id))
+			if(!browser_client || get_user_client() != browser_client)
+				close()
+				return
+			var/window_exists = winexists(browser_client, window_id)
+			if(!browser_client || get_user_client() != browser_client)
+				close()
+				return
+			if (window_exists)
 				if (focusedwindow)
-					winset(user, focusedwindow, "focus=true")
+					winset(browser_client, focusedwindow, "focus=true")
 				else
-					winset(user, "mapwindow", "focus=true")
+					winset(browser_client, "mapwindow", "focus=true")
 				break
 	if (timeout)
 		addtimer(CALLBACK(src, PROC_REF(close)), timeout)

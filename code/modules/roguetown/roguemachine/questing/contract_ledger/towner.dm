@@ -204,10 +204,11 @@ GLOBAL_LIST_INIT(towner_posting_descriptors, list(
 	if(!cost)
 		return
 
+	if(!SStreasury.discretionary_fund)
+		to_chat(poster, span_warning("The Crown's Purse is not established."))
+		return
+	var/datum/fund/poster_account
 	if(crown_funded)
-		if(!SStreasury.discretionary_fund)
-			to_chat(poster, span_warning("The Crown's Purse is not established."))
-			return
 		if(SStreasury.discretionary_fund.balance < cost)
 			to_chat(poster, span_warning("Insufficient Crown's Purse. Need [cost]m, have [SStreasury.discretionary_fund.balance]m."))
 			return
@@ -215,16 +216,17 @@ GLOBAL_LIST_INIT(towner_posting_descriptors, list(
 			to_chat(poster, span_warning("The Crown's Purse refused the draft."))
 			return
 	else
-		if(!SStreasury.has_account(poster))
+		poster_account = SStreasury.get_account(poster)
+		if(!poster_account)
 			to_chat(poster, span_warning("You have no account on record."))
 			return
 		if(SStreasury.get_balance(poster) < cost)
 			to_chat(poster, span_warning("Insufficient balance. This posting requires [cost] mammon."))
 			return
-		// Ratwood deviation: integer player ledger, not AP's fund accounts. Debit the poster
-		// and mint the fee into the Crown's Purse; the refund below mirrors this.
-		SStreasury.bank_accounts[poster] -= cost
-		SStreasury.mint(SStreasury.discretionary_fund, cost, "towner contract posting ([chosen_type])")
+		// Hold the fee until the quest exists, before Crown debts can take a share.
+		if(!SStreasury.burn(poster_account, cost, "towner contract posting reserve ([chosen_type])"))
+			to_chat(poster, span_warning("The posting fee could not be drawn from your account."))
+			return
 
 	var/to_hand = (params["delivery"] == "hand")
 	var/datum/quest/dispatched = SSquestpool.issue_towner_quest(chosen_type, poster, tier, to_hand, variety)
@@ -232,11 +234,12 @@ GLOBAL_LIST_INIT(towner_posting_descriptors, list(
 		if(crown_funded)
 			SStreasury.mint(SStreasury.discretionary_fund, cost, "crown towner commission refund (issue failure)")
 		else
-			SStreasury.bank_accounts[poster] += cost
-			SStreasury.burn(SStreasury.discretionary_fund, cost, "towner contract posting refund (issue failure)")
+			SStreasury.mint(poster_account, cost, "towner contract posting refund (issue failure)")
 		to_chat(poster, span_warning("No landmark could bear that contract. Funds refunded."))
 		return
 
+	if(!crown_funded)
+		SStreasury.mint(SStreasury.discretionary_fund, cost, "towner contract posting ([chosen_type])")
 	playsound(src, 'sound/misc/coindispense.ogg', 60, FALSE, -1)
 	var/purse_note = crown_funded ? " Drawn on the Crown's Purse." : ""
 	if(to_hand)

@@ -343,8 +343,8 @@
 		var/is_legendary = (skill_level >= SKILL_LEVEL_LEGENDARY)
 		var/is_capped = !is_legendary && (skill_level >= effective_cap)
 
-		var/can_advance_post = current?.mind?.sleep_adv.enough_sleep_xp_to_advance(i.type, 1)
-		var/capped_post = current?.mind?.sleep_adv.enough_sleep_xp_to_advance(i.type, 2)
+		var/can_advance_post = current?.mind?.sleep_adv?.enough_sleep_xp_to_advance(i.type, 1)
+		var/capped_post = current?.mind?.sleep_adv?.enough_sleep_xp_to_advance(i.type, 2)
 		var/rankup_postfix = capped_post ? span_nicegreen(" ★") : can_advance_post ? span_nicegreen(" ☆") : ""
 		// Progress column
 		var/progress_col

@@ -155,6 +155,9 @@ Also added 'exclude' turf to avoid travelling over; defaults to null
 					if((newg < CN.g))
 						if(call(cur.source,adjacent)(caller, T, id))
 							CN.setp(cur,newg,CN.heuristic,cur.nodes_traversed+1)
+							// openc doubles as the closed list, so CN may already have been popped and expanded.
+							// The heuristic is not strictly consistent (tiebreaker, stairs, jumps), so a cheaper route to a closed
+							// node can still turn up. Keeping the shorter prevNode link is fine; ReSort() skips nodes no longer in the heap.
 							open.ReSort(CN)//reorder the changed element in the list
 				else
 				//is not already in open list, so add it

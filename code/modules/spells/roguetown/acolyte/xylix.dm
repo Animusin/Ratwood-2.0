@@ -887,10 +887,11 @@
 	alert_type = /atom/movable/screen/alert/status_effect/buff/matthios_favor
 
 /datum/status_effect/matthios_favor/on_apply()
-	var/meister_balance = SStreasury.bank_accounts[owner] ? SStreasury.bank_accounts[owner] : 0
+	var/datum/fund/account = SStreasury.get_account(owner)
+	var/meister_balance = account ? account.balance : 0
 	if(meister_balance > 0)
 		var/stolen = min(rand(1, 10), meister_balance)
-		SStreasury.bank_accounts[owner] -= stolen
+		SStreasury.burn(account, stolen, "Matthios' favor")
 		to_chat(owner, span_warning("Matthios skims [stolen] mammon from your nervelock!"))
 	else
 		to_chat(owner, span_notice("Matthios reaches for your nervelock, but finds it empty. Truly, a poor fool!"))

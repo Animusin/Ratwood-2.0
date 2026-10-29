@@ -260,7 +260,10 @@
 		return FALSE
 
 	spouses += spouse
-	person.spouse_mob = spouse.person
+	// person is declared as a human but is only a tmp reference to whatever body was registered; only humans
+	// have spouse_mob (an observer here caused "undefined variable /mob/dead/observer/rogue/var/spouse_mob").
+	if(ishuman(person) && ishuman(spouse.person))
+		person.spouse_mob = spouse.person
 
 	// Only add reciprocal relationship if not already doing so
 	if(!skip_reciprocal && !(src in spouse.spouses))

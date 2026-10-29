@@ -110,6 +110,7 @@
 #include "runtime_lifecycle.dm"
 #include "runtime_misc.dm"
 #include "runtime_mobs.dm"
+#include "runtime_rounds_1486.dm"
 #include "spawn_humans.dm"
 #include "species_whitelists.dm"
 #include "speech_mannerisms.dm"

@@ -1083,6 +1083,8 @@ GLOBAL_LIST_EMPTY(personal_objective_minds)
 	mind.special_role = ""
 
 /datum/mind/proc/add_sleep_experience(skill, amt, silent = FALSE, show_xp = TRUE)
+	if(QDELETED(src)) // a body can outlive its reference to a deleted mind; there is no XP store left to add to
+		return
 	sleep_adv.add_sleep_experience(skill, amt, silent, show_xp)
 
 /datum/mind/proc/add_personal_objective(datum/objective/O)

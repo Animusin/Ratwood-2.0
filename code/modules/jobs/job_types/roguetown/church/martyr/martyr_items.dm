@@ -86,7 +86,7 @@
 			to_chat(user, span_warning("YOU FOOL! IT IS ANATHEMA TO YOU! GET AWAY!"))
 			H.Stun(40)
 			H.Knockdown(40)
-			if(marty.is_active) //Inhumens are touching this while it's active, very fucking stupid of them
+			if(marty?.is_active) //Inhumens are touching this while it's active, very fucking stupid of them
 				visible_message(span_warning("[H] lets out a painful shriek as the sword lashes out at them!"))
 				H.emote("agony")
 				H.adjust_fire_stacks(5)
@@ -201,7 +201,7 @@
 			to_chat(user, span_warning("YOU FOOL! IT IS ANATHEMA TO YOU! GET AWAY!"))
 			H.Stun(40)
 			H.Knockdown(40)
-			if(marty.is_active) //Inhumens are touching this while it's active, very fucking stupid of them
+			if(marty?.is_active) //Inhumens are touching this while it's active, very fucking stupid of them
 				visible_message(span_warning("[H] lets out a painful shriek as the axe lashes out at them!"))
 				H.emote("agony")
 				H.adjust_fire_stacks(5)
@@ -303,7 +303,7 @@
 			to_chat(user, span_warning("YOU FOOL! IT IS ANATHEMA TO YOU! GET AWAY!"))
 			H.Stun(40)
 			H.Knockdown(40)
-			if(marty.is_active) //Inhumens are touching this while it's active, very fucking stupid of them
+			if(marty?.is_active) //Inhumens are touching this while it's active, very fucking stupid of them
 				visible_message(span_warning("[H] lets out a painful shriek as the mace lashes out at them!"))
 				H.emote("agony")
 				H.adjust_fire_stacks(5)
@@ -406,7 +406,7 @@
 			to_chat(user, span_warning("YOU FOOL! IT IS ANATHEMA TO YOU! GET AWAY!"))
 			H.Stun(40)
 			H.Knockdown(40)
-			if(marty.is_active) //Inhumens are touching this while it's active, very fucking stupid of them
+			if(marty?.is_active) //Inhumens are touching this while it's active, very fucking stupid of them
 				visible_message(span_warning("[H] lets out a painful shriek as the spear lashes out at them!"))
 				H.emote("agony")
 				H.adjust_fire_stacks(5)
@@ -471,7 +471,7 @@
 			to_chat(user, span_warning("YOU FOOL! IT IS ANATHEMA TO YOU! GET AWAY!"))
 			H.Stun(40)
 			H.Knockdown(40)
-			if(marty.is_active) //Inhumens are touching this while it's active, very fucking stupid of them
+			if(marty?.is_active) //Inhumens are touching this while it's active, very fucking stupid of them
 				visible_message(span_warning("[H] lets out a painful shriek as the plate lashes out at them!"))
 				H.emote("agony")
 				H.adjust_fire_stacks(5)
@@ -518,7 +518,7 @@
 			to_chat(user, span_warning("YOU FOOL! IT IS ANATHEMA TO YOU! GET AWAY!"))
 			H.Stun(40)
 			H.Knockdown(40)
-			if(marty.is_active) //Inhumens are touching this while it's active, very fucking stupid of them
+			if(marty?.is_active) //Inhumens are touching this while it's active, very fucking stupid of them
 				visible_message(span_warning("[H] lets out a painful shriek as the gloves lashes out at them!"))
 				H.emote("agony")
 				H.adjust_fire_stacks(5)
@@ -566,7 +566,7 @@
 			to_chat(user, span_warning("YOU FOOL! IT IS ANATHEMA TO YOU! GET AWAY!"))
 			H.Stun(40)
 			H.Knockdown(40)
-			if(marty.is_active) //Inhumens are touching this while it's active, very fucking stupid of them
+			if(marty?.is_active) //Inhumens are touching this while it's active, very fucking stupid of them
 				visible_message(span_warning("[H] lets out a painful shriek as the boots lashes out at them!"))
 				H.emote("agony")
 				H.adjust_fire_stacks(5)
@@ -614,7 +614,7 @@
 			to_chat(user, span_warning("YOU FOOL! IT IS ANATHEMA TO YOU! GET AWAY!"))
 			H.Stun(40)
 			H.Knockdown(40)
-			if(marty.is_active) //Inhumens are touching this while it's active, very fucking stupid of them
+			if(marty?.is_active) //Inhumens are touching this while it's active, very fucking stupid of them
 				visible_message(span_warning("[H] lets out a painful shriek as the chausess lashes out at them!"))
 				H.emote("agony")
 				H.adjust_fire_stacks(5)
@@ -666,7 +666,7 @@
 			to_chat(user, span_warning("YOU FOOL! IT IS ANATHEMA TO YOU! GET AWAY!"))
 			H.Stun(40)
 			H.Knockdown(40)
-			if(marty.is_active) //Inhumens are touching this while it's active, very fucking stupid of them
+			if(marty?.is_active) //Inhumens are touching this while it's active, very fucking stupid of them
 				visible_message(span_warning("[H] lets out a painful shriek as the helmet lashes out at them!"))
 				H.emote("agony")
 				H.adjust_fire_stacks(5)

@@ -35,8 +35,13 @@
 	addtimer(CALLBACK(src, PROC_REF(lichdeath), user), 5 SECONDS)
 
 /obj/effect/proc_holder/spell/self/suicidebomb/proc/lichdeath(mob/living/user)
-	var/datum/antagonist/lich/lichman = user.mind.has_antag_datum(/datum/antagonist/lich)
+	if(QDELETED(user))
+		return FALSE
+	// This runs five seconds after the cast; the mind may have left the body by now (ghosted, swapped, ...).
+	var/datum/antagonist/lich/lichman = user.mind?.has_antag_datum(/datum/antagonist/lich)
 	explosion(get_turf(user), -1, exp_heavy, exp_light, exp_flash, 0, flame_range = exp_fire, soundin = 'sound/misc/explode/incendiary (1).ogg')
+	if(QDELETED(user))
+		return TRUE
 	if(lichman && user.stat != DEAD && lichman.consume_phylactery(0)) // Use phylactery at 0 timer. Die if none.
 		return TRUE
 

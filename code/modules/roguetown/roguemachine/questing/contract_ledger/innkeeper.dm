@@ -100,17 +100,15 @@
 		say("\"So I have heard...\" A rumor is whispered into the Guild's ledger.")
 		to_chat(innkeeper, span_notice("Rumor posted to the board: <b>[dispatched.title || dispatched.quest_type]</b>[lucrative_tail]."))
 
-/obj/structure/roguemachine/contractledger/proc/pay_innkeeper_referral_fees(mob/user, datum/quest/completed_quest, gross_reward)
+/obj/structure/roguemachine/contractledger/proc/pay_innkeeper_referral_fees(datum/fund/payer_account, datum/quest/completed_quest, gross_reward)
 	if(gross_reward <= 0)
 		return 0
 	var/datum/fund/tavern_fund = SStreasury.innkeeper_fund
 	var/guild_paid = 0
 	if(completed_quest.source != QUEST_SOURCE_DEFENSE && !completed_quest.guild_cut_exempt)
 		var/guild_fee = round(gross_reward * GUILD_REFERRAL_FEE_PCT)
-		// Ratwood deviation: integer ledger, so the guild cut is debited off the bearer and minted into the tavern fund.
-		if(guild_fee > 0 && tavern_fund && SStreasury.bank_accounts[user] >= guild_fee)
-			SStreasury.bank_accounts[user] -= guild_fee
-			SStreasury.mint(tavern_fund, guild_fee, "Guild Cut - [completed_quest.quest_type]")
+		// The guild cut moves from the bearer's account (the fund the reward was just minted into) to the tavern fund.
+		if(guild_fee > 0 && tavern_fund && payer_account && SStreasury.transfer(payer_account, tavern_fund, guild_fee, "Guild Cut - [completed_quest.quest_type]"))
 			guild_paid = guild_fee
 	if(completed_quest.source == QUEST_SOURCE_RUMOR && tavern_fund)
 		var/rumor_fee = round(gross_reward * RUMOR_CONTACT_FEE_PCT)

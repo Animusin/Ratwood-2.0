@@ -314,6 +314,7 @@
 					to_chat(user, (span_warning("It isn't broken.")))
 				if(I.broken)
 					to_chat(user, (span_warning("Clean it first.")))
+			return TRUE // handled (sent or refused); don't go on to strike the machine with it
 
 	if(istype(P, /obj/item/paper/inqslip/confession))
 		if((HAS_TRAIT(user, TRAIT_INQUISITION) || HAS_TRAIT(user, TRAIT_PURITAN)))
@@ -667,6 +668,8 @@
 				return
 		playsound(src, 'sound/misc/coininsert.ogg', 100, FALSE, -1)
 		return
+	if(QDELETED(P)) // a branch above sent (deleted) the item; the attack chain must not damage it afterwards
+		return TRUE
 	..()
 
 /obj/structure/roguemachine/mail/r

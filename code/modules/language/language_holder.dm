@@ -119,9 +119,13 @@
 	if(is_type_in_typecache(dt, languages))
 		return LANGUAGE_KNOWN
 	else
+		// Shadow languages live on a body. A mind's holder has no atom while the mind has no current body
+		// (e.g. the player panel of an observer whose mind left its body), so there is nothing to shadow.
 		var/atom/movable/AM = get_atom()
+		if(!AM)
+			return FALSE
 		var/datum/language_holder/L = AM.get_language_holder(shadow=FALSE)
-		if(L != src)
+		if(L && L != src)
 			if(is_type_in_typecache(dt, L.shadow_languages))
 				return LANGUAGE_SHADOWED
 	return FALSE

@@ -56,7 +56,9 @@ GLOBAL_LIST_EMPTY_TYPED(schizohelps, /datum/schizohelp)
 	return "[adjective] [noun]"
 
 /client/proc/answer_schizohelp(datum/schizohelp/schizo)
-	if(QDELETED(schizo))
+	// schizo comes from locate() on an href. Once the meditation is gone its ref can be reused by an unrelated
+	// datum (seen: /datum/status_effect/mood/good), so check the type, not only deletion.
+	if(!istype(schizo) || QDELETED(schizo))
 		to_chat(src, span_warning("This meditation can no longer be answered..."))
 		return
 	if(schizo.owner == src.mob)

@@ -86,7 +86,7 @@
 	name = "Quit Buildmode"
 
 /atom/movable/screen/buildmode/quit/Click()
-	bd.quit()
+	bd?.quit() // a second click can land on the button after the first one already ended build mode and cleared bd
 	return 1
 
 /atom/movable/screen/buildmode/catalog

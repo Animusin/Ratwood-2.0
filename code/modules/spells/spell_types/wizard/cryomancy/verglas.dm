@@ -264,8 +264,11 @@
 
 /datum/status_effect/verglas_concentration/skate/tick()
 	. = ..()
+	if(QDELETED(src) || !owner)
+		return
 	if(owner.in_combat_until > world.time) // if you're ever "in combat" it breaks
 		owner.remove_status_effect(/datum/status_effect/verglas_concentration/skate)
+		return // removal clears owner, so stop before draining stamina
 	if(!owner.stamina_add(2))
 		owner.remove_status_effect(/datum/status_effect/verglas_concentration/skate)
 

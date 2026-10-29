@@ -221,10 +221,10 @@ GLOBAL_LIST_INIT(towner_posting_descriptors, list(
 		if(SStreasury.get_balance(poster) < cost)
 			to_chat(poster, span_warning("Insufficient balance. This posting requires [cost] mammon."))
 			return
-		// Ratwood deviation: integer player ledger, not AP's fund accounts. Debit the poster
-		// and mint the fee into the Crown's Purse; the refund below mirrors this.
-		SStreasury.bank_accounts[poster] -= cost
-		SStreasury.mint(SStreasury.discretionary_fund, cost, "towner contract posting ([chosen_type])")
+		// Player accounts are /datum/fund. Move the fee from the poster into the Crown's Purse; the refund below mirrors this.
+		if(!SStreasury.transfer(SStreasury.get_account(poster), SStreasury.discretionary_fund, cost, "towner contract posting ([chosen_type])"))
+			to_chat(poster, span_warning("The posting fee could not be drawn from your account."))
+			return
 
 	var/to_hand = (params["delivery"] == "hand")
 	var/datum/quest/dispatched = SSquestpool.issue_towner_quest(chosen_type, poster, tier, to_hand, variety)
@@ -232,8 +232,10 @@ GLOBAL_LIST_INIT(towner_posting_descriptors, list(
 		if(crown_funded)
 			SStreasury.mint(SStreasury.discretionary_fund, cost, "crown towner commission refund (issue failure)")
 		else
-			SStreasury.bank_accounts[poster] += cost
-			SStreasury.burn(SStreasury.discretionary_fund, cost, "towner contract posting refund (issue failure)")
+			var/datum/fund/poster_account = SStreasury.get_account(poster)
+			// The purse may have skimmed the fee for debt on the way in; the poster is refunded in full either way.
+			if(!SStreasury.transfer(SStreasury.discretionary_fund, poster_account, cost, "towner contract posting refund (issue failure)"))
+				SStreasury.mint(poster_account, cost, "towner contract posting refund (issue failure)")
 		to_chat(poster, span_warning("No landmark could bear that contract. Funds refunded."))
 		return
 

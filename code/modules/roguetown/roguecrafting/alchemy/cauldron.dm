@@ -40,6 +40,17 @@
 	chem_splash(loc, 2, list(reagents))
 	return ..()
 
+/obj/machinery/light/rogue/cauldron/Exited(atom/movable/gone, atom/newloc)
+	. = ..()
+	// Keep the list in step with what is physically inside: pulled out, kicked out, or deleted in place.
+	ingredients -= gone
+
+/// Drops list entries that are no longer real ingredients sitting in the cauldron (nulls, deleted or moved items).
+/obj/machinery/light/rogue/cauldron/proc/prune_ingredients()
+	for(var/obj/item/entry as anything in ingredients.Copy())
+		if(QDELETED(entry) || entry.loc != src)
+			ingredients -= entry
+
 /obj/machinery/light/rogue/cauldron/burn_out()
 	brewing = 0
 	..()
@@ -100,13 +111,14 @@
 						src.visible_message(span_warning("The ingredients in the cauldron melds together into a disgusting mess! Perhaps a more skilled alchemist is needed for this recipe."))
 						if(reagents)
 							src.reagents.remove_reagent(/datum/reagent/water, in_cauldron)
-						for(var/obj/item/ing in src.ingredients)
+						for(var/obj/item/ing in src.ingredients.Copy())
 							qdel(ing)
+						ingredients = list() // the ruined ingredients are gone; don't keep re-brewing (and re-rewarding) them
 						src.reagents.add_reagent(/datum/reagent/yuck, in_cauldron) // 1 to 1 transmutation of yuck
 						// Learn from your failure (Yeah you can technically still grind this way you just blow through a lot of ingredients)
 						lastuser?.adjust_experience(/datum/skill/craft/alchemy, amt2raise, FALSE) 
 						return
-					for(var/obj/item/ing in src.ingredients)
+					for(var/obj/item/ing in src.ingredients.Copy())
 						qdel(ing)
 					if(reagents)
 						src.reagents.remove_reagent(/datum/reagent/water, in_cauldron)
@@ -159,6 +171,7 @@
 	..()
 
 /obj/machinery/light/rogue/cauldron/attack_hand(mob/user, params)
+	prune_ingredients()
 	if(on)
 		if(ingredients.len)
 			to_chat(user, "<span class='warning'>Something's brewing.</span>")
@@ -170,7 +183,7 @@
 		if(ingredients.len)
 			var/obj/item/I = ingredients[ingredients.len]
 			ingredients -= I
-			I.loc = user.loc
+			I.forceMove(user.loc)
 			user.put_in_active_hand(I)
 			user.visible_message("<span class='info'>[user] pulls [I] from [src].</span>")
 			return

@@ -480,10 +480,11 @@ GLOBAL_DATUM_INIT(economic_panel, /datum/economic_panel, new)
 			var/amt = text2num(params["amount"])
 			if(!isnum(amt) || amt <= 0)
 				return TRUE
-			// Ratwood deviation: player accounts are integer ledger balances, not funds.
-			if(!SStreasury.has_account(target))
+			var/datum/fund/account = SStreasury.get_account(target)
+			if(!account)
 				return TRUE
-			SStreasury.bank_accounts[target] += amt
+			if(!SStreasury.mint(account, amt, "Admin mint"))
+				return TRUE
 			admin_log_fiscal("minted [amt]m to [key_name(target)]", "Mint to Account")
 			return TRUE
 		if("player_burn_account")
@@ -493,10 +494,12 @@ GLOBAL_DATUM_INIT(economic_panel, /datum/economic_panel, new)
 			var/amt = text2num(params["amount"])
 			if(!isnum(amt) || amt <= 0)
 				return TRUE
-			// Ratwood deviation: player accounts are integer ledger balances, not funds.
-			if(!SStreasury.has_account(target))
+			var/datum/fund/account = SStreasury.get_account(target)
+			if(!account)
 				return TRUE
-			SStreasury.bank_accounts[target] = max(0, SStreasury.bank_accounts[target] - amt)
+			amt = min(amt, account.balance) // never below zero, as before
+			if(amt <= 0 || !SStreasury.burn(account, amt, "Admin burn"))
+				return TRUE
 			admin_log_fiscal("burned [amt]m from [key_name(target)]", "Burn from Account")
 			return TRUE
 		if("player_fire_indebted")

@@ -43,50 +43,66 @@ PROCESSING_SUBSYSTEM_DEF(tracks)
 
 		if(world.time >= T.expiry_time)
 			recycle_track(T)
-			processing -= T
 
 		if (MC_TICK_CHECK)
 			return
 
 /datum/controller/subsystem/processing/tracks/proc/add_track(obj/effect/track/T)
-	if(T && !QDELETED(T))
-		processing |= T
+	if(!QDELETED(T) && !T.registered_for_expiry && !T.in_track_pool)
+		T.registered_for_expiry = TRUE
+		processing += T
 
 /datum/controller/subsystem/processing/tracks/proc/remove_track(obj/effect/track/T)
-	processing -= T
+	if(T?.registered_for_expiry)
+		T.registered_for_expiry = FALSE
+		processing -= T
+	if(T?.in_track_pool)
+		T.in_track_pool = FALSE
+		track_pool -= T
+		thievescant_pool -= T
 
 /datum/controller/subsystem/processing/tracks/proc/get_track(track_type = /obj/effect/track, turf/location)
 	var/list/pool
 	switch(track_type)
 		if(/obj/effect/track/thievescant)
 			pool = thievescant_pool
-		else
+		if(/obj/effect/track)
 			pool = track_pool
 
 	var/obj/effect/track/T
-	if(length(pool))
+	while(length(pool))
 		T = pool[pool.len]
 		pool.len--
-		T.moveToNullspace()
+		if(QDELETED(T))
+			continue
+		T.in_track_pool = FALSE
+		if(T.type != track_type)
+			qdel(T)
+			continue
 		T.forceMove(location)
 		tracks_recycled++
-	else
-		T = new track_type(location)
-		tracks_created++
+		return T
 
+	T = new track_type(location)
+	tracks_created++
 	return T
 
 /datum/controller/subsystem/processing/tracks/proc/recycle_track(obj/effect/track/T)
-	if(!T || QDELETED(T))
+	if(QDELETED(T) || T.in_track_pool)
 		return
 
+	remove_track(T)
 	var/list/pool
 
 	switch(T.type)
 		if(/obj/effect/track/thievescant)
 			pool = thievescant_pool
-		else
+		if(/obj/effect/track)
 			pool = track_pool
+		else
+			// Specialized clues must not be handed out later as ordinary footprints.
+			qdel(T)
+			return
 
 	if(length(pool) >= pool_max_size)
 		qdel(T)
@@ -94,4 +110,5 @@ PROCESSING_SUBSYSTEM_DEF(tracks)
 
 	T.soft_reset()
 	T.moveToNullspace()
+	T.in_track_pool = TRUE
 	pool += T

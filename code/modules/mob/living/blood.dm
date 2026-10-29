@@ -259,7 +259,7 @@
 	if(!clan && blood_volume > BLOOD_VOLUME_SAFE)
 		adjust_bloodpool(BLOODPOL_REGEN, FALSE)
 
-/mob/living/proc/get_bleed_rate()
+/mob/living/proc/get_bleed_rate(process_bandages = TRUE)
 	if (!blood_volume)
 		return FALSE //the blood bag is empty, brother.
 	var/bleed_rate = 0
@@ -270,14 +270,14 @@
 		bleed_rate += embedded.embedding?.embedded_bloodloss
 	return bleed_rate
 
-/mob/living/carbon/get_bleed_rate()
+/mob/living/carbon/get_bleed_rate(process_bandages = TRUE)
 	var/bleed_rate = 0
 	if (!blood_volume) // if we have no blood, we can't rightly bleed, can we?
 		return 0
 	if(NOBLOOD in dna?.species?.species_traits)
 		return 0
 	for(var/obj/item/bodypart/bodypart as anything in bodyparts)
-		bleed_rate += bodypart.get_bleed_rate()
+		bleed_rate += bodypart.get_bleed_rate(process_bandages)
 	return bleed_rate
 
 //Makes a blood drop, leaking amt units of blood from the mob

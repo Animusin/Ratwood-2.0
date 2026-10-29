@@ -146,8 +146,11 @@ GLOBAL_LIST_EMPTY(personal_objective_minds)
 	QDEL_NULL(player_card)
 	QDEL_NULL(sleep_adv)
 	QDEL_NULL(language_holder)
-	if(islist(antag_datums))
-		QDEL_LIST(antag_datums)
+	clear_personal_objectives()
+	// Antagonist destruction also edits this list; keep the destruction iterator separate.
+	var/list/old_antag_datums = antag_datums
+	antag_datums = null
+	QDEL_LIST(old_antag_datums)
 	RemoveAllSpells()
 	if(current)
 		if(current.mind == src)
@@ -1099,9 +1102,11 @@ GLOBAL_LIST_EMPTY(personal_objective_minds)
 	qdel(O)
 
 /datum/mind/proc/clear_personal_objectives()
-	for(var/O in personal_objectives)
-		qdel(O)
-	personal_objectives.Cut()
+	// Objective destruction also removes it from its owner's list. Detach the list first so
+	// that cleanup cannot skip the next objective while iterating it.
+	var/list/old_objectives = personal_objectives
+	personal_objectives = list()
+	QDEL_LIST(old_objectives)
 
 /proc/handle_special_items_retrieval(mob/user, atom/host_object)
 	// Attempts to retrieve an item from a player's stash, and applies any base colors, custom names, and descriptions.

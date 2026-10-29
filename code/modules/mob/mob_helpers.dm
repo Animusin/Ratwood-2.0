@@ -574,7 +574,7 @@
 	if(hud_used?.action_intent)
 		hud_used.action_intent.switch_intent(r_index,l_index,oactive)
 
-/mob/proc/update_hand_intent(active = TRUE)
+/mob/proc/update_hand_intent(active = TRUE, list/reusable_intents)
 	var/list/intents
 	var/obj/item/Masteritem = active ? get_active_held_item() : get_inactive_held_item()
 	if(Masteritem)
@@ -594,16 +594,36 @@
 		intents = base_intents
 	. = list()
 	for(var/defintent in intents)
-		. += new defintent(src, Masteritem)
-	
+		var/datum/intent/reused_intent
+		if(!Masteritem)
+			for(var/datum/intent/candidate as anything in reusable_intents)
+				if(candidate.type == defintent)
+					reused_intent = candidate
+					reusable_intents -= candidate
+					break
+		. += reused_intent || new defintent(src, Masteritem)
+
 /mob/proc/update_a_intents()
 	stop_attack()
-	QDEL_LIST(possible_a_intents)
-	QDEL_LIST(possible_offhand_intents)
+	// These exact bare-hand intents have no charge resources or per-use state.
+	// Keep them local to this mob; weapon and custom intents still get fresh instances.
+	var/list/reusable_intents = list()
+	for(var/datum/intent/old_intent as anything in possible_a_intents + possible_offhand_intents)
+		if(!QDELETED(old_intent) && !old_intent.masteritem && old_intent.mastermob == src)
+			switch(old_intent.type)
+				if(INTENT_HELP, INTENT_DISARM, INTENT_GRAB, INTENT_HARM)
+					reusable_intents += old_intent
+					continue
+		qdel(old_intent)
+	possible_a_intents.Cut()
+	possible_offhand_intents.Cut()
 	if(QDELETED(src))
+		QDEL_LIST(reusable_intents)
 		return
-	possible_a_intents = update_hand_intent(active = TRUE)
-	possible_offhand_intents = update_hand_intent(active = FALSE)
+	possible_a_intents = update_hand_intent(active = TRUE, reusable_intents = reusable_intents)
+	possible_offhand_intents = update_hand_intent(active = FALSE, reusable_intents = reusable_intents)
+	// Equipping an item or changing species can leave old bare-hand intents unused.
+	QDEL_LIST(reusable_intents)
 	if(hud_used?.action_intent)
 		if(active_hand_index == 1)
 			hud_used.action_intent.update_icon(possible_a_intents,possible_offhand_intents,oactive)

@@ -78,7 +78,8 @@
 	. = ..()
 	if(!.)
 		return
-	var/bleed_rate = source.get_bleed_rate()
+	// Recording evidence must not heal the source or consume their bandage a second time.
+	var/bleed_rate = source.get_bleed_rate(process_bandages = FALSE)
 	var/severity = FORENSIC_BLEED_MINOR
 	if(bleed_rate >= ARTERY_LIMB_BLEEDRATE)
 		severity = FORENSIC_BLEED_SEVERE

@@ -25,6 +25,14 @@ GLOBAL_LIST(admin_objective_list) //Prefilled admin assignable objective list
 		GLOB.personal_objective_minds |= owner
 	return
 
+/datum/objective/Destroy()
+	if(owner)
+		owner.personal_objectives -= src
+	owner = null
+	target = null
+	team = null
+	return ..()
+
 /datum/objective/proc/get_owners() // Combine owner and team into a single list.
 	. = (team && team.members) ? team.members.Copy() : list()
 	if(owner)

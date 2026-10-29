@@ -77,11 +77,11 @@
 		return
 
 	// leave a track to indicate something's happened here
-	var/obj/effect/track/the_evidence = new(caster.loc)
-	the_evidence.handle_creation(caster)
-	the_evidence.track_type = "mixture of shifted animal and humanoid tracks"
-	the_evidence.ambiguous_track_type = "curious footprints"
-	the_evidence.base_diff = 6 // very noticable
+	var/obj/effect/track/the_evidence = caster.create_ordinary_track(get_turf(caster))
+	if(the_evidence)
+		the_evidence.track_type = "mixture of shifted animal and humanoid tracks"
+		the_evidence.ambiguous_track_type = "curious footprints"
+		the_evidence.base_diff = 6 // very noticable
 
 	var/mob/living/shape = new shapeshift_type(caster.loc)
 	if (shifted_speed_increase && shifted_speed_increase != 1)

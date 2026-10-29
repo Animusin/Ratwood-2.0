@@ -1,0 +1,8 @@
+author: "Animusin"
+delete-after: true
+changes:
+  - balance: "Only the latest ordinary footprint remains on each tile; repeated passage updates it instead of stacking up to three tracks."
+  - server: "Reduced temporary object creation when refreshing empty-hand actions and recording forensic evidence."
+  - bugfix: "Recording the severity of a bloodstain no longer processes the source's bandage a second time."
+  - bugfix: "Removed visual effects, spent homing projectiles and deleted character minds now release more of their retained references and timers."
+  - server: "Machine processing now yields when it exceeds its allotted time, including when the machines are working normally."

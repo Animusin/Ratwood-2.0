@@ -692,6 +692,10 @@
 	var/overwrites = 0
 	///The world.time when this track should expire (used by subsystem)
 	var/expiry_time
+	/// Avoid scanning the entire expiry list again when refreshing an existing footprint.
+	var/registered_for_expiry = FALSE
+	/// Pooled tracks must neither be processed nor inserted into a pool twice.
+	var/in_track_pool = FALSE
 	///A preserved dir for the highlights
 	var/original_dir
 	///Whether this track allows its owner to be Marked
@@ -741,6 +745,7 @@
 	original_dir = null
 	markable = TRUE
 	only_visible_while_tracking = FALSE
+	base_diff = initial(base_diff)
 
 	// Reset image
 	real_image = null
@@ -1000,7 +1005,12 @@
 		if(!is_being_tracked() || !prob(min(probability * 1.5, 50)))
 			return
 		tracking_only = TRUE
+	return create_ordinary_track(new_turf, tracking_only)
 
+/// Movement and transformation clues share the same single-footprint-per-turf policy.
+/mob/living/proc/create_ordinary_track(turf/new_turf, tracking_only = FALSE)
+	if(!new_turf)
+		return
 	var/list/ordinary_tracks = list()
 	var/obj/effect/track/same_track
 	var/updated_overwrites = 0
@@ -1012,25 +1022,23 @@
 			same_track = existing
 	if(same_track)
 		updated_overwrites = same_track.overwrites + 1
-		ordinary_tracks -= same_track
-		SStracks.recycle_track(same_track)
-	while(length(ordinary_tracks) >= 3)
-		var/obj/effect/track/oldest_unprotected
-		var/obj/effect/track/oldest_any
-		for(var/obj/effect/track/existing as anything in ordinary_tracks)
-			if(!oldest_any || existing.creation_time < oldest_any.creation_time)
-				oldest_any = existing
-			if(existing.only_visible_while_tracking && existing.creator?.is_being_tracked())
-				continue
-			if(!oldest_unprotected || existing.creation_time < oldest_unprotected.creation_time)
-				oldest_unprotected = existing
-		var/obj/effect/track/replaced_track = oldest_unprotected ? oldest_unprotected : oldest_any
-		ordinary_tracks -= replaced_track
-		SStracks.recycle_track(replaced_track)
-	var/obj/effect/track/new_track = SStracks.get_track(/obj/effect/track, new_turf)
+	// Keep only the newest ordinary footprint on a tile. Reuse its atom in place instead
+	// of moving it through nullspace and re-registering it after every passing step.
+	var/obj/effect/track/new_track = same_track
+	if(!new_track && length(ordinary_tracks))
+		new_track = ordinary_tracks[1]
+	for(var/obj/effect/track/replaced_track as anything in ordinary_tracks)
+		if(replaced_track != new_track)
+			SStracks.recycle_track(replaced_track)
+	if(new_track)
+		new_track.soft_reset()
+		SStracks.tracks_recycled++
+	else
+		new_track = SStracks.get_track(/obj/effect/track, new_turf)
 	new_track.only_visible_while_tracking = tracking_only
 	new_track.overwrites = updated_overwrites
 	new_track.handle_creation(src)
+	return new_track
 
 //Gets the probability of this mob to create a track on the passed turf.
 /mob/living/proc/track_creation_prob(turf/new_turf)

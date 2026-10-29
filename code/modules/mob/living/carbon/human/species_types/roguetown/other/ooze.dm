@@ -305,11 +305,11 @@
 		stored.notransform = FALSE
 
 		// leave a track to indicate something has shifted out here
-		var/obj/effect/track/the_evidence = new(stored.loc)
-		the_evidence.handle_creation(stored)
-		the_evidence.track_type = "expanding animal tracks into humanoid footprints"
-		the_evidence.ambiguous_track_type = "curious footprints"
-		the_evidence.base_diff = 6
+		var/obj/effect/track/the_evidence = stored.create_ordinary_track(get_turf(stored))
+		if(the_evidence)
+			the_evidence.track_type = "expanding animal tracks into humanoid footprints"
+			the_evidence.ambiguous_track_type = "curious footprints"
+			the_evidence.base_diff = 6
 
 	if(shape && shape.mind)
 		shape.mind?.transfer_to(stored)

@@ -1,5 +1,5 @@
 /datum/component/forensics
-	dupe_mode = COMPONENT_DUPE_UNIQUE
+	dupe_mode = COMPONENT_DUPE_UNIQUE_PASSARGS
 	can_transfer = TRUE
 	var/list/fingerprints		//assoc print = print
 	var/list/hiddenprints		//assoc ckey = realname/gloves/ckey
@@ -17,12 +17,29 @@
 	forensic_event_timer = null
 	return ..()
 
-/datum/component/forensics/InheritComponent(datum/component/forensics/F, original)		//Use of | and |= being different here is INTENTIONAL.
-	fingerprints = fingerprints | F.fingerprints
-	hiddenprints = hiddenprints | F.hiddenprints
-	blood_DNA = blood_DNA | F.blood_DNA
-	fibers = fibers | F.fibers
-	check_blood()
+/datum/component/forensics/InheritComponent(datum/component/forensics/F, original, list/arguments)
+	// Merge arguments directly instead of constructing and qdel'ing a duplicate on every touch.
+	// Keep union semantics (including existing values for duplicate keys) for transferred components too.
+	var/list/new_fingerprints = F ? F.fingerprints : LAZYACCESS(arguments, 1)
+	var/list/new_hiddenprints = F ? F.hiddenprints : LAZYACCESS(arguments, 2)
+	var/list/new_blood_DNA = F ? F.blood_DNA : LAZYACCESS(arguments, 3)
+	var/list/new_fibers = F ? F.fibers : LAZYACCESS(arguments, 4)
+	if(length(new_fingerprints))
+		fingerprints = fingerprints | new_fingerprints
+	if(length(new_hiddenprints))
+		hiddenprints = hiddenprints | new_hiddenprints
+	if(length(new_blood_DNA))
+		blood_DNA = blood_DNA | new_blood_DNA
+		check_blood()
+	if(length(new_fibers))
+		fibers = fibers | new_fibers
+	// PASSARGS avoids allocating duplicates, but supplied component instances still need disposal.
+	if(F)
+		// TakeComponent assigns the destination before merging, without joining its registry.
+		// Do not let destruction of that unregistered duplicate remove our own registry entry.
+		if(F.parent == parent && !(F in parent.GetComponents(F.type)))
+			F.parent = null
+		qdel(F)
 	return ..()
 
 /datum/component/forensics/Initialize(new_fingerprints, new_hiddenprints, new_blood_DNA, new_fibers)

@@ -97,11 +97,11 @@
 		returning.notransform = FALSE
 
 		// leave a track to indicate something has shifted out here
-		var/obj/effect/track/the_evidence = new(returning.loc)
-		the_evidence.handle_creation(returning)
-		the_evidence.track_type = "expanding animal tracks into humanoid footprints"
-		the_evidence.ambiguous_track_type = "curious footprints"
-		the_evidence.base_diff = 6
+		var/obj/effect/track/the_evidence = returning.create_ordinary_track(get_turf(returning))
+		if(the_evidence)
+			the_evidence.track_type = "expanding animal tracks into humanoid footprints"
+			the_evidence.ambiguous_track_type = "curious footprints"
+			the_evidence.base_diff = 6
 		if (knockout)
 			returning.Unconscious(knockout, TRUE, TRUE)
 			returning.visible_message(span_boldwarning("[returning] twists and shifts back into humen guise in a sickening lurch of flesh and bone, and promptly passes out!"), span_userdanger("I quickly flee the waning vitality of my former shape, but the strain is too much--"))

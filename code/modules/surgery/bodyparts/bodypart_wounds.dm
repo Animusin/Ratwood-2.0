@@ -107,11 +107,12 @@
 		return FALSE
 	return TRUE
 
-/// Returns the total bleed rate on this bodypart
-/obj/item/bodypart/proc/get_bleed_rate()
+/// Returns the total bleed rate on this bodypart; observation can skip bandage treatment.
+/obj/item/bodypart/proc/get_bleed_rate(process_bandages = TRUE)
 	var/bleed_rate = bleeding
 	if(bandage && !HAS_BLOOD_DNA(bandage))
-		process_bandage(bleed_rate)
+		if(process_bandages)
+			process_bandage(bleed_rate)
 		var/obj/item/natural/cloth/cloth = bandage
 		bleed_rate *= cloth.bandage_effectiveness
 		if(bleed_rate <= 1) //if the bleeding is below this after being bandaged, bleeding stops completely, but the bandage still takes damage

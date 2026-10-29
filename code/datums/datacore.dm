@@ -25,7 +25,23 @@
 		GLOB.data_core.general -= src
 	if(src in GLOB.data_core.locked)
 		GLOB.data_core.locked -= src
+	fields.Cut()
 	. = ..()
+
+/// A manifest may outlive a deleted character, but it must not keep the deleted mind alive.
+/datum/data/record/proc/set_mind_ref(datum/mind/new_mind)
+	var/datum/mind/old_mind = fields["mindref"]
+	if(old_mind)
+		UnregisterSignal(old_mind, COMSIG_QDELETING)
+	fields["mindref"] = new_mind
+	if(new_mind)
+		RegisterSignal(new_mind, COMSIG_QDELETING, PROC_REF(on_mind_deleted))
+
+/datum/data/record/proc/on_mind_deleted(datum/mind/source)
+	SIGNAL_HANDLER
+	if(fields["mindref"] == source)
+		fields["mindref"] = null
+	UnregisterSignal(source, COMSIG_QDELETING)
 
 /datum/data/crime
 	name = "crime"
@@ -363,7 +379,7 @@ GLOBAL_LIST_EMPTY(fake_ckeys)
 		L.fields["species"]		= H.dna.species.type
 		L.fields["features"]	= H.dna.features
 		L.fields["image"]		= image
-		L.fields["mindref"]		= H.mind
+		L.set_mind_ref(H.mind)
 		locked += L
 	return
 

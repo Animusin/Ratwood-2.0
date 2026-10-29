@@ -77,7 +77,7 @@ GLOBAL_VAR_INIT(next_forensic_blood_decal_warning, 0)
 /atom/proc/record_forensic_event(event_type, mob/living/culprit, atom/tool)
 	if(QDELETED(src) || !event_type || !isliving(culprit))
 		return FALSE
-	var/datum/component/forensics/D = AddComponent(/datum/component/forensics)
+	var/datum/component/forensics/D = LoadComponent(/datum/component/forensics)
 	return D.record_forensic_event(event_type, culprit, tool)
 
 /atom/proc/read_forensic_event()
@@ -108,7 +108,7 @@ GLOBAL_VAR_INIT(next_forensic_blood_decal_warning, 0)
 /atom/proc/add_fingerprint(mob/M, ignoregloves = FALSE)
 	if(QDELETED(src))
 		return
-	var/datum/component/forensics/D = AddComponent(/datum/component/forensics)
+	var/datum/component/forensics/D = LoadComponent(/datum/component/forensics)
 	. = D.add_fingerprint(M, ignoregloves)
 
 /atom/proc/add_fiber_list(list/fibertext)				//ASSOC LIST FIBERTEXT = FIBERTEXT
@@ -118,16 +118,17 @@ GLOBAL_VAR_INIT(next_forensic_blood_decal_warning, 0)
 		. = AddComponent(/datum/component/forensics, null, null, null, fibertext)
 
 /atom/proc/add_fibers(mob/living/carbon/human/M)
-	var/old = blood_DNA_length()
 	if(istype(M.gloves, /obj/item/clothing/gloves))
 		var/obj/item/clothing/gloves/G = M.gloves
 		if(G.transfer_blood > 1) //bloodied gloves transfer blood to touched objects
+			var/old = blood_DNA_length()
 			if(add_blood_DNA(G.return_blood_DNA()) && blood_DNA_length() > old) //only reduce the blood supply when this atom gained a new sample
 				G.transfer_blood--
 	else if(M.bloody_hands > 1)
+		var/old = blood_DNA_length()
 		if(add_blood_DNA(M.return_blood_DNA()) && blood_DNA_length() > old)
 			M.bloody_hands--
-	var/datum/component/forensics/D = AddComponent(/datum/component/forensics)
+	var/datum/component/forensics/D = LoadComponent(/datum/component/forensics)
 	. = D.add_fibers(M)
 
 /atom/proc/add_hiddenprint_list(list/hiddenprints)	//NOTE: THIS IS FOR ADMINISTRATION FINGERPRINTS, YOU MUST CUSTOM SET THIS TO INCLUDE CKEY/REAL NAMES! CHECK FORENSICS.DM
@@ -137,7 +138,7 @@ GLOBAL_VAR_INIT(next_forensic_blood_decal_warning, 0)
 /atom/proc/add_hiddenprint(mob/M)
 	if(QDELETED(src))
 		return
-	var/datum/component/forensics/D = AddComponent(/datum/component/forensics)
+	var/datum/component/forensics/D = LoadComponent(/datum/component/forensics)
 	. = D.add_hiddenprint(M)
 
 /atom/proc/add_blood_DNA(list/dna)						//ASSOC LIST DNA = BLOODTYPE

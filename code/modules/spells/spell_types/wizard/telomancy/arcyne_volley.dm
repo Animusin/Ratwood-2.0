@@ -174,6 +174,13 @@
 	impact_sounds = list('sound/combat/hits/bladed/genthrust (1).ogg', 'sound/combat/hits/bladed/genthrust (2).ogg')
 	var/list/volley
 
+/obj/projectile/magic/seeker_orb/greater/Destroy()
+	// The shared volley must retain live siblings for guard deflections, but not spent orbs.
+	if(volley)
+		volley -= src
+	volley = null
+	return ..()
+
 /obj/projectile/magic/seeker_orb/greater/on_guard_deflect(mob/living/defender, silent = FALSE)
 	var/mob/living/caster = firer
 	var/list/flight = volley

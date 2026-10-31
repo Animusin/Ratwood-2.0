@@ -163,11 +163,11 @@
 		thief.finalize_pickpocket_steal(victim, wanted, exp_to_gain)
 	qdel(src)
 
+/// Triggered by RMB in combat mode with the weak rmb intent.
 /mob/living/carbon/human/proc/attempt_steal(mob/living/carbon/human/thief, mob/living/carbon/human/victim)
-	if(!ishuman(victim) || !ishuman(thief))
+	if(!ishuman(victim) || !ishuman(thief) || thief == victim)
 		return
-	if(thief == victim)
-		return
+	var/clickcd = CLICK_CD_MELEE
 	var/list/stealmods = list("chance_add" = 0, "range_add" = 0)
 	SEND_SIGNAL(thief, COMSIG_HUMAN_PRE_STEAL, stealmods)
 	var/range_add = stealmods["range_add"]
@@ -221,7 +221,7 @@
 	var/list/mobsbehind = cone(victim, list(turn(victim.dir, 180)), list(thief))
 	if(!victim_unaware && !mobsbehind.Find(thief))
 		to_chat(thief, span_warning("They can see me!"))
-		thief.changeNext_move(CLICK_CD_MELEE)
+		thief.changeNext_move(clickcd)
 		return
 
 	// The contested detection check: thieving + fortune vs perception + speed, scaled by the mark's awareness.
@@ -244,7 +244,7 @@
 			to_chat(thief, span_warning("I can't get at it without being noticed. Best stop here."))
 			victim.balloon_alert(victim, "...?")
 			to_chat(victim, span_danger("Someone's fumbling at my belongings!"))
-		thief.changeNext_move(CLICK_CD_MELEE)
+		thief.changeNext_move(clickcd)
 		return
 
 	var/list/stealpos = list()
@@ -276,7 +276,7 @@
 
 	if(!length(stealpos))
 		to_chat(thief, span_warning("I didn't find anything there. Perhaps I should look elsewhere."))
-		thief.changeNext_move(CLICK_CD_MELEE)
+		thief.changeNext_move(clickcd)
 		return
 
 	var/obj/item/target = pick(stealpos)
@@ -292,7 +292,7 @@
 		thief.pickpocket_feedback(victim, margin, target)
 		if(success)
 			thief.finalize_pickpocket_steal(victim, target, exp_to_gain)
-		thief.changeNext_move(CLICK_CD_MELEE)
+		thief.changeNext_move(clickcd)
 		return
 
 	if(istype(target, /obj/item/storage) || istype(target, /obj/item/clothing/cloak))
@@ -300,13 +300,13 @@
 		var/datum/component/storage/storage = container.GetComponent(/datum/component/storage)
 		if(!storage || !length(storage.contents()))
 			to_chat(thief, span_warning("There's nothing in [container] worth taking."))
-			thief.changeNext_move(CLICK_CD_MELEE)
+			thief.changeNext_move(clickcd)
 			return
-		thief.changeNext_move(CLICK_CD_MELEE)
+		thief.changeNext_move(clickcd)
 		new /datum/pickpocket_session(thief, victim, container, margin, exp_to_gain)
 		return
 
 	victim.dropItemToGround(target)
 	thief.pickpocket_feedback(victim, margin, target)
 	thief.finalize_pickpocket_steal(victim, target, exp_to_gain)
-	thief.changeNext_move(CLICK_CD_MELEE)
+	thief.changeNext_move(clickcd)

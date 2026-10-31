@@ -40,20 +40,8 @@
 	var/area/A = get_area(src)
 	dna?.species?.stop_wagging_tail(src)
 
-	//OV edit
-	if(isooze(src) && !gibbed)
-		if(!istype(loc, /obj/shapeshift_holder/ooze_death))
-			var/shapeshift_type = /mob/living/simple_animal/hostile/retaliate/rogue/ooze_blob/suffering
-			var/mob/living/shape = new shapeshift_type(src.loc)
-			shape.color = "#[dna.features["mcolor"]]"
-
-			new /obj/shapeshift_holder/ooze_death(shape, src)
-			shape.name = "[shape]"
-
-			shape.mind?.RemoveSpell(/obj/effect/proc_holder/spell/targeted/shapeshift/ooze)
-
-			return
-	//OV edit end
+	if(dna?.species?.intercept_death(src, gibbed))
+		return
 
 	if(client)
 		SSdroning.kill_droning(client)

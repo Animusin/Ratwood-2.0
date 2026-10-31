@@ -86,10 +86,14 @@
 	var/mob/living/remains = player.current
 	TEST_ASSERT(istype(remains, /mob/living/simple_animal/hostile/retaliate/rogue/ooze_blob/suffering), "Killing blob form must require revival, not grant a fresh body.")
 	TEST_ASSERT(istype(caster.loc, /obj/shapeshift_holder/ooze_death), "The body must remain inside its death holder.")
+	TEST_ASSERT(HAS_TRAIT(caster, TRAIT_OOZE_SUFFERING), "The stored body must be marked as suffering until revival.")
+	TEST_ASSERT(spell.charge_counter < 0, "Losing blob form must apply the longer death cooldown.")
 	remains.revive(TRUE)
 	TEST_ASSERT_EQUAL(player.current, caster, "A real revival must restore the humanoid body.")
 	TEST_ASSERT(!caster.notransform, "Revival must release the body from its holder.")
 	TEST_ASSERT(player.has_spell(/obj/effect/proc_holder/spell/targeted/shapeshift/ooze), "Revival must restore Blob Form.")
+	TEST_ASSERT(spell in player.spell_list, "Revival must retain the existing spell and its death cooldown.")
+	TEST_ASSERT(!HAS_TRAIT(caster, TRAIT_OOZE_SUFFERING), "Revival must clear the suffering marker so later deaths work normally.")
 
 /datum/unit_test/ooze_werewolf_death/Run()
 	var/mob/living/carbon/human/caster = allocate(/mob/living/carbon/human/consistent)
@@ -113,3 +117,43 @@
 	TEST_ASSERT_EQUAL(remains.stat, DEAD, "An ooze werewolf's remains must be killable.")
 	TEST_ASSERT_EQUAL(player.current, remains, "Killing remains must not grant another werewolf body.")
 	qdel(remains)
+
+/datum/unit_test/ooze_stored_caster_death/Run()
+	var/mob/living/carbon/human/caster = allocate(/mob/living/carbon/human/consistent)
+	caster.set_species(/datum/species/ooze)
+	caster.mind_initialize()
+	var/datum/mind/player = caster.mind
+	var/turf/start_turf = get_turf(caster)
+	var/obj/effect/proc_holder/spell/targeted/shapeshift/spell = allocate(/obj/effect/proc_holder/spell/targeted/shapeshift)
+	spell.shapeshift_type = /mob/living/simple_animal/hostile/retaliate/rogue/cat
+	spell.do_gib = FALSE
+	player.AddSpell(spell)
+	spell.Shapeshift(caster)
+	var/mob/living/old_shape = player.current
+	var/obj/shapeshift_holder/old_holder = caster.loc
+	TEST_ASSERT(istype(old_holder) && old_holder.type == /obj/shapeshift_holder, "The caster must start inside a generic shapeshift holder.")
+	// Damage can kill the stored body directly, without killing its animal form first.
+	caster.death()
+	var/mob/living/remains = player.current
+	TEST_ASSERT(istype(remains, /mob/living/simple_animal/hostile/retaliate/rogue/ooze_blob/suffering), "A stored ooze's death must transfer the player into vulnerable remains.")
+	TEST_ASSERT(QDELETED(old_shape) && QDELETED(old_holder), "The original animal form and holder must be discarded.")
+	TEST_ASSERT(istype(caster.loc, /obj/shapeshift_holder/ooze_death), "The dying body must enter its death holder instead of remaining in the old form.")
+	TEST_ASSERT_EQUAL(remains.loc, start_turf, "The remains must be placed on the map, not inside the discarded holder.")
+	TEST_ASSERT(HAS_TRAIT(caster, TRAIT_OOZE_SUFFERING), "The body must be marked as suffering after its original form is removed.")
+	remains.revive(TRUE)
+	TEST_ASSERT_EQUAL(player.current, caster, "Revival after a stored body's death must restore its original mind and body.")
+	TEST_ASSERT_EQUAL(caster.loc, start_turf, "Revival must restore the body onto its original turf.")
+	TEST_ASSERT(!HAS_TRAIT(caster, TRAIT_OOZE_SUFFERING), "Revival must release the suffering marker after a generic shapeshift death.")
+
+/datum/unit_test/ooze_gibbed_death/Run()
+	var/mob/living/carbon/human/caster = allocate(/mob/living/carbon/human/consistent)
+	caster.set_species(/datum/species/ooze)
+	caster.mind_initialize()
+	var/datum/mind/player = caster.mind
+	var/turf/start_turf = get_turf(caster)
+	// Both gib() and dust() invoke death(TRUE) before destroying the body.
+	caster.death(TRUE)
+	TEST_ASSERT_EQUAL(caster.stat, DEAD, "Gibbing must kill an ooze instead of intercepting death to create a new form.")
+	TEST_ASSERT_EQUAL(player.current, caster, "Gibbing must not transfer the player into newly spawned suffering remains.")
+	TEST_ASSERT_EQUAL(caster.loc, start_turf, "A gibbed body must not be relocated into a death holder.")
+	TEST_ASSERT(!HAS_TRAIT(caster, TRAIT_OOZE_SUFFERING), "Gibbing must bypass the suffering-form lifecycle.")

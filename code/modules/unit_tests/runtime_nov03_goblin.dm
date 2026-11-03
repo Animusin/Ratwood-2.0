@@ -100,3 +100,32 @@
 	TEST_ASSERT_NULL(target.wear_mask, "Impact must not attach a goblin deleted by the target's hitby callback.")
 	TEST_ASSERT(!goblin.Leap(target), "A pending leap must refuse an already deleted goblin.")
 	TEST_ASSERT_EQUAL(GLOB.total_runtimes, runtimes_before, "A consumed goblin must not continue into equipment or timer callbacks.")
+
+/// Failed hand placement must not try to drop an item consumed by the transfer callback.
+/datum/unit_test/runtime_offered_item_consumed_during_transfer/Run()
+	var/mob/living/carbon/human/consistent/offerer = allocate(/mob/living/carbon/human/consistent)
+	var/mob/living/carbon/human/consistent/recipient = allocate(/mob/living/carbon/human/consistent)
+	var/obj/item/clothing/mask/rogue/item = allocate(/obj/item/clothing/mask/rogue/unit_test_consumed_on_equip_move)
+	// This fixture deletes itself on any move into a mob; begin at the transfer boundary.
+	offerer.offered_item_ref = WEAKREF(item)
+	var/runtimes_before = GLOB.total_runtimes
+	recipient.accept_offered_item(offerer, item, FALSE)
+	TEST_ASSERT(QDELETED(item), "The transfer callback must actually consume the offered item.")
+	TEST_ASSERT_NULL(recipient.get_active_held_item(), "A consumed offered item must not be left in the recipient's hand.")
+	TEST_ASSERT_NULL(offerer.offered_item_ref, "A failed transfer must end the outstanding offer.")
+	TEST_ASSERT_EQUAL(GLOB.total_runtimes, runtimes_before, "The failed hand-placement fallback must not forceMove a deleted item.")
+
+/// The deletion guard must preserve a normal hand-to-hand offer.
+/datum/unit_test/runtime_offered_item_normal_transfer/Run()
+	var/mob/living/carbon/human/consistent/offerer = allocate(/mob/living/carbon/human/consistent)
+	var/mob/living/carbon/human/consistent/recipient = allocate(/mob/living/carbon/human/consistent)
+	var/obj/item/item = allocate(/obj/item)
+	TEST_ASSERT(offerer.put_in_active_hand(item), "The offerer must begin holding the item.")
+	offerer.offered_item_ref = WEAKREF(item)
+	var/runtimes_before = GLOB.total_runtimes
+	TEST_ASSERT(recipient.accept_offered_item(offerer, item, FALSE), "An ordinary live item must still transfer successfully.")
+	TEST_ASSERT(!QDELETED(item), "A successful handoff must preserve its item.")
+	TEST_ASSERT_EQUAL(recipient.get_active_held_item(), item, "The recipient must hold the transferred item.")
+	TEST_ASSERT_EQUAL(item.loc, recipient, "The transferred item must be located on its recipient.")
+	TEST_ASSERT_NULL(offerer.offered_item_ref, "A successful handoff must end the outstanding offer.")
+	TEST_ASSERT_EQUAL(GLOB.total_runtimes, runtimes_before, "An ordinary handoff must not cause a runtime.")

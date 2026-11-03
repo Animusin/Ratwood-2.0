@@ -17,7 +17,7 @@
 	TEST_ASSERT(QDELETED(initial_particle), "A held charge must replace expired particles with a fresh emission.")
 	TEST_ASSERT_EQUAL(caster.count_spell_particles(), 1, "Restarting a charge must leave one particle stream, not the old and new timer chains.")
 	for(var/obj/effect/temp_visual/particle_up/particle in caster.vis_contents)
-		TEST_ASSERT_EQUAL(lowertext(particle.color), "#00ff00", "A new charge must not emit particles using the previous spell's color.")
+		TEST_ASSERT_EQUAL(LOWER_TEXT(particle.color), "#00ff00", "A new charge must not emit particles using the previous spell's color.")
 	caster.cancel_spell_visual_effects()
 	TEST_ASSERT_EQUAL(caster.count_spell_particles(), 0, "Cancelling a held charge must remove its current particles immediately.")
 

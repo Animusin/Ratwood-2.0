@@ -158,7 +158,7 @@ GLOBAL_LIST_EMPTY(personal_objective_minds)
 		if(iscarbon(current))
 			var/mob/living/carbon/carbon_current = current
 			if(carbon_current.last_mind == src)
-				carbon_current.last_mind = null
+				carbon_current.set_last_mind(null)
 	current = null
 	soulOwner = null
 	martial_art = null
@@ -380,7 +380,7 @@ GLOBAL_LIST_EMPTY(personal_objective_minds)
 		A.on_body_transfer(old_current, current)
 	if(iscarbon(new_character))
 		var/mob/living/carbon/C = new_character
-		C.last_mind = src
+		C.set_last_mind(src)
 	transfer_antag_huds(hud_to_transfer)				//inherit the antag HUD
 	transfer_actions(new_character)
 	transfer_martial_arts(new_character)
@@ -1060,7 +1060,7 @@ GLOBAL_LIST_EMPTY(personal_objective_minds)
 
 /mob/living/carbon/mind_initialize()
 	..()
-	last_mind = mind
+	set_last_mind(mind)
 
 //HUMAN
 /mob/living/carbon/human/mind_initialize()

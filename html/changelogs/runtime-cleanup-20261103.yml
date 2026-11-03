@@ -1,0 +1,7 @@
+author: "Animusin"
+delete-after: true
+changes:
+  - admin: "The existing memory log now includes sampled CPU, Map CPU and controller costs to help investigate intermittent lag."
+  - code_imp: "Footsteps no longer build unused quarry highlights, and looking around skips visibility checks for objects without clues."
+  - bugfix: "Rituals, HUDs and former bodies release references that could force expensive object deletion. Cancelling teleport selection now releases the rune correctly."
+  - bugfix: "Fixed stale goblin masks and equipment callbacks, Wretched Toiler previews, expired mount bonds, WEEP wound transfers, pollution cleanup and unknown-job social rank errors."

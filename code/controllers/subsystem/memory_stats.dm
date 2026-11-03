@@ -70,6 +70,15 @@ SUBSYSTEM_DEF(memory_stats)
 		last_rss_mb = rss
 		last_rss_bytes = rss_bytes
 
+	// Keep the controller's engine measurements next to queue sizes for transient lag reports.
+	// These are sampled values, not the peak or average over this logger's 30-second interval.
+	out += "world_time_ds=[world.time]"
+	out += "cpu_pct=[round(world.cpu, 0.1)]"
+	out += "map_cpu_pct=[round(world.map_cpu, 0.1)]"
+	out += "mc_iteration=[Master.iteration]"
+	out += "gc_cost_ms=[round(SSgarbage.cost, 0.1)]"
+	out += "mobs_cost_ms=[round(SSmobs.cost, 0.1)]"
+
 	out += "world_contents=[length(world.contents)]"
 	out += "clients=[length(GLOB.clients)]"
 	out += "mobs=[length(GLOB.mob_list)]"

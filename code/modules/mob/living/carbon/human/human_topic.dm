@@ -116,11 +116,11 @@ GLOBAL_VAR_INIT(year_integer, text2num(year)) // = 2013???
 		var/is_druid = FALSE
 		if(job)
 			var/datum/job/J = SSjob.GetJob(job)
-			if(J.department_flag == CHURCHMEN) //There may be a better way to check who is clergy, but this will do for now
+			if(J?.department_flag == CHURCHMEN) //There may be a better way to check who is clergy, but this will do for now
 				is_clergy = TRUE
-			if(J.title == "Jester")
+			if(J?.title == "Jester")
 				is_jester = TRUE
-			if(J.title == "Druid")
+			if(J?.title == "Druid")
 				is_druid = TRUE
 		if(social_rank && !HAS_TRAIT(src, TRAIT_OUTLANDER))
 			var/examiner_rank = usr.social_rank

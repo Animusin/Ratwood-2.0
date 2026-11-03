@@ -1584,6 +1584,8 @@
 // The src mob is trying to strip an item from someone
 // Override if a certain type of mob should be behave differently when stripping items (can't, for example)
 /mob/living/stripPanelUnequip(obj/item/what, mob/who, where)
+	if(QDELETED(what) || QDELETED(who) || what.loc != who)
+		return
 	if(!what.canStrip(who))
 		to_chat(src, span_warning("I can't remove \the [what.name], it appears to be stuck!"))
 		return
@@ -1632,7 +1634,7 @@
 	if(enhanced_strip)
 		strip_delayed = 0.1 SECONDS
 	if(do_after(src, strip_delayed * surrender_mod, who))
-		if(what && (Adjacent(who) || (enhanced_strip && (get_dist(src, who) <= 3))))
+		if(!QDELETED(what) && !QDELETED(who) && what.loc == who && (Adjacent(who) || (enhanced_strip && (get_dist(src, who) <= 3))))
 			enhanced_strip = FALSE
 			if(islist(where))
 				var/list/L = where

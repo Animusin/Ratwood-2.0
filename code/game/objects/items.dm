@@ -1539,6 +1539,8 @@ GLOBAL_VAR_INIT(rpg_loot_items, FALSE)
 	return ..()
 
 /obj/item/proc/canStrip(mob/stripper, mob/owner)
+	if(QDELETED(src) || !loc)
+		return FALSE
 	if(HAS_TRAIT(loc, TRAIT_STUCKITEMS))
 		return FALSE
 

@@ -56,11 +56,25 @@
 	var/tier = 1
 	/// ritual result is the result of a ritual!
 	var/ritual_result
-	//atoms in ranges
-	var/list/atom/movable/atoms_in_range	//list for atoms in range of rune
 	var/datum/runeritual/pickritual		//selected
 	var/list/selected_atoms
 	var/associated_ritual = null	//Associated ritual for runes with only 1 ritual. Use in tandom with ritual_number
+
+/obj/effect/decal/cleanable/roguerune/Destroy()
+	clear_ritual()
+	return ..()
+
+/// Selections and results are borrowed atoms; only the recipe datum belongs to the rune.
+/obj/effect/decal/cleanable/roguerune/proc/clear_ritual()
+	rune_in_use = FALSE
+	selected_atoms = null
+	ritual_result = null
+	QDEL_NULL(pickritual)
+
+/obj/effect/decal/cleanable/roguerune/proc/finish_ritual()
+	if(ritual_result && pickritual)
+		pickritual.cleanup_atoms(selected_atoms)
+	clear_ritual()
 
 /proc/isarcyne(mob/living/carbon/human/A)
 	return istype(A) && A.mind && (A.get_skill_level(/datum/skill/magic/arcane) > SKILL_LEVEL_NONE)	//checks if person has arcane skill
@@ -146,6 +160,7 @@ GLOBAL_LIST(teleport_runes)
 	animate(src, transform = matrix(), alpha = 255, time = 0, flags = ANIMATION_END_NOW)
 
 /obj/effect/decal/cleanable/roguerune/proc/fail_invoke()
+	clear_ritual()
 	//This proc contains the effects of a rune if it is not invoked correctly, through either invalid wording or not enough cultists. By default, it's just a basic fizzle.
 	visible_message(span_warning("The markings pulse with a small flash of light, then fall dark."))
 	var/oldcolor = color
@@ -249,7 +264,9 @@ GLOBAL_LIST(teleport_runes)
 
 /obj/effect/decal/cleanable/roguerune/proc/invoke(list/invokers, datum/runeritual/ritual)		//Generic invoke proc. This will be defined on every rune, along with effects.If you want to make an object, or provide a buff, do so through this proc., have both here.
 	rune_in_use = FALSE
-	atoms_in_range = list()
+	clear_ritual()
+	// A persistent scan would retain every nearby object even after it was consumed or deleted.
+	var/list/atom/movable/atoms_in_range = list()
 	for(var/atom/close_atom as anything in range(runesize, src))
 		if(iswallturf(close_atom))
 			to_chat(usr, span_hierophant_warning("Ritual failed, [src] is blocked by [close_atom]!"))
@@ -270,6 +287,7 @@ GLOBAL_LIST(teleport_runes)
 		atoms_in_range += close_atom
 	pickritual = new ritual
 	if(!islist(pickritual.required_atoms))
+		clear_ritual()
 		return
 
 	// A copy of our requirements list.
@@ -376,8 +394,7 @@ GLOBAL_LIST(teleport_runes)
 	var/mob/living/user = usr
 	user.apply_status_effect(/datum/status_effect/buff/magicknowledge)
 	buffed = TRUE
-	if(ritual_result)
-		pickritual.cleanup_atoms(selected_atoms)
+	finish_ritual()
 
 	for(var/atom/invoker in invokers)
 		if(!isliving(invoker))
@@ -412,8 +429,7 @@ GLOBAL_LIST(teleport_runes)
 	var/buffedstat = runeritual.buff
 	for(var/mob/living/invoker in range(runesize, src))
 		invoker.apply_status_effect(buffedstat)
-	if(ritual_result)
-		pickritual.cleanup_atoms(selected_atoms)
+	finish_ritual()
 
 	for(var/atom/invoker in invokers)
 		if(!isliving(invoker))
@@ -444,8 +460,7 @@ GLOBAL_LIST(teleport_runes)
 /obj/effect/decal/cleanable/roguerune/arcyne/enchantment/invoke(list/invokers, datum/runeritual/runeritual)
 	if(!..())	//VERY important. Calls parent and checks if it fails. parent/invoke has all the checks for ingredients
 		return
-	if(ritual_result)
-		pickritual.cleanup_atoms(selected_atoms)
+	finish_ritual()
 
 	for(var/atom/invoker in invokers)
 		if(!isliving(invoker))
@@ -564,8 +579,7 @@ GLOBAL_LIST(teleport_runes)
 			src.barriers += newbarrier
 		active = TRUE
 
-	if(ritual_result)
-		pickritual.cleanup_atoms(selected_atoms)
+	finish_ritual()
 
 	for(var/atom/invoker in invokers)
 		if(!isliving(invoker))
@@ -661,8 +675,7 @@ GLOBAL_LIST(teleport_runes)
 	get_template(template)
 	clear_fortress_area(deploy_location)
 	template.load(deploy_location, centered = TRUE)
-	if(ritual_result)
-		pickritual.cleanup_atoms(selected_atoms)
+	finish_ritual()
 
 	for(var/atom/invoker in invokers)
 		if(!isliving(invoker))
@@ -702,6 +715,9 @@ GLOBAL_LIST(teleport_runes)
 	LAZYREMOVE(GLOB.teleport_runes, src)
 	return ..()
 
+/obj/effect/decal/cleanable/roguerune/arcyne/teleport/proc/select_destination(mob/living/user, list/potential_runes)
+	return input(user, "Rune to teleport to", "Teleportation Target") as null|anything in potential_runes
+
 /obj/effect/decal/cleanable/roguerune/arcyne/teleport/invoke(list/invokers, datum/runeritual/runeritual)
 	runeritual = associated_ritual
 	if(!..())	//VERY important. Calls parent and checks if it fails. parent/invoke has all the checks for ingredients
@@ -719,19 +735,24 @@ GLOBAL_LIST(teleport_runes)
 		fail_invoke()
 		return
 
-	var/input_rune_key = input(user, "Rune to teleport to", "Teleportation Target") as null|anything in potential_runes //we know what key they picked
+	// The selection may sleep; another invoker must not replace its pending ingredients.
+	rune_in_use = TRUE
+	var/input_rune_key = select_destination(user, potential_runes)
+	if(QDELETED(src))
+		return
 	if(isnull(input_rune_key))
+		clear_ritual()
 		return
 	if(isnull(potential_runes[input_rune_key]))
 		fail_invoke()
 		return
 	var/obj/effect/decal/cleanable/roguerune/arcyne/teleport/actual_selected_rune = potential_runes[input_rune_key] //what rune does that key correspond to?
-	if(!Adjacent(user) || QDELETED(src) || !actual_selected_rune)
+	if(QDELETED(user) || !Adjacent(user) || QDELETED(actual_selected_rune))
 		fail_invoke()
 		return
 
 	var/turf/target = get_turf(actual_selected_rune)
-	if(target.is_blocked_turf(TRUE))
+	if(!target || target.is_blocked_turf(TRUE))
 		to_chat(user, span_warning("The target rune is blocked. Attempting to teleport to it would be massively unwise."))
 		log_game("Teleport rune activated by [user] at [COORD(src)] failed - destination blocked.")
 		fail_invoke()
@@ -739,8 +760,7 @@ GLOBAL_LIST(teleport_runes)
 	var/movedsomething = FALSE
 	var/moveuserlater = FALSE
 	var/movesuccess = FALSE
-	if(ritual_result)
-		pickritual.cleanup_atoms(selected_atoms)
+	finish_ritual()
 	for(var/atom/movable/A in range(runesize, src))
 		if(istype(A, /obj/effect/dummy/phased_mob))
 			continue
@@ -842,8 +862,7 @@ GLOBAL_LIST(teleport_runes)
 	if(ismob(ritual_result))
 		summoned_mob = ritual_result
 		src.summoning = TRUE
-	if(ritual_result)
-		pickritual.cleanup_atoms(selected_atoms)
+	finish_ritual()
 
 	for(var/atom/invoker in invokers)
 		if(!isliving(invoker))

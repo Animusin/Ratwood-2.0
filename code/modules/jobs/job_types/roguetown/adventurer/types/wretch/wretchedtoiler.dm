@@ -46,7 +46,7 @@
 		)
 
 // Hedge Mage on purpose has nearly the same fit as a Adv Mage / Mage Associate who cast conjure armor roundstart. Call it meta disguise.
-/datum/outfit/job/wretch/wretchedtoiler/pre_equip(mob/living/carbon/human/H)
+/datum/outfit/job/wretch/wretchedtoiler/pre_equip(mob/living/carbon/human/H, visualsOnly = FALSE)
 	//shared loadout
 	belt = /obj/item/storage/belt/rogue/leather
 	beltl = /obj/item/storage/magebag/associate
@@ -60,6 +60,8 @@
 		/obj/item/rogueweapon/scabbard/sheath = 1,
 		/obj/item/recipe_book/magic,
 	)
+	if(visualsOnly || !H.mind)
+		return
 	H.dna.species.soundpack_m = new /datum/voicepack/male/wizard()	
 	//evil laughter/making fun of good guys (essential)
 	H.mind.AddSpell(new /obj/effect/proc_holder/spell/invoked/mockery)

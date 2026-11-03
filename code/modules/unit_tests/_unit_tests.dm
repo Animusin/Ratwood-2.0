@@ -121,6 +121,7 @@
 #include "runtime_nov03_harddels.dm"
 #include "runtime_nov03_misc.dm"
 #include "runtime_nov03_rituals.dm"
+#include "runtime_nov03_spells.dm"
 #include "runtime_nov03_tracks.dm"
 #include "runtime_rounds_1486.dm"
 #include "scabbard_sprites.dm"

@@ -25,6 +25,7 @@
 	init_faith()
 
 /mob/living/Destroy()
+	QDEL_NULL(spell_rune)
 	cancel_disconnected_admin_alert()
 	surgeries = null
 	if(LAZYLEN(status_effects))

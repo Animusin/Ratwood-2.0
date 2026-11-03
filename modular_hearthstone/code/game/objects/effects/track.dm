@@ -104,7 +104,7 @@
 /mob/living/carbon/human/proc/discover_tracking_clue(atom/evidence, search_range = 7)
 	if(!client || cmode)
 		return FALSE
-	if(!evidence || get_dist(src, evidence) > search_range || !can_see(src, evidence, search_range))
+	if(!evidence || get_dist(src, evidence) > search_range)
 		return FALSE
 	var/is_blood_clue = FALSE
 	if(isturf(evidence))
@@ -118,6 +118,9 @@
 		if(!is_door_or_window || (!length(evidence.return_fibers()) && !length(evidence.return_blood_DNA())))
 			return FALSE
 	if(isturf(evidence) && !is_blood_clue)
+		return FALSE
+	// Look Around visits every nearby object; only actual evidence needs a line-of-sight scan.
+	if(!can_see(src, evidence, search_range))
 		return FALSE
 	for(var/obj/effect/tracking_clue_marker/marker as anything in tracking_clue_markers?.Copy())
 		if(!marker || QDELETED(marker))
@@ -430,8 +433,8 @@
 			newest_track = track
 		if(is_tracking_mark(track.creator) && (!newest_mark_track || track.creation_time >= newest_mark_track.creation_time))
 			newest_mark_track = track
-	if(newest_mark_track?.marked_image)
-		client.images += newest_mark_track.marked_image
+	if(newest_mark_track)
+		client.images += newest_mark_track.get_track_image(src)
 	if(newest_track && newest_track != newest_mark_track && newest_track.real_image)
 		client.images += newest_track.real_image
 
@@ -752,17 +755,22 @@
 	marked_image = null
 	real_icon_state = initial(real_icon_state)
 
-/// Builds client-only track images. Quarry tracks use the brighter marked sprite below the newest trace.
+/// Builds the ordinary image; the quarry highlight is allocated only when an investigator sees it.
 /obj/effect/track/proc/rebuild_track_images(image_dir = SOUTH)
 	var/display_layer = type == /obj/effect/track ? ABOVE_OPEN_TURF_LAYER + 0.01 : ABOVE_OPEN_TURF_LAYER
 	real_image = image(icon, src, real_icon_state, display_layer, image_dir)
 	real_image.mouse_opacity = MOUSE_OPACITY_ICON
 	marked_image = null
-	if(type != /obj/effect/track)
-		return
-	marked_image = image(icon, src, "tracks_marked", ABOVE_OPEN_TURF_LAYER, image_dir)
-	marked_image.mouse_opacity = MOUSE_OPACITY_ICON
-	marked_image.filters += filter(type = "outline", color = TRACKING_MARK_COLOR, size = 1)
+
+/// A footprint may never be investigated, so share one lazily built highlight between its knowers.
+/obj/effect/track/proc/get_track_image(mob/living/viewer)
+	if(type != /obj/effect/track || !viewer?.is_tracking_mark(creator))
+		return real_image
+	if(!marked_image)
+		marked_image = image(icon, src, "tracks_marked", ABOVE_OPEN_TURF_LAYER, real_image.dir)
+		marked_image.mouse_opacity = MOUSE_OPACITY_ICON
+		marked_image.filters += filter(type = "outline", color = TRACKING_MARK_COLOR, size = 1)
+	return marked_image
 
 /obj/effect/track/attack_hand(mob/living/user)
 	. = ..()

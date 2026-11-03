@@ -26,7 +26,7 @@
 /mob/living/carbon/equip_to_slot(obj/item/I, slot)
 	if(!slot)
 		return
-	if(!istype(I))
+	if(!istype(I) || QDELETED(I) || QDELETED(src))
 		return
 
 	var/index = get_held_index_of_item(I)
@@ -45,6 +45,8 @@
 			if(observe.client)
 				observe.client.screen -= I
 	I.forceMove(src)
+	if(QDELETED(I) || QDELETED(src) || I.loc != src)
+		return FALSE
 	I.layer = ABOVE_HUD_LAYER
 	I.plane = ABOVE_HUD_PLANE
 	I.appearance_flags |= NO_CLIENT_COLOR

@@ -50,6 +50,11 @@ GLOBAL_LIST_INIT(huds, alist(
 	for(var/mob/M in hudusers)
 		remove_from_single_hud(M, A)
 	hudatoms -= A
+	for(var/mob/viewer in hud_exceptions)
+		hud_exceptions[viewer] -= A
+	// A former viewer's cooldown still needs its deletion subscription.
+	if(!(A in next_time_allowed))
+		UnregisterSignal(A, COMSIG_QDELETING)
 	return TRUE
 
 /datum/atom_hud/proc/remove_from_single_hud(mob/M, atom/A) //unsafe, no sanity apart from client
@@ -62,7 +67,8 @@ GLOBAL_LIST_INIT(huds, alist(
 	if(QDELETED(M))
 		return
 	if(!(M in next_time_allowed))
-		RegisterSignal(M, COMSIG_QDELETING, PROC_REF(on_hud_user_deleted))
+		if(!(M in hudatoms))
+			RegisterSignal(M, COMSIG_QDELETING, PROC_REF(on_hud_atom_deleted))
 		next_time_allowed[M] = 0
 	if(!hudusers[M])
 		hudusers[M] = 1
@@ -77,20 +83,21 @@ GLOBAL_LIST_INIT(huds, alist(
 	else
 		hudusers[M]++
 
-/// Cooldowns outlive HUD membership, but must never retain a deleted mob.
-/datum/atom_hud/proc/on_hud_user_deleted(mob/M)
+/// Targets and viewers can have independent membership; neither may retain a deleted atom.
+/datum/atom_hud/proc/on_hud_atom_deleted(atom/A)
 	SIGNAL_HANDLER
-	if(hudusers[M])
+	if(hudusers[A])
+		var/mob/M = A
 		hudusers[M] = 1
 		remove_hud_from(M)
-	next_time_allowed -= M
-	queued_to_see -= M
-	hud_exceptions -= M
-	UnregisterSignal(M, COMSIG_QDELETING)
+	next_time_allowed -= A
+	queued_to_see -= A
+	hud_exceptions -= A
+	UnregisterSignal(A, COMSIG_QDELETING)
 	// A viewer is not necessarily a HUD target. Removing a non-target from a
 	// basic alternate appearance deletes that appearance for every other viewer.
-	if(M in hudatoms)
-		remove_from_hud(M)
+	if(A in hudatoms)
+		remove_from_hud(A)
 
 /datum/atom_hud/proc/hide_single_atomhud_from(hud_user,hidden_atom)
 	if(hudusers[hud_user])
@@ -113,8 +120,10 @@ GLOBAL_LIST_INIT(huds, alist(
 			add_to_single_hud(M, A)
 
 /datum/atom_hud/proc/add_to_hud(atom/A)
-	if(!A)
+	if(QDELETED(A))
 		return FALSE
+	if(!(A in hudatoms) && !(A in next_time_allowed))
+		RegisterSignal(A, COMSIG_QDELETING, PROC_REF(on_hud_atom_deleted))
 	hudatoms |= A
 	for(var/mob/M in hudusers)
 		if(!queued_to_see[M])

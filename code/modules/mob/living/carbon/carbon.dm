@@ -45,9 +45,24 @@
 		QDEL_NULL(dna)
 	if(underwear)
 		QDEL_NULL(underwear)
-	last_mind = null
+	set_last_mind(null)
 	STOP_PROCESSING(SSiconupdates, src)
 	GLOB.carbon_list -= src
+
+/// Preserve a living former mind for revival without retaining it after deletion.
+/mob/living/carbon/proc/set_last_mind(datum/mind/new_mind)
+	if(last_mind == new_mind)
+		return
+	if(last_mind)
+		UnregisterSignal(last_mind, COMSIG_QDELETING)
+	last_mind = QDELETED(new_mind) ? null : new_mind
+	if(last_mind)
+		RegisterSignal(last_mind, COMSIG_QDELETING, PROC_REF(on_last_mind_deleted))
+
+/mob/living/carbon/proc/on_last_mind_deleted(datum/mind/deleted_mind)
+	SIGNAL_HANDLER
+	if(last_mind == deleted_mind)
+		set_last_mind(null)
 
 /mob/living/carbon/ZImpactDamage(turf/T, levels)
 	var/obj/item/bodypart/affecting

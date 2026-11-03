@@ -400,7 +400,11 @@ GLOBAL_VAR_INIT(mobids, 1)
 			if(!disable_warning)
 				to_chat(src, "<span class='warning'>I couldn't equip that.</span>")
 		return FALSE
+	if(QDELETED(W) || QDELETED(src))
+		return FALSE
 	equip_to_slot(W, slot, redraw_mob, initial) //This proc should not ever fail.
+	if(QDELETED(W) || QDELETED(src))
+		return FALSE
 	update_a_intents()
 	return TRUE
 

@@ -55,13 +55,19 @@
 				if(disallowed_wounds[targetwound.type])
 					continue
 				if(move_after(user, 0.5 SECONDS, needhand = FALSE, target = user))
-					if(!targetwound) // it's possible they might've healed on or advanced
+					if(QDELETED(C_target) || QDELETED(C_caster))
+						return FALSE
+					// Healing, amputation or another caster can change the wound during the delay.
+					if(QDELETED(targetwound) || QDELETED(targetwound.bodypart_owner) || targetwound.bodypart_owner.owner != C_target)
 						continue
-					wounds_wept = TRUE // This isn't *particularly* hot code, so this should be fine.
 					var/obj/item/bodypart/c_BP = C_caster.get_bodypart(targetwound.bodypart_owner.body_zone)
+					if(QDELETED(c_BP))
+						continue
 					// instead of recreating a new wound of the same type as the victims, we can just transfer theirs (includes any existing healing/clotting) over to us
 					var/pre_bleeding = targetwound.bleed_rate
-					targetwound.apply_to_bodypart(c_BP, silent = TRUE, crit_message = FALSE)
+					if(!targetwound.apply_to_bodypart(c_BP, silent = TRUE, crit_message = FALSE))
+						continue
+					wounds_wept = TRUE
 					targetwound.set_bleed_rate(pre_bleeding) // but we have to manually force a bleed_rate reset for it to cache properly
 					if(targetwound.severity >= WOUND_SEVERITY_SEVERE)
 						if(HAS_TRAIT(H, TRAIT_INQUISITION))
@@ -72,6 +78,9 @@
 					new /obj/effect/temp_visual/psyheal_rogue(get_turf(H), "#487e97")
 					new /obj/effect/temp_visual/psyheal_rogue(get_turf(user), "#487e97")
 					C_target.Beam(C_caster, icon_state="heal_psycross", icon='modular_azurepeak/icons/effects/miracle-healing.dmi', time = 5)
+
+	if(QDELETED(H) || QDELETED(user))
+		return FALSE
 
 	// Transfer blood
 	if(H.get_blood_volume() < BLOOD_VOLUME_NORMAL)

@@ -73,14 +73,19 @@
 	var/stat = CONSCIOUS
 	var/strength = 5
 	var/attached = 0
-	var/obj/item/clothing/mask/rogue/headgear
+	var/obj/item/clothing/mask/headgear
 
 /obj/item/clothing/mask/rogue/goblin_mask/Destroy()
-	. = ..() // Not the other way around as we need to restore our victim's headgear
-	QDEL_NULL(headgear)
+	stat = DEAD
+	// Rescue displaced clothing before movable destruction deletes our contents.
+	var/mob/living/carbon/wearer = loc
+	restore_headgear(istype(wearer) ? wearer : null)
+	return ..()
 
 /obj/item/clothing/mask/rogue/goblin_mask/take_damage(damage_amount, damage_type = BRUTE, damage_flag, sound_effect, attack_dir, armor_penetration)
-	..()
+	. = ..()
+	if(QDELETED(src))
+		return
 	if(obj_integrity < 90)
 		Die()
 
@@ -128,14 +133,16 @@
 		icon_state = "[initial(icon_state)]"
 
 /obj/item/clothing/mask/rogue/goblin_mask/throw_impact(atom/hit_atom, datum/thrownthing/throwingdatum)
-	..()
+	. = ..()
+	if(QDELETED(src) || QDELETED(hit_atom))
+		return
 	if(stat == CONSCIOUS)
 		icon_state = "[initial(icon_state)]"
 		Leap(hit_atom)
 
 /obj/item/clothing/mask/rogue/goblin_mask/proc/valid_to_attach(mob/living/M)
 	// valid targets: carbons
-	if(stat != CONSCIOUS)
+	if(QDELETED(src) || QDELETED(M) || stat != CONSCIOUS)
 		return FALSE
 	if(attached)
 		return FALSE
@@ -150,15 +157,31 @@
 	return FALSE
 
 
-/obj/item/clothing/mask/rogue/goblin_mask/equipped(mob/M)
+/obj/item/clothing/mask/rogue/goblin_mask/equipped(mob/M, slot, initial = FALSE)
 	. = ..()
-	Attach(M)
+	if(!QDELETED(src) && slot == SLOT_WEAR_MASK)
+		Attach(M)
 
 /obj/item/clothing/mask/rogue/goblin_mask/dropped(mob/living/carbon/user)
-	. = ..() // Retarded istype cuz we are doing retarded typecasting here.
-	if(istype(user) && user?.wear_mask == src && istype(headgear))
-		user.equip_to_slot(headgear, SLOT_WEAR_MASK)
-		headgear = null
+	. = ..()
+	restore_headgear(istype(user) ? user : null)
+
+/obj/item/clothing/mask/rogue/goblin_mask/proc/restore_headgear(mob/living/carbon/wearer)
+	var/obj/item/clothing/mask/displaced = headgear
+	headgear = null
+	if(QDELETED(displaced) || displaced.loc != src)
+		return
+	if(!QDELETED(wearer) && (!wearer.wear_mask || wearer.wear_mask == src))
+		// dropped() runs before carbon/doUnEquip clears this slot.
+		wearer.wear_mask = null
+		wearer.equip_to_slot(displaced, SLOT_WEAR_MASK)
+		if(QDELETED(displaced) || displaced.loc == wearer)
+			return
+	var/turf/drop_turf = get_turf(src)
+	if(drop_turf)
+		displaced.forceMove(drop_turf)
+	else
+		qdel(displaced)
 
 /obj/item/clothing/mask/rogue/goblin_mask/Crossed(atom/target)
 	. = ..()
@@ -201,32 +224,38 @@
 	attached = 0
 
 /obj/item/clothing/mask/rogue/goblin_mask/proc/Leap(mob/living/M)
-	if(iscarbon(M))
-		var/mob/living/carbon/target = M
-		if(target.wear_mask && istype(target.wear_mask, /obj/item/clothing/mask/rogue/goblin_mask))
-			return FALSE
+	if(!valid_to_attach(M))
+		return FALSE
+	var/mob/living/carbon/target = M
+	if(istype(target.wear_mask, /obj/item/clothing/mask/rogue/goblin_mask))
+		return FALSE
 	M.visible_message(span_danger("[src] leaps at [M]'s face!"), \
 		span_userdanger("[src] leaps at your face!"))
 	playsound(get_turf(src), 'sound/vo/mobs/gob/aggro (2).ogg', 100, FALSE, -1)
-	if(iscarbon(M))
-		var/mob/living/carbon/target = M
-
-		if(target.wear_mask)
-			headgear = M.get_item_by_slot(SLOT_WEAR_MASK)
-			M.transferItemToLoc(headgear, src)
-			target.visible_message(
-				span_danger("[src] tears [headgear] off of [target]'s face!"), \
-				span_userdanger("[src] tears [headgear] off of your face!"))
-		target.equip_to_slot_if_possible(src, SLOT_WEAR_MASK, disable_warning = TRUE, bypass_equip_delay_self = TRUE)
-		var/datum/cb = CALLBACK(src, PROC_REF(eat_head))
-		for(var/i in 1 to 10)
-			addtimer(cb, (i - 1) * 1.5 SECONDS)
-		QDEL_IN(src, 16 SECONDS)
+	if(target.wear_mask)
+		var/obj/item/clothing/mask/displaced = target.wear_mask
+		if(!target.transferItemToLoc(displaced, src))
+			return FALSE
+		if(QDELETED(src) || QDELETED(target) || QDELETED(displaced))
+			return FALSE
+		headgear = displaced
+		target.visible_message(
+			span_danger("[src] tears [headgear] off of [target]'s face!"), \
+			span_userdanger("[src] tears [headgear] off of your face!"))
+	if(!target.equip_to_slot_if_possible(src, SLOT_WEAR_MASK, disable_warning = TRUE, bypass_equip_delay_self = TRUE) || QDELETED(src) || target.wear_mask != src)
+		restore_headgear(target)
+		return FALSE
+	var/datum/cb = CALLBACK(src, PROC_REF(eat_head))
+	for(var/i in 1 to 10)
+		addtimer(cb, (i - 1) * 1.5 SECONDS)
+	QDEL_IN(src, 16 SECONDS)
 	return TRUE
 
 /obj/item/clothing/mask/rogue/goblin_mask/proc/eat_head()
-	if(iscarbon(loc))
+	if(!QDELETED(src) && iscarbon(loc))
 		var/mob/living/carbon/C = loc
+		if(C.wear_mask != src)
+			return
 		to_chat(C, span_warning("[src] is eating your face!"))
 		if(!C.apply_damage(5, BRUTE, BODY_ZONE_HEAD, C.run_armor_check(BODY_ZONE_HEAD, "stab", armor_penetration = PEN_NONE, damage = 5)))
 			to_chat(C, span_warning("Armor stops the damage."))

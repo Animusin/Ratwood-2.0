@@ -273,8 +273,10 @@
 		deltimer(auto_cancel_timer)
 		auto_cancel_timer = null
 	if(owner)
-		if(currently_charging || charged)
-			cancel_casting()
+		if(owner.channeling_spell == src)
+			// cancel_casting() rejects deleted actions, but their owned charge still needs cleanup.
+			charged = FALSE
+			on_end_charge(FALSE, quiet = TRUE)
 		// Unregister any lingering signals from any phase
 		if(owner.client)
 			UnregisterSignal(owner.client, list(COMSIG_CLIENT_MOUSEDOWN, COMSIG_CLIENT_MOUSEUP))
@@ -1280,7 +1282,7 @@
 
 	// Always restore the spell to "selected and listening" if it's still the active click intercept.
 	// This prevents dead-spell states where charging ends but no input handler is registered.
-	if(click_to_activate && charge_required && owner?.client)
+	if(!QDELETED(src) && click_to_activate && charge_required && owner?.client)
 		RegisterSignal(owner.client, COMSIG_CLIENT_MOUSEDOWN, PROC_REF(start_casting))
 
 /datum/action/cooldown/spell/proc/apply_charge_intent()
@@ -2008,18 +2010,7 @@
 	vis_contents |= rune
 	spell_rune = rune
 
-	start_spell_particles(spell_color)
-
-/// Intermittent particle effect while charging. Requires spell_rune — self-repeats via timer.
-/mob/living/proc/start_spell_particles(spell_color = "#FFFFFF")
-	if(QDELETED(src) || QDELETED(spell_rune))
-		return
-
-	var/obj/effect/temp_visual/particle_up/particles = new(null, src, spell_rune)
-	vis_contents |= particles
-	particles.color = spell_color
-
-	addtimer(CALLBACK(src, PROC_REF(start_spell_particles), spell_color), 3.6 SECONDS)
+	rune.emit_particles()
 
 /// Finish spell visual effects on successful cast. Cleans up rune and creates wave_up.
 /mob/living/proc/finish_spell_visual_effects(spell_color = "#FFFFFF")

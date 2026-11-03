@@ -402,4 +402,3 @@
 /obj/structure/closet/dirthole/post_unbuckle_mob()
 	. = ..()
 	update_abovemob()
-

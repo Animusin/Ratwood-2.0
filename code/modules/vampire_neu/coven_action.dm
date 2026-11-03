@@ -21,6 +21,7 @@
 	coven.assign(M)
 
 	register_to_availability_signals()
+	UpdateButtonIcon()
 
 /datum/action/coven/Destroy()
 	end_targeting()

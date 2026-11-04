@@ -117,28 +117,99 @@ GLOBAL_LIST_INIT(roleplay_readme, world.file2list("strings/rt/rp_prompt.txt"))
 		if(client.prefs)
 			client.prefs.ShowChoices(src, 4)
 
-/// Returns the remaining respawn cooldown, preserving the longer delay for untrusted players.
+/// Identity lookup is separate from the cooldown so all entry paths use the same account.
+/mob/dead/new_player/proc/get_respawn_account_ckey()
+	return ckey
+
+/// A negative value means the previous body has not died yet.
 /mob/dead/new_player/proc/get_respawn_time_left()
-	if(!ckey)
-		return 0
-	if(GLOB.admin_datums[ckey] || GLOB.deadmins[ckey])
-		return 0
-	var/respawn_started_at = GLOB.respawntimes[ckey]
-	if(!respawn_started_at)
-		return 0
-	var/respawn_delay = RESPAWNTIME
-	if(!client?.has_whitelist_access())
-		respawn_delay = max(respawn_delay, NON_WHITELISTED_RESPAWNTIME)
-	return max(respawn_started_at + respawn_delay - world.time, 0)
+	return get_respawn_time_left_for_ckey(get_respawn_account_ckey())
 
 /// Authoritative guard used by every path that can create a latejoin character.
 /mob/dead/new_player/proc/check_respawn_cooldown(show_message = TRUE)
 	var/time_left = get_respawn_time_left()
-	if(time_left <= 0)
+	if(time_left == 0)
 		return TRUE
-	if(show_message)
-		to_chat(src, span_warning("I can return in [DisplayTimeText(time_left)]."))
-	return FALSE
+	if(time_left < 0)
+		if(show_message)
+			to_chat(src, span_warning("My previous body is still alive. The respawn wait starts when it dies."))
+		return FALSE
+	// Eligibility checks in the migrant subsystem must never open payment dialogs.
+	if(!show_message)
+		return FALSE
+	var/datum/respawn_state/state = GLOB.respawn_states[get_respawn_account_ckey()]
+	if(!state || state.bypass_in_progress)
+		return FALSE
+	state.bypass_in_progress = TRUE
+	. = offer_respawn_bypass(state)
+	if(!QDELETED(state))
+		state.bypass_in_progress = FALSE
+
+/// A modal dialog or subscription refresh may outlive the lobby mob or its connection.
+/mob/dead/new_player/proc/has_respawn_bypass_connection(client/player, account_ckey)
+	return !QDELETED(src) && player && client == player && player.mob == src && player.ckey == account_ckey
+
+/mob/dead/new_player/proc/get_respawn_bypass_cost(client/player, refresh = FALSE)
+	return player?.respawn_bypass_cost(refresh)
+
+/mob/dead/new_player/proc/confirm_respawn_bypass(cost)
+	var/message = cost ? "Skip the remaining respawn wait for [cost] Triumphs? They will only be spent if you choose Yes." : "Skip the remaining respawn wait for free with your HoS-or-higher subscription?"
+	return alert(src, message, "Respawn Cooldown", "Yes", "No") == "Yes"
+
+/mob/dead/new_player/proc/is_respawn_bypass_context_current(datum/respawn_state/state, client/player)
+	return !QDELETED(state) && state.is_current() && get_respawn_account_ckey() == state.player_ckey && has_respawn_bypass_connection(player, state.player_ckey)
+
+/// Revalidate after every yield; the final debit and waiver run together without yielding.
+/mob/dead/new_player/proc/offer_respawn_bypass(datum/respawn_state/state)
+	var/client/player = client
+	if(!is_respawn_bypass_context_current(state, player))
+		return FALSE
+	var/expected_revision = state.revision
+	var/quoted_cost = get_respawn_bypass_cost(player, TRUE)
+	if(!is_respawn_bypass_context_current(state, player))
+		return FALSE
+	var/time_left = get_respawn_time_left()
+	if(time_left == 0)
+		return TRUE
+	if(time_left < 0 || state.revision != expected_revision)
+		return FALSE
+	if(isnull(quoted_cost))
+		to_chat(src, span_warning("Unable to check my subscription. No Triumphs were spent; try again later."))
+		return FALSE
+	if(quoted_cost && SStriumphs.get_triumphs(state.player_ckey) < quoted_cost)
+		to_chat(src, span_warning("I can return in [DisplayTimeText(time_left)]. Skipping the wait costs [quoted_cost] Triumphs; I do not have enough."))
+		return FALSE
+	if(!confirm_respawn_bypass(quoted_cost))
+		return FALSE
+	if(!is_respawn_bypass_context_current(state, player))
+		return FALSE
+	time_left = get_respawn_time_left()
+	if(time_left == 0)
+		return TRUE
+	if(time_left < 0 || state.revision != expected_revision)
+		return FALSE
+	var/final_cost = get_respawn_bypass_cost(player, TRUE)
+	if(!is_respawn_bypass_context_current(state, player))
+		return FALSE
+	time_left = get_respawn_time_left()
+	if(time_left == 0)
+		return TRUE
+	if(time_left < 0 || state.revision != expected_revision)
+		return FALSE
+	if(isnull(final_cost))
+		to_chat(src, span_warning("Unable to check my subscription. No Triumphs were spent; try again later."))
+		return FALSE
+	if(final_cost > quoted_cost)
+		to_chat(src, span_warning("My subscription changed. Skipping now costs [final_cost] Triumphs; try again to confirm the new price. Nothing was spent."))
+		return FALSE
+	if(final_cost && !SStriumphs.try_spend_triumphs(state.player_ckey, final_cost))
+		to_chat(src, span_warning("My Triumph balance changed. No Triumphs were spent."))
+		return FALSE
+	state.waive()
+	log_game("RESPAWN: [state.player_ckey] skipped the respawn wait for [final_cost] Triumphs.")
+	var/confirmation = final_cost ? "Respawn wait skipped for [final_cost] Triumphs." : "Respawn wait skipped with my HoS-or-higher subscription."
+	to_chat(src, span_notice(confirmation))
+	return TRUE
 
 /mob/dead/new_player/Topic(href, href_list[])
 	if(src != usr)
@@ -824,13 +895,17 @@ GLOBAL_LIST_INIT(roleplay_readme, world.file2list("strings/rt/rp_prompt.txt"))
 	popup.set_content(jointext(dat, ""))
 	popup.open(FALSE) // 0 is passed to open so that it doesn't use the onclose() proc
 
-/mob/dead/new_player/proc/create_character(transfer_after, entry_cost = null)
+/mob/dead/new_player/proc/create_character(transfer_after, entry_cost = null, respawn_override = FALSE)
 	spawning = TRUE
 	var/frn = CONFIG_GET(flag/force_random_names)
 	if(!frn)
 		frn = is_banned_from(ckey, "Appearance")
 		if(QDELETED(src))
 			return
+	if(transfer_after && !respawn_override && !check_respawn_cooldown(FALSE))
+		spawning = FALSE
+		to_chat(src, span_warning("My previous body's status changed while joining. I cannot respawn yet."))
+		return
 	// Ban/database checks above may yield. Debit only after them and before creating a body.
 	var/datum/job/entry_job = SSjob.GetJob(mind?.assigned_role)
 	if(isnull(entry_cost))

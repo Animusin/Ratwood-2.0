@@ -1,0 +1,6 @@
+author: "Animusin"
+delete-after: true
+changes:
+  - balance: "Respawning requires 30 minutes after the body's death. Burial clears the wait; revival starts a new life and its next death starts a fresh wait."
+  - rscadd: "Players can confirm a respawn cooldown bypass for 50 Triumphs, or for free with an HoS-or-higher subscription."
+  - bugfix: "Returning to the lobby no longer restarts the respawn timer, and events involving an older corpse cannot change a newer character's respawn eligibility."

@@ -511,7 +511,7 @@ This is the proc mobs get to turn into a ghost. Forked from ghostize due to comp
 	mind.current.key = key
 	return TRUE
 
-/mob/dead/observer/returntolobby(modifier as num)
+/mob/dead/observer/returntolobby()
 	set name = "{RETURN TO LOBBY}"
 	set category = "Options"
 	set hidden = 1
@@ -520,16 +520,6 @@ This is the proc mobs get to turn into a ghost. Forked from ghostize due to comp
 	if ((stat != DEAD || !( SSticker )))
 		to_chat(src, span_boldnotice("I must be dead to use this!"))
 		return
-
-//	if(mind?.current && (world.time < mind.current.timeofdeath + RESPAWNTIME))
-//		to_chat(usr, span_warning("I can return in [mind.current.timeofdeath + RESPAWNTIME - world.time]."))
-//		return
-
-	if(ckey)
-		if(modifier)
-			GLOB.respawntimes[ckey] = world.time + modifier
-		else if(!GLOB.respawntimes[ckey])
-			GLOB.respawntimes[ckey] = world.time
 
 	log_game("[key_name(src)] used abandon mob.")
 
@@ -852,7 +842,9 @@ This is the proc mobs get to turn into a ghost. Forked from ghostize due to comp
 		if(world.time > bt + 5 MINUTES)
 			to_chat(src, span_warning("Too late."))
 			return FALSE
-		returntolobby(NON_WHITELISTED_RESPAWNTIME * -1)
+		// Horde recruitment is an explicit exception, not an argument accepted by the lobby verb.
+		reset_respawn_cooldown_for_ckey(ckey)
+		returntolobby()
 
 
 /mob/dead/observer/proc/updateghostimages()

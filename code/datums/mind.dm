@@ -388,6 +388,9 @@ GLOBAL_LIST_EMPTY(personal_objective_minds)
 		old_current.skills.set_current(new_character)
 
 	RegisterSignal(new_character, COMSIG_MOB_DEATH, PROC_REF(set_death_time))
+	// A transformed character keeps the same life; move authority before Login can claim a new one.
+	if(isliving(old_current) && isliving(new_character))
+		old_current.transfer_respawn_body(new_character)
 	if(active || force_key_move)
 		testing("dotransfer to [new_character]")
 		new_character.key = key		//now transfer the key to link the client to our new body

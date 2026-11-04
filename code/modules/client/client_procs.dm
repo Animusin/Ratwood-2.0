@@ -10,7 +10,6 @@ GLOBAL_LIST_INIT(blacklisted_builds, list(
 
 	))
 
-GLOBAL_LIST_EMPTY(respawntimes)
 GLOBAL_LIST_EMPTY(respawncounts)
 
 #define LIMITER_SIZE	5

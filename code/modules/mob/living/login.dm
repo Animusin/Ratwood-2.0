@@ -8,6 +8,9 @@
 			update_ghost_protection_visibility()
 	//Mind updates
 	sync_mind()
+	// Underworld spirits and projected vessels do not replace the character's physical body.
+	if(!istype(src, /mob/living/carbon/spirit) && !respawn_body_override)
+		register_respawn_body()
 	mind.show_memory(src, 0)
 
 	update_a_intents()

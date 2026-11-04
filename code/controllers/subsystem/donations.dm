@@ -479,6 +479,23 @@ SUBSYSTEM_DEF(donations)
 		return FALSE
 	return donation_info_loaded && donation_tier_to_patreon_level(donation_tier) >= donation_tier_to_patreon_level(DONATION_TIER_SCIENTIST)
 
+/// Respawn benefits include HoS and every subscription above it.
+/proc/donation_tier_grants_respawn_bypass(tier)
+	return donation_tier_to_patreon_level(tier) >= donation_tier_to_patreon_level(DONATION_TIER_HOS)
+
+/client/proc/has_hos_subscription(refresh = FALSE)
+	if(refresh && !sync_donation_info())
+		return FALSE
+	return donation_info_loaded && donation_tier_grants_respawn_bypass(donation_tier)
+
+/// null means the subscription could not be checked; do not charge a possible subscriber.
+/client/proc/respawn_bypass_cost(refresh = FALSE)
+	if(refresh && SSdonations?.IsConfigured() && !sync_donation_info())
+		return null
+	if(!src)
+		return null
+	return has_hos_subscription() ? 0 : RESPAWN_BYPASS_COST
+
 /datum/controller/subsystem/donations/proc/get_migrant_call_usage(target_ckey)
 	target_ckey = ckey(target_ckey)
 	if(!target_ckey)

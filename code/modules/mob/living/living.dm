@@ -11,6 +11,8 @@
 	var/zone_selector_hud_dirty = FALSE
 	var/pain_hud_dirty = FALSE
 	var/injury_hud_update_queued = FALSE
+	/// A projected vessel borrows control while the original body remains the respawn authority.
+	var/datum/weakref/respawn_body_override
 
 /mob/living/Initialize(mapload)
 	. = ..()
@@ -25,6 +27,7 @@
 	init_faith()
 
 /mob/living/Destroy()
+	record_respawn_death()
 	QDEL_NULL(spell_rune)
 	cancel_disconnected_admin_alert()
 	surgeries = null
@@ -1077,6 +1080,9 @@
 	GLOB.dead_mob_list -= src
 	GLOB.alive_mob_list += src
 	stat = new_stat
+	// Record the new life before updatehealth: an immediate re-death must start a fresh cooldown.
+	if(!istype(src, /mob/living/carbon/spirit) && !respawn_body_override)
+		record_respawn_revival()
 	updatehealth() //then we check if the mob should wake up.
 	update_mobility()
 	update_sight()

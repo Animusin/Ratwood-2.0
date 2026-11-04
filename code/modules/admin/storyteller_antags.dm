@@ -185,7 +185,8 @@
 	job.current_positions++
 	SSjob.unassigned -= lobby
 	SSticker.queued_players -= lobby
-	var/mob/living/carbon/human/character = lobby.create_character(TRUE)
+	// Explicit admin recruitment is allowed regardless of the ordinary respawn wait.
+	var/mob/living/carbon/human/character = lobby.create_character(TRUE, respawn_override = TRUE)
 	if(QDELETED(character))
 		player_mind.picking = FALSE
 		job.current_positions = max(0, job.current_positions - 1)

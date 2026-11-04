@@ -126,9 +126,6 @@
 	set category = "Options"
 	set hidden = 1
 
-	if(ckey && !GLOB.respawntimes[ckey])
-		GLOB.respawntimes[ckey] = world.time
-
 	log_game("[key_name(usr)] respawned from underworld")
 
 	to_chat(src, span_info("Returned to lobby successfully."))
@@ -209,8 +206,12 @@
 
 /// Proc that sends the client associated with a given corpse to the lobby, if possible
 /proc/pacify_corpse(mob/living/corpse, mob/user, coin_pq = PQ_GAIN_BURIAL_COIN)
-	if((corpse.stat != DEAD) || !corpse.mind)
+	if(QDELETED(corpse) || corpse.stat != DEAD)
 		return FALSE
+	// Release the current life even when its player is disconnected or already in the lobby.
+	var/current_life = corpse.clear_respawn_cooldown_for_burial()
+	if(!corpse.mind)
+		return current_life
 	var/attacker_ckey = corpse.lastattackerckey || TRUE
 	if(ishuman(corpse))
 		var/mob/living/carbon/human/human_corpse = corpse
@@ -230,7 +231,11 @@
 					qdel(human_corpse.mouth)
 					human_corpse.update_inv_mouth()
 					break
-	corpse.mind.remove_antag_datum(/datum/antagonist/zombie)
+	if(corpse.mind.current == corpse)
+		corpse.mind.remove_antag_datum(/datum/antagonist/zombie)
+	// An old corpse must not find and displace the spirit of a newer life with the same ckey.
+	if(!current_life)
+		return FALSE
 	var/mob/dead/observer/ghost
 	//Try to find a lost ghost if there is no client
 	if(!corpse.client)
@@ -251,13 +256,10 @@
 		burial_rite_return_ghost_to_lobby(ghost)
 		return TRUE
 
-	testing("pacify_corpse fail ([corpse.mind?.key || "no key"])")
-	return FALSE
+	testing("pacify_corpse released cooldown without a ghost ([corpse.mind?.key || "no key"])")
+	return current_life
 
 /proc/burial_rite_return_ghost_to_lobby(mob/dead/observer/ghost)
-	if(ghost.ckey && !GLOB.respawntimes[ghost.ckey])
-		GLOB.respawntimes[ghost.ckey] = world.time
-
 	log_game("[key_name(ghost)] returned to lobby from burial rites.")
 
 	if(!ghost.client)

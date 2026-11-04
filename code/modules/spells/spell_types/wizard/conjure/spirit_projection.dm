@@ -31,6 +31,7 @@
 	var/projecting = FALSE
 	var/datum/weakref/body_ref
 	var/datum/weakref/vessel_ref
+	var/datum/weakref/previous_respawn_body_override
 	var/datum/action/cooldown/spell/spirit_return/return_action
 	var/datum/action/cooldown/spell/pilot_action
 	var/body_base_pixel_x = 0
@@ -88,6 +89,8 @@
 	projecting = TRUE
 	body_ref = WEAKREF(body)
 	vessel_ref = WEAKREF(vessel)
+	previous_respawn_body_override = vessel.respawn_body_override
+	vessel.respawn_body_override = body_ref
 
 	ADD_TRAIT(body, TRAIT_NOSLEEP, "spirit_projection")
 	ADD_TRAIT(body, TRAIT_NOBREATH, "spirit_projection")
@@ -176,6 +179,7 @@
 
 	var/mob/living/body = body_ref?.resolve()
 	var/mob/living/vessel = vessel_ref?.resolve()
+	var/datum/weakref/projected_body_ref = body_ref
 	body_ref = null
 	vessel_ref = null
 
@@ -208,6 +212,9 @@
 	if(body && vessel && vessel.key)
 		body.key = vessel.key
 		vessel.ai_controller?.reset_ai_status()
+	if(vessel?.respawn_body_override == projected_body_ref)
+		vessel.respawn_body_override = previous_respawn_body_override
+	previous_respawn_body_override = null
 
 	if(body)
 		switch(reason)

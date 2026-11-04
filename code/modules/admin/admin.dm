@@ -799,7 +799,7 @@
 		to_chat(usr, span_warning("The selected mob has no player attached."))
 		return
 
-	GLOB.respawntimes -= M.ckey
+	reset_respawn_cooldown_for_ckey(M.ckey)
 	to_chat(M, span_notice("An admin has reset my respawn cooldown."))
 	message_admins(span_adminnotice("[key_name_admin(usr)] reset [key_name_admin(M)]'s respawn cooldown."))
 	log_admin("[key_name(usr)] reset [key_name(M)]'s respawn cooldown.")
@@ -816,11 +816,11 @@
 	var/target_ckey = ckey(input(usr, "Enter the player's ckey.", "Reset Respawn Cooldown") as null|text)
 	if(!target_ckey)
 		return
-	if(!(target_ckey in GLOB.respawntimes))
+	if(!(target_ckey in GLOB.respawn_states))
 		to_chat(usr, span_warning("[target_ckey] has no active respawn cooldown."))
 		return
 
-	GLOB.respawntimes -= target_ckey
+	reset_respawn_cooldown_for_ckey(target_ckey)
 	var/client/target_client = GLOB.directory[target_ckey]
 	if(target_client)
 		to_chat(target_client, span_notice("An admin has reset my respawn cooldown."))
@@ -1409,10 +1409,24 @@
 	if(isnewplayer(src))
 		to_chat(admin || src, span_notice("Already in the lobby."))
 		return FALSE
+	var/datum/respawn_state/returned_life
+	if(isliving(src))
+		var/mob/living/body = src
+		if(body.respawn_state?.is_current_body(body))
+			returned_life = body.respawn_state
+		else if(client && (istype(body, /mob/living/carbon/spirit) || body.respawn_body_override))
+			returned_life = GLOB.respawn_states[ckey]
+	else if(isobserver(src) && client)
+		returned_life = GLOB.respawn_states[ckey]
 	if(!ishuman(src))
 		if(!client)
 			return FALSE
+		var/client/returning_client = client
 		returntolobby()
+		if(!isnewplayer(returning_client?.mob))
+			return FALSE
+		if(returned_life?.is_current())
+			returned_life.waive()
 		return TRUE
 	var/datum/job/mob_job
 	var/target_job = SSrole_class_handler.get_advclass_by_name(advjob)
@@ -1458,6 +1472,10 @@
 	if(delete_character)
 		mind?.remove_all_antag_datums()
 		qdel(src)
+	// Destruction can record a death; the explicit admin exemption must apply afterwards.
+	// Never reset an account's newer life when this operation targeted an obsolete corpse.
+	if(returned_life?.is_current())
+		returned_life.waive()
 	return TRUE
 
 

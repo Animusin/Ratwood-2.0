@@ -128,11 +128,13 @@
 /// Every mob interred in this hole, including any sealed inside a coffin or shroud.
 /obj/structure/closet/dirthole/proc/get_interred_mobs()
 	. = list()
-	for(var/mob/living/M in contents)
-		. += M
-	for(var/obj/structure/closet/C in contents)
-		for(var/mob/living/M in C.contents)
-			. += M
+	var/list/containers = list(src)
+	for(var/index = 1; index <= length(containers); index++)
+		var/obj/structure/closet/container = containers[index]
+		for(var/mob/living/M in container.contents)
+			. |= M
+		for(var/obj/structure/closet/nested_container in container.contents)
+			containers |= nested_container
 
 /// Log-friendly manifest of who is in this hole.
 /obj/structure/closet/dirthole/proc/get_interment_manifest()
@@ -310,6 +312,8 @@
 		for(var/mob/living/carbon/human/D in C.contents)
 			D.buried = TRUE
 	for(var/mob/living/M as anything in get_interred_mobs())
+		if(M.stat == DEAD)
+			M.clear_respawn_cooldown_for_burial()
 		if(user)
 			log_combat(user, M, "buried", src, "([M.stat == DEAD ? "DEAD" : "ALIVE"])", log_seen = FALSE)
 		else

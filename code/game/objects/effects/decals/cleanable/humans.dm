@@ -33,19 +33,32 @@
 	mouse_opacity = MOUSE_OPACITY_TRANSPARENT
 	appearance_flags = NO_CLIENT_COLOR
 	var/blood_timer
+	/// Compatibility flag for forensic freshness; kept in sync with the visual dried state.
 	var/is_dry = FALSE
 	/// Highest observed bleed rate category among sources added to this decal.
 	var/forensic_bleed_severity = FORENSIC_BLEED_UNKNOWN
 	/// Further identities were discarded after reaching the per-decal forensic sample cap.
 	var/blood_samples_overflow = FALSE
 	var/counted_as_forensic_blood_decal = FALSE
+	/// Donor tint. The sprite is a greyscale mask; this color multiplies it.
+	var/blood_color = BLOOD_COLOR_DEFAULT
+	/// Chosen when the stain is made, so drying does not guess from the wet hex later.
+	var/dried_color = BLOOD_COLOR_DRIED
+	/// Icon file the states were taken from, kept after icon is swapped for a greyscale mask.
+	var/blood_icon_file
+	var/dried = FALSE
 
-/obj/effect/decal/cleanable/blood/Initialize(mapload)
+/obj/effect/decal/cleanable/blood/Initialize(mapload, new_blood_color)
 	counted_as_forensic_blood_decal = TRUE
 	GLOB.active_forensic_blood_decals++
 	if(GLOB.active_forensic_blood_decals >= FORENSIC_BLOOD_DECAL_WARNING_THRESHOLD && world.time >= GLOB.next_forensic_blood_decal_warning)
 		GLOB.next_forensic_blood_decal_warning = world.time + 10 MINUTES
 		message_admins("FORENSICS: [GLOB.active_forensic_blood_decals] active blood decals are present; investigate blood decal accumulation if this keeps rising.")
+	if(!blood_icon_file)
+		blood_icon_file = icon
+	if(new_blood_color)
+		blood_color = new_blood_color
+	dried_color = get_dried_blood_color(blood_color)
 	. = ..()
 	GLOB.weather_act_upon_list += src
 	if(. == INITIALIZE_HINT_QDEL)
@@ -54,10 +67,13 @@
 	pixel_y = rand(5,5)
 	if(!is_dry)
 		blood_timer = addtimer(CALLBACK(src, PROC_REF(become_dry)), rand(5 MINUTES,8 MINUTES), TIMER_STOPPABLE)
+	apply_blood_visual()
 
-/obj/effect/decal/cleanable/blood/add_blood_DNA(list/dna)
+/obj/effect/decal/cleanable/blood/add_blood_DNA(list/dna, new_blood_color)
+	if(new_blood_color)
+		set_blood_color(new_blood_color)
 	if(!length(dna))
-		return FALSE
+		return ..(dna, new_blood_color)
 	var/list/current_blood = return_blood_DNA()
 	var/current_sample_count = length(current_blood)
 	var/list/accepted_blood = list()
@@ -70,11 +86,11 @@
 			continue
 		accepted_blood[dna_key] = dna[dna_key]
 		current_sample_count++
-	if(!length(accepted_blood))
+	if(!length(accepted_blood) && !new_blood_color)
 		return FALSE
-	return ..(accepted_blood)
+	return ..(accepted_blood, new_blood_color)
 
-/obj/effect/decal/cleanable/blood/add_mob_blood(mob/living/source)
+/obj/effect/decal/cleanable/blood/add_mob_blood(mob/living/source, new_blood_color)
 	. = ..()
 	if(!.)
 		return
@@ -87,15 +103,30 @@
 		severity = FORENSIC_BLEED_SIGNIFICANT
 	forensic_bleed_severity = max(forensic_bleed_severity, severity)
 
+/obj/effect/decal/cleanable/blood/proc/set_blood_color(new_color)
+	if(!new_color || dried)
+		return
+	blood_color = new_color
+	dried_color = get_dried_blood_color(blood_color)
+	apply_blood_visual()
+
+/obj/effect/decal/cleanable/blood/proc/apply_blood_visual()
+	if(!blood_icon_file || !icon_state)
+		return
+	var/icon/mask = get_greyscale_blood_icon(blood_icon_file, icon_state)
+	if(mask)
+		icon = mask
+	color = dried ? dried_color : blood_color
 
 /obj/effect/decal/cleanable/blood/proc/become_dry()
 	blood_timer = null
 	if(QDELETED(src))
 		return
 	name = "dry [initial(name)]"
-	color = "#967c69"
+	dried = TRUE
 	bloodiness = 0
 	is_dry = TRUE
+	color = dried_color
 
 /obj/effect/decal/cleanable/blood/replace_decal(obj/effect/decal/cleanable/C)
 	. = ..()
@@ -104,8 +135,12 @@
 		existing_blood.alpha = initial(alpha)
 		existing_blood.bloodiness = initial(bloodiness)
 		existing_blood.name = initial(name)
-		existing_blood.color = initial(color)
 		existing_blood.is_dry = initial(is_dry)
+		existing_blood.dried = existing_blood.is_dry
+		if(blood_color)
+			existing_blood.blood_color = blood_color
+			existing_blood.dried_color = dried_color
+		existing_blood.apply_blood_visual()
 		deltimer(existing_blood.blood_timer)
 		existing_blood.blood_timer = null
 		if(!existing_blood.is_dry)
@@ -131,8 +166,9 @@
 	bloodiness = 0
 	icon_state = "floor1-old"
 	is_dry = TRUE
+	dried = TRUE
 
-/obj/effect/decal/cleanable/blood/old/Initialize(mapload)
+/obj/effect/decal/cleanable/blood/old/Initialize(mapload, new_blood_color)
 	add_blood_DNA(list("Non-human DNA" = random_blood_type())) // Needs to happen before ..()
 	. = ..()
 	if(. == INITIALIZE_HINT_QDEL)
@@ -140,7 +176,9 @@
 	deltimer(blood_timer)
 	blood_timer = null
 	is_dry = TRUE
+	dried = TRUE
 	icon_state = "[icon_state]-old" //change from the normal blood icon selected from random_icon_states in the parent's Initialize to the old dried up blood.
+	apply_blood_visual()
 
 /obj/effect/decal/cleanable/blood/splatter
 	icon_state = "gibbl1"
@@ -154,7 +192,7 @@
 		if(P.drips > 2)
 			var/turf/T = loc
 			if(istype(T))
-				new /obj/effect/decal/cleanable/blood(T)
+				new /obj/effect/decal/cleanable/blood(T, P.blood_color)
 				qdel(P)
 		return TRUE
 
@@ -175,8 +213,17 @@
 	mouse_opacity = MOUSE_OPACITY_TRANSPARENT
 	appearance_flags = NO_CLIENT_COLOR
 	var/blood_timer
+	var/blood_color = BLOOD_COLOR_DEFAULT
+	var/dried_color = BLOOD_COLOR_DRIED
+	var/dried = FALSE
+	var/list/trail_pieces
 
-/obj/effect/decal/cleanable/trail_holder/Initialize(mapload)
+/obj/effect/decal/cleanable/trail_holder/Initialize(mapload, new_blood_color)
+	if(new_blood_color)
+		blood_color = new_blood_color
+	dried_color = get_dried_blood_color(blood_color)
+	color = null
+	icon_state = ""
 	. = ..()
 	GLOB.weather_act_upon_list += src
 	if(. == INITIALIZE_HINT_QDEL)
@@ -194,12 +241,40 @@
 		return
 	qdel(src)
 
+/obj/effect/decal/cleanable/trail_holder/proc/add_trail(trail_type, newdir)
+	if(!trail_type)
+		return
+	LAZYINITLIST(trail_pieces)
+	trail_pieces.len++
+	trail_pieces[trail_pieces.len] = list("state" = trail_type, "dir" = newdir)
+	update_trail_visuals()
+
+/obj/effect/decal/cleanable/trail_holder/proc/update_trail_visuals()
+	cut_overlays()
+	color = null
+	var/use_color = dried ? dried_color : blood_color
+	if(!use_color)
+		use_color = BLOOD_COLOR_DEFAULT
+	for(var/list/piece in trail_pieces)
+		var/image/trail_image = image(get_colored_blood_mask('icons/effects/blood.dmi', piece["state"], use_color), null, piece["state"], , piece["dir"])
+		trail_image.alpha = alpha
+		add_overlay(trail_image)
+
+/obj/effect/decal/cleanable/trail_holder/proc/set_blood_color(new_color)
+	if(!new_color || dried)
+		return
+	blood_color = new_color
+	dried_color = get_dried_blood_color(blood_color)
+	update_trail_visuals()
+
 /obj/effect/decal/cleanable/trail_holder/proc/become_dry()
 	if(QDELETED(src))
 		return
 	name = "dry [initial(name)]"
-	color = "#967c69"
+	dried = TRUE
 	alpha = 100
+	color = null
+	update_trail_visuals()
 	bloodiness = 0
 
 /obj/effect/decal/cleanable/trail_holder/can_bloodcrawl_in()
@@ -230,7 +305,7 @@
 	for(var/i in 0 to rand(1,3))
 		sleep(2)
 		if(i > 0)
-			new /obj/effect/decal/cleanable/blood/splatter(loc, diseases)
+			new /obj/effect/decal/cleanable/blood/splatter(loc, blood_color)
 		if(!step_to(src, get_step(src, direction), 0))
 			break
 
@@ -264,11 +339,14 @@
 	bloodiness = 0
 	already_rotting = TRUE
 
-/obj/effect/decal/cleanable/blood/gibs/old/Initialize(mapload)
+/obj/effect/decal/cleanable/blood/gibs/old/Initialize(mapload, new_blood_color)
 	. = ..()
+	if(. == INITIALIZE_HINT_QDEL)
+		return .
 	setDir(pick(1,2,4,8))
 	icon_state += "-old"
 	add_blood_DNA(list("Non-human DNA" = random_blood_type()))
+	apply_blood_visual()
 
 /obj/effect/decal/cleanable/blood/drip
 	name = "drips of blood"
@@ -280,7 +358,7 @@
 	var/blood_vol = 1
 	random_icon_states = null
 
-/obj/effect/decal/cleanable/blood/drip/Initialize(mapload)
+/obj/effect/decal/cleanable/blood/drip/Initialize(mapload, new_blood_color)
 	. = ..()
 	if(. == INITIALIZE_HINT_QDEL)
 		return .
@@ -291,13 +369,15 @@
 
 /obj/effect/decal/cleanable/blood/drip/update_icon()
 	icon_state = "drip[drips]"
+	apply_blood_visual()
 	if(drips > 5)
 		var/turf/T = loc
 		if(istype(T))
 			var/obj/effect/decal/cleanable/blood/puddle/PUD = locate() in T
 			if(!PUD)
-				PUD = new(T)
+				PUD = new(T, blood_color)
 				PUD.blood_vol = blood_vol
+				PUD.update_icon()
 
 /obj/effect/decal/cleanable/blood/drip/replace_decal(obj/effect/decal/cleanable/C) // Returns true if we should give up in favor of the pre-existing decal
 	if(..())
@@ -306,8 +386,9 @@
 		if(P.drips > 5)
 			var/turf/T = loc
 			if(istype(T))
-				var/obj/effect/decal/cleanable/blood/puddle/PUD = new(T)
+				var/obj/effect/decal/cleanable/blood/puddle/PUD = new(T, P.blood_color)
 				PUD.blood_vol = blood_vol
+				PUD.update_icon()
 				qdel(P)
 		else
 			P.update_icon()
@@ -334,6 +415,7 @@
 			icon_state = "pool2"
 		if(1 to 50)
 			icon_state = "pool1"
+	apply_blood_visual()
 
 /obj/effect/decal/cleanable/blood/puddle/replace_decal(obj/effect/decal/cleanable/C) // Returns true if we should give up in favor of the pre-existing decal
 	if(..())
@@ -381,7 +463,25 @@
 	icon_state = "mud1"
 	blood_state = BLOOD_STATE_MUD
 
-/obj/effect/decal/cleanable/blood/footprints/Initialize(mapload)
+/obj/effect/decal/cleanable/blood/footprints/apply_blood_visual()
+	if(blood_state != BLOOD_STATE_HUMAN)
+		color = null
+		return
+	color = null
+	update_icon()
+
+/obj/effect/decal/cleanable/blood/footprints/become_dry()
+	blood_timer = null
+	if(QDELETED(src))
+		return
+	name = "dry [initial(name)]"
+	dried = TRUE
+	is_dry = TRUE
+	bloodiness = 0
+	color = null
+	apply_blood_visual()
+
+/obj/effect/decal/cleanable/blood/footprints/Initialize(mapload, new_blood_color)
 	. = ..()
 	icon_state = "" //All of the footprint visuals come from overlays
 	if(mapload)
@@ -435,18 +535,31 @@
 
 /obj/effect/decal/cleanable/blood/footprints/update_icon()
 	cut_overlays()
+	var/tint_steps = (blood_state == BLOOD_STATE_HUMAN)
+	var/step_icon = blood_icon_file || icon
+	var/print_color = dried ? dried_color : (blood_color || BLOOD_COLOR_DEFAULT)
 
 	for(var/Ddir in GLOB.cardinals)
 		if(entered_dirs & Ddir)
-			var/image/bloodstep_overlay = GLOB.bloody_footprints_cache["entered-[blood_state]-[Ddir]"]
+			var/entered_key = "entered-[blood_state]-[Ddir][(tint_steps) ? "-[print_color]" : ""]"
+			var/image/bloodstep_overlay = GLOB.bloody_footprints_cache[entered_key]
 			if(!bloodstep_overlay)
-				GLOB.bloody_footprints_cache["entered-[blood_state]-[Ddir]"] = bloodstep_overlay = image(icon, "[blood_state]1", dir = Ddir)
+				if(tint_steps)
+					bloodstep_overlay = image(get_colored_blood_mask(step_icon, "[blood_state]1", print_color), null, "[blood_state]1", , Ddir)
+				else
+					bloodstep_overlay = image(step_icon, null, "[blood_state]1", , Ddir)
+				GLOB.bloody_footprints_cache[entered_key] = bloodstep_overlay
 			bloodstep_overlay.alpha = alpha
 			add_overlay(bloodstep_overlay)
 		if(exited_dirs & Ddir)
-			var/image/bloodstep_overlay = GLOB.bloody_footprints_cache["exited-[blood_state]-[Ddir]"]
+			var/exited_key = "exited-[blood_state]-[Ddir][(tint_steps) ? "-[print_color]" : ""]"
+			var/image/bloodstep_overlay = GLOB.bloody_footprints_cache[exited_key]
 			if(!bloodstep_overlay)
-				GLOB.bloody_footprints_cache["exited-[blood_state]-[Ddir]"] = bloodstep_overlay = image(icon, "[blood_state]2", dir = Ddir)
+				if(tint_steps)
+					bloodstep_overlay = image(get_colored_blood_mask(step_icon, "[blood_state]2", print_color), null, "[blood_state]2", , Ddir)
+				else
+					bloodstep_overlay = image(step_icon, null, "[blood_state]2", , Ddir)
+				GLOB.bloody_footprints_cache[exited_key] = bloodstep_overlay
 			bloodstep_overlay.alpha = alpha
 			add_overlay(bloodstep_overlay)
 
@@ -482,7 +595,7 @@
 	layer = BULLET_HOLE_LAYER //For obvious reasons.
 	random_icon_states = list("splatter1", "splatter2", "splatter3", "splatter4", "splatter5", "splatter6")
 
-/obj/effect/decal/cleanable/blood/splatter/walls/Initialize(mapload)
+/obj/effect/decal/cleanable/blood/splatter/walls/Initialize(mapload, new_blood_color)
 	. = ..()
 	auto_turn_destructive()
 	dir = GLOB.reverse_dir[dir]

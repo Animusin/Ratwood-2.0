@@ -214,8 +214,9 @@
 
 /mob/living/carbon/human/get_mouseover_data(mob/viewer)
 	var/mousecolor = "#c1aaaa"
-	if(voice_color && name == real_name)
-		mousecolor = "#[voice_color]"
+	if(voice_color && !HAS_TRAIT(src, TRAIT_ANONYMOUS))
+		if(name == real_name)
+			mousecolor = "#[voice_color]"
 
 	// Shapeshifted human bodies use stored_mob and visually represent animals.
 	if(viewer?.client?.prefs?.show_mouseover_role && !stored_mob && get_face_name(""))

@@ -5,6 +5,7 @@
 	var/list/hiddenprints		//assoc ckey = realname/gloves/ckey
 	var/list/blood_DNA			//assoc dna = bloodtype
 	var/list/fibers				//assoc print = print
+	var/blood_color
 	/// The most recent mechanical clue left on this atom.
 	var/forensic_event_type
 	var/forensic_event_time
@@ -24,12 +25,16 @@
 	var/list/new_hiddenprints = F ? F.hiddenprints : LAZYACCESS(arguments, 2)
 	var/list/new_blood_DNA = F ? F.blood_DNA : LAZYACCESS(arguments, 3)
 	var/list/new_fibers = F ? F.fibers : LAZYACCESS(arguments, 4)
+	var/new_blood_color = F ? F.blood_color : LAZYACCESS(arguments, 5)
 	if(length(new_fingerprints))
 		fingerprints = fingerprints | new_fingerprints
 	if(length(new_hiddenprints))
 		hiddenprints = hiddenprints | new_hiddenprints
 	if(length(new_blood_DNA))
 		blood_DNA = blood_DNA | new_blood_DNA
+	if(new_blood_color)
+		blood_color = new_blood_color
+	if(length(new_blood_DNA) || new_blood_color)
 		check_blood()
 	if(length(new_fibers))
 		fibers = fibers | new_fibers
@@ -42,13 +47,15 @@
 		qdel(F)
 	return ..()
 
-/datum/component/forensics/Initialize(new_fingerprints, new_hiddenprints, new_blood_DNA, new_fibers)
+/datum/component/forensics/Initialize(new_fingerprints, new_hiddenprints, new_blood_DNA, new_fibers, new_blood_color)
 	if(!isatom(parent))
 		return COMPONENT_INCOMPATIBLE
 	fingerprints = new_fingerprints
 	hiddenprints = new_hiddenprints
 	blood_DNA = new_blood_DNA
 	fibers = new_fibers
+	if(new_blood_color)
+		blood_color = new_blood_color
 	check_blood()
 
 /datum/component/forensics/RegisterWithParent()
@@ -71,6 +78,7 @@
 
 /datum/component/forensics/proc/wipe_blood_DNA()
 	blood_DNA = null
+	blood_color = null
 	if(isitem(parent))
 		qdel(parent.GetComponent(/datum/component/decal/blood))
 	return TRUE
@@ -230,12 +238,15 @@
 	A.fingerprintslast = M.ckey
 	return TRUE
 
-/datum/component/forensics/proc/add_blood_DNA(list/dna)		//list(dna_enzymes = type)
-	if(!length(dna))
+/datum/component/forensics/proc/add_blood_DNA(list/dna, new_blood_color)		//list(dna_enzymes = type)
+	if(!length(dna) && !new_blood_color)
 		return
-	LAZYINITLIST(blood_DNA)
-	for(var/i in dna)
-		blood_DNA[i] = dna[i]
+	if(length(dna))
+		LAZYINITLIST(blood_DNA)
+		for(var/i in dna)
+			blood_DNA[i] = dna[i]
+	if(new_blood_color)
+		blood_color = new_blood_color
 	check_blood()
 	return TRUE
 
@@ -244,4 +255,14 @@
 		return
 	if(!length(blood_DNA))
 		return
-	parent.LoadComponent(/datum/component/decal/blood)
+	var/use_color = blood_color || BLOOD_COLOR_DEFAULT
+	var/datum/component/decal/blood/B = parent.GetComponent(/datum/component/decal/blood)
+	if(B)
+		if(B.blood_color == use_color)
+			return
+		B.remove()
+		B.blood_color = use_color
+		B.generate_appearance(null, null, null, null, use_color)
+		B.apply()
+		return
+	parent.LoadComponent(/datum/component/decal/blood, null, null, null, CLEAN_STRENGTH_BLOOD, use_color)

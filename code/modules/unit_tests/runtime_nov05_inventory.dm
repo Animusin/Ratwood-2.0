@@ -92,6 +92,7 @@
 	var/runtimes_before = GLOB.total_runtimes
 	INVOKE_ASYNC(src, PROC_REF(delete_during_animation), door)
 	door.Bumped(user)
+	TEST_ASSERT(door.isSwitchingStates, "Bumping must enter the real opening animation before deletion.")
 	// Bumped inherits waitfor=FALSE, so wait for the opening continuation too.
 	sleep(3)
 	TEST_ASSERT(QDELETED(door), "The door must be deleted during its opening animation.")
@@ -106,4 +107,10 @@
 	closing.Close(TRUE)
 	TEST_ASSERT(QDELETED(closing), "The second fixture must be deleted during closing.")
 	TEST_ASSERT_EQUAL(closing.updates_after_delete, 0, "Closing must stop after deletion.")
+	var/obj/structure/mineral_door/wood/unit_test_nov05/ordinary = allocate(/obj/structure/mineral_door/wood/unit_test_nov05)
+	ordinary.close_delay = -1
+	ordinary.Open(TRUE)
+	TEST_ASSERT(ordinary.door_opened && !ordinary.density, "An uninterrupted opening must make the door passable.")
+	ordinary.Close(TRUE)
+	TEST_ASSERT(!ordinary.door_opened && ordinary.density, "An uninterrupted closing must restore the door's collision.")
 	TEST_ASSERT_EQUAL(GLOB.total_runtimes, runtimes_before, "Interrupted door animations must not runtime.")

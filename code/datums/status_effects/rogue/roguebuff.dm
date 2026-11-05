@@ -651,6 +651,8 @@
 
 /datum/status_effect/buff/healing/on_apply()
 	SEND_SIGNAL(owner, COMSIG_LIVING_MIRACLE_HEAL_APPLY, healing_on_tick, src)
+	if(QDELETED(src) || QDELETED(owner))
+		return FALSE
 	var/filter = owner.get_filter(MIRACLE_HEALING_FILTER)
 	if(outline_colour == COLOR_PATRON_XYLIX)
 		outline_colour = RANDOM_COLOUR

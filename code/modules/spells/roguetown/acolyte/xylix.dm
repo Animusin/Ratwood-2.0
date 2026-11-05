@@ -597,7 +597,8 @@
 	var/obj/effect/dummy/parlor_trick/D = loc
 	var/list/hearers = get_hearers_in_view(range, source)
 	for(var/mob/M in hearers)
-		M.create_chat_message(D, message_language, message, spans, message_mode)
+		if(M.can_see_runechat(D) && M.can_hear())
+			M.create_chat_message(D, message_language, message, spans, message_mode)
 
 /obj/effect/proc_holder/spell/invoked/mimicry/proc/get_or_create_parlor_trick(mob/living/user)
 	var/obj/item/melee/touch_attack/parlor_trick/active_hand = user.get_active_held_item()

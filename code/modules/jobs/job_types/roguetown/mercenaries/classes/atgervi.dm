@@ -114,14 +114,8 @@
 /datum/outfit/job/roguetown/mercenary/atgervi_shaman
 	allowed_patrons = ALL_GRONNIC_PATRONS //Variant of the 'ALL_INHUMEN_PATRONS' tag, with Abyssor and Dendor as situational additions. Do not add any more to this, no matter what.
 
-/datum/outfit/job/roguetown/mercenary/atgervishaman/pre_equip(mob/living/carbon/human/H)
+/datum/outfit/job/roguetown/mercenary/atgervishaman/pre_equip(mob/living/carbon/human/H, visualsOnly = FALSE)
 	..()
-	H.set_blindness(0)
-	to_chat(H, span_warning("You are a Zayran, a high-ranking shaman of the The Northern Empty. Savage combatants who commune with the Beast spirits called \"Tngri\" through ritualistic violence, rather than idle prayer."))
-	if(H.mind?.current)
-		H.mind.current.faction += "[H.name]_faction"
-	H.dna.species.soundpack_m = new /datum/voicepack/male/warrior()
-
 	head = /obj/item/clothing/head/roguetown/helmet/leather/shaman_hood
 	armor = /obj/item/clothing/suit/roguetown/armor/leather/heavy/atgervi
 	shirt = /obj/item/clothing/suit/roguetown/shirt/undershirt
@@ -132,35 +126,16 @@
 	belt = /obj/item/storage/belt/rogue/leather
 	neck = /obj/item/storage/belt/rogue/pouch/coins/poor
 	beltl = /obj/item/flashlight/flare/torch
-	
-	var/unarmed = list("Claws", "Pure Unarmed")
-	var/unarmed_choice = input(H,"Choose your Ritual Weapon.", "HONOR THE ANCESTORS.") as anything in unarmed
-	switch(unarmed_choice)
-		if("Claws")//dual claws
-			ADD_TRAIT(H, TRAIT_DUALWIELDER, TRAIT_GENERIC)
-			gloves = /obj/item/clothing/gloves/roguetown/angle/gronnfur
-			r_hand = /obj/item/rogueweapon/handclaw/gronn
-			l_hand = /obj/item/rogueweapon/handclaw/gronn
-		if("Pure Unarmed")//very good but unlike other pure unarmed subclasses, they dont get rage nor master unarmed since they're miraclists
-			H.change_stat(STATKEY_INT, 1)//no malus for pure unarmed
-			H.change_stat(STATKEY_PER, 1)
-			ADD_TRAIT(H, TRAIT_CRITICAL_RESISTANCE, TRAIT_GENERIC)
-			ADD_TRAIT(H, TRAIT_IGNOREDAMAGESLOWDOWN, TRAIT_GENERIC)
-			ADD_TRAIT(H, TRAIT_WEAPONLESS, TRAIT_GENERIC)
-			gloves = /obj/item/clothing/gloves/roguetown/plate/atgervi
-
-	var/techniques = list("Dropkick - Pushback + Extra Damage", "Chokeslam - Stamina Damage", "Stunner - Dazed Debuff", "Headbutt - Vulnerable Debuff") // cool wrestling moves
-	var/technique_choice = input(H,"Choose your TECHNIQUE.", "TOSS THEM.") as anything in techniques
-	switch(technique_choice)
-		if("Dropkick - Pushback + Extra Damage")
-			H.mind.AddSpell(new /obj/effect/proc_holder/spell/invoked/dropkick)
-		if("Chokeslam - Stamina Damage")
-			H.mind.AddSpell(new /obj/effect/proc_holder/spell/invoked/chokeslam)
-		if("Stunner - Dazed Debuff")
-			H.mind.AddSpell(new /obj/effect/proc_holder/spell/invoked/stunner)
-		if("Headbutt - Vulnerable Debuff")
-			H.mind.AddSpell(new /obj/effect/proc_holder/spell/invoked/headbutt)
-
+	// Show the default ritual weapon in character previews without prompting the dummy.
+	gloves = /obj/item/clothing/gloves/roguetown/angle/gronnfur
+	r_hand = /obj/item/rogueweapon/handclaw/gronn
+	l_hand = /obj/item/rogueweapon/handclaw/gronn
+	backpack_contents = list(
+		/obj/item/roguekey/mercenary = 1,
+		/obj/item/rogueweapon/huntingknife = 1,
+		/obj/item/rogueweapon/scabbard/sheath = 1,
+		/obj/item/rogueweapon/stoneaxe/hurlbat = 1
+		)
 	switch(H.patron?.type)
 		if(/datum/patron/inhumen/zizo)
 			id = /obj/item/clothing/neck/roguetown/psicross/inhumen/gronn
@@ -175,16 +150,50 @@
 		if(/datum/patron/divine/dendor)
 			id = /obj/item/clothing/neck/roguetown/psicross/dendor/gronn
 		else
-			id = /obj/item/clothing/neck/roguetown/psicross/inhumen/gronn/special //Failsafe. Gives a specially-fluffed version of Zizo's talisman, which can be reinterpreted as needed.
+			id = /obj/item/clothing/neck/roguetown/psicross/inhumen/gronn/special
+	if(visualsOnly || !H.client || !H.mind)
+		return
+
+	var/client/choosing_client = H.client
+	var/datum/mind/choosing_mind = H.mind
+	var/unarmed = list("Claws", "Pure Unarmed")
+	var/unarmed_choice = input(H,"Choose your Ritual Weapon.", "HONOR THE ANCESTORS.") as anything in unarmed
+	if(QDELETED(H) || !H.client || H.client != choosing_client || H.mind != choosing_mind)
+		return
+	var/techniques = list("Dropkick - Pushback + Extra Damage", "Chokeslam - Stamina Damage", "Stunner - Dazed Debuff", "Headbutt - Vulnerable Debuff") // cool wrestling moves
+	var/technique_choice = input(H,"Choose your TECHNIQUE.", "TOSS THEM.") as anything in techniques
+	if(QDELETED(H) || !H.client || H.client != choosing_client || H.mind != choosing_mind)
+		return
+
+	H.set_blindness(0)
+	to_chat(H, span_warning("You are a Zayran, a high-ranking shaman of the The Northern Empty. Savage combatants who commune with the Beast spirits called \"Tngri\" through ritualistic violence, rather than idle prayer."))
+	H.faction += "[H.name]_faction"
+	H.dna.species.soundpack_m = new /datum/voicepack/male/warrior()
+	switch(unarmed_choice)
+		if("Claws")//dual claws
+			ADD_TRAIT(H, TRAIT_DUALWIELDER, TRAIT_GENERIC)
+		if("Pure Unarmed")//very good but unlike other pure unarmed subclasses, they dont get rage nor master unarmed since they're miraclists
+			H.change_stat(STATKEY_INT, 1)//no malus for pure unarmed
+			H.change_stat(STATKEY_PER, 1)
+			ADD_TRAIT(H, TRAIT_CRITICAL_RESISTANCE, TRAIT_GENERIC)
+			ADD_TRAIT(H, TRAIT_IGNOREDAMAGESLOWDOWN, TRAIT_GENERIC)
+			ADD_TRAIT(H, TRAIT_WEAPONLESS, TRAIT_GENERIC)
+			gloves = /obj/item/clothing/gloves/roguetown/plate/atgervi
+			r_hand = null
+			l_hand = null
+
+	switch(technique_choice)
+		if("Dropkick - Pushback + Extra Damage")
+			H.mind.AddSpell(new /obj/effect/proc_holder/spell/invoked/dropkick)
+		if("Chokeslam - Stamina Damage")
+			H.mind.AddSpell(new /obj/effect/proc_holder/spell/invoked/chokeslam)
+		if("Stunner - Dazed Debuff")
+			H.mind.AddSpell(new /obj/effect/proc_holder/spell/invoked/stunner)
+		if("Headbutt - Vulnerable Debuff")
+			H.mind.AddSpell(new /obj/effect/proc_holder/spell/invoked/headbutt)
 
 	var/datum/devotion/C = new /datum/devotion(H, H.patron)
 	C.grant_miracles(H, cleric_tier = CLERIC_T2, passive_gain = CLERIC_REGEN_WEAK, devotion_limit = CLERIC_REQ_1)	//Capped to T2 miracles.
-	backpack_contents = list(
-		/obj/item/roguekey/mercenary = 1,
-		/obj/item/rogueweapon/huntingknife = 1,
-		/obj/item/rogueweapon/scabbard/sheath = 1,
-		/obj/item/rogueweapon/stoneaxe/hurlbat = 1
-		)
 	H.merctype = 1
 
 /obj/item/clothing/suit/roguetown/armor/chainmail/hauberk/atgervi

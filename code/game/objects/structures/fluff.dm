@@ -1767,9 +1767,14 @@
 	if(.)
 		return
 	to_chat(user, span_notice("I take down [src]."))
-	victim.forceMove(drop_location())
+	var/atom/destination = drop_location()
+	if(!destination)
+		return
+	if(!QDELETED(victim) && victim.loc == src)
+		victim.forceMove(destination)
 	victim = null
-	stake.forceMove(drop_location())
+	if(!QDELETED(stake) && stake.loc == src)
+		stake.forceMove(destination)
 	stake = null
 	qdel(src)
 

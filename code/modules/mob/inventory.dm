@@ -292,7 +292,7 @@
 */
 /mob/proc/dropItemToGround(obj/item/I, force = FALSE, silent = TRUE)
 	. = doUnEquip(I, force, drop_location(), FALSE, silent = silent)
-	if(. && I) //ensure the item exists and that it was dropped properly.
+	if(. && !QDELETED(I)) // Dropping a temporary item can consume it.
 		I.pixel_x = initial(I.pixel_x) += rand(-6,6)
 		I.pixel_y = initial(I.pixel_x) += rand(-6,6)
 
@@ -316,6 +316,7 @@
 		update_a_intents()
 		return TRUE
 
+	var/destroy_cleanup = no_move && I.gc_destroyed == GC_CURRENTLY_BEING_QDELETED
 	if(HAS_TRAIT(I, TRAIT_NODROP) && !force)
 		return FALSE
 
@@ -342,12 +343,16 @@
 		I.layer = initial(I.layer)
 		I.plane = initial(I.plane)
 		I.appearance_flags &= ~NO_CLIENT_COLOR
-		if(!no_move && !(I.item_flags & DROPDEL))	//item may be moved/qdel'd immedietely, don't bother moving it
+		// Hand updates and cancelling an attack can consume the item before this point.
+		if(!QDELETED(I) && !no_move && !(I.item_flags & DROPDEL))	//item may be moved/qdel'd immedietely, don't bother moving it
 			if (isnull(newloc))
 				I.moveToNullspace()
 			else
 				I.forceMove(newloc)
-		I.dropped(src, silent)
+		// Destroy uses no_move to remove inventory effects while the item is deleting.
+		// A normal move may instead have consumed it in an Entered/Exited callback.
+		if(!QDELETED(I) || destroy_cleanup)
+			I.dropped(src, silent)
 	if(hud_used)
 		hud_used.throw_icon?.update_icon()
 		hud_used.give_intent?.update_icon()

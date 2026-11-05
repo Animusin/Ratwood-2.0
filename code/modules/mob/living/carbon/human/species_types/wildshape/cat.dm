@@ -212,10 +212,12 @@
 				return
 		if(!do_after(user, 7 SECONDS, target = target))
 			return
+		if(QDELETED(user) || QDELETED(target) || !target.reagents)
+			return
 		var/ramount = 20
 		var/rid = /datum/reagent/medicine/healthpot
 		target.reagents.add_reagent(rid, ramount)
-		if(target.mind.has_antag_datum(/datum/antagonist/werewolf))
+		if(target.mind?.has_antag_datum(/datum/antagonist/werewolf))
 			target.visible_message(span_green("[user] is licking [target]'s wounds with its tongue!"), span_notice("My kin has covered my wounds..."))
 			rid = /datum/reagent/water
 			target.reagents.add_reagent(rid, ramount)

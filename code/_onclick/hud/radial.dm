@@ -28,6 +28,8 @@ GLOBAL_LIST_EMPTY(radial_menus)
 	icon_state = "radial_slice"
 
 /atom/movable/screen/radial/slice/Click(location, control, params)
+	if(QDELETED(src) || QDELETED(parent) || !usr?.client)
+		return
 	if(usr.client == parent.current_user)
 		if(next_page)
 			parent.next_page()
@@ -47,6 +49,8 @@ GLOBAL_LIST_EMPTY(radial_menus)
 	icon_state = "radial_center"
 
 /atom/movable/screen/radial/center/Click(location, control, params)
+	if(QDELETED(src) || QDELETED(parent) || !usr?.client)
+		return
 	if(usr.client == parent.current_user)
 		parent.finished = TRUE
 

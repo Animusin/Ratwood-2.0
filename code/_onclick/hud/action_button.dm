@@ -126,7 +126,7 @@
 		usr.update_action_buttons()
 
 /atom/movable/screen/movable/action_button/Click(location,control,params)
-	if (!can_use(usr))
+	if (QDELETED(src) || QDELETED(linked_action) || !usr || !can_use(usr))
 		return
 
 	var/list/modifiers = params2list(params)
@@ -157,7 +157,8 @@
 	if(ismob(usr))
 		var/mob/M = usr
 		M.playsound_local(M, 'sound/misc/click.ogg', 100)
-	linked_action.Trigger()
+	if(!QDELETED(linked_action))
+		linked_action.Trigger()
 	return TRUE
 
 /atom/movable/screen/movable/action_button/MouseExited()

@@ -795,10 +795,11 @@ GLOBAL_LIST_EMPTY(redstone_objs)
 	delay2open = 30
 	delay2close = 10
 
-/obj/structure/floordoor/attackby(mob/user)
+/obj/structure/floordoor/attackby(obj/item/item, mob/user)
 	. = ..()
-	var/obj/item = user.get_active_held_item()
-	if(user.used_intent.type == /datum/intent/chisel )
+	if(QDELETED(src) || QDELETED(user) || QDELETED(item))
+		return
+	if(istype(user.used_intent, /datum/intent/chisel))
 		if (user.get_skill_level(/datum/skill/craft/engineering) <= 3)
 			to_chat(user, span_warning("I need more skill to carve a name into this hatch."))
 			return

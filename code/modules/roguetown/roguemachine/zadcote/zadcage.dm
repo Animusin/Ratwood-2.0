@@ -35,6 +35,8 @@
 	current_occupancy = null
 	var/turf/T = get_turf(src)
 	for(var/obj/item/I in held_payload)
+		if(QDELETED(I))
+			continue
 		if(T)
 			I.forceMove(T)
 		else
@@ -111,13 +113,16 @@
 	playsound(src, pick('sound/vo/mobs/bird/CROW_01.ogg','sound/vo/mobs/bird/CROW_02.ogg','sound/vo/mobs/bird/CROW_03.ogg'), 55, TRUE, 2)
 
 /obj/item/zadcage/proc/complete_arrival(datum/zad_flight/flight)
-	if(!flight || QDELETED(src))
+	if(QDELETED(flight) || QDELETED(src))
 		return
 	current_occupancy = new /datum/zad_occupancy(src, flight.zads_used, flight.bombs > 0)
 	visible_message(span_notice("A zad alights on [src]."))
 	for(var/obj/item/I in flight.payload_items)
+		if(QDELETED(I))
+			continue
 		I.forceMove(src)
-		held_payload += I
+		if(!QDELETED(I) && I.loc == src)
+			held_payload += I
 	flight.payload_items.Cut()
 	update_icon()
 	START_PROCESSING(SSroguemachine, src)
@@ -132,10 +137,15 @@
 			to_chat(user, span_warning("[src] holds no parcels."))
 		return
 	for(var/obj/item/I in held_payload)
+		if(QDELETED(I))
+			continue
 		if(user && user.put_in_hands(I))
 			to_chat(user, span_notice("You take [I] from [src]."))
 			continue
-		I.forceMove(get_turf(src))
+		if(!QDELETED(I))
+			var/turf/destination = get_turf(src)
+			if(destination)
+				I.forceMove(destination)
 	held_payload.Cut()
 	update_icon()
 

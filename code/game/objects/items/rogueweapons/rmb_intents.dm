@@ -291,9 +291,9 @@
 	icon_state = "rmbweak"
 
 /datum/rmb_intent/weak/special_attack(mob/living/user, atom/target)
-	if(!target.Adjacent(user))
+	if(!ishuman(user) || !ishuman(target) || QDELETED(user) || QDELETED(target))
 		return
-	if(!ishuman(user) || !ishuman(target))
+	if(!target.Adjacent(user))
 		return
 	var/mob/living/carbon/human/H = user
 	H.attempt_steal(user, target)

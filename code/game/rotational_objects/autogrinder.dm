@@ -65,7 +65,7 @@
 
 /obj/structure/autogrinder/examine(mob/user)
 	. = ..()
-	. += span_notice(working ? "It is switched <b>on</b>." : "It is switched <b>off</b>.")
+	. += span_notice((working ? "It is switched <b>on</b>." : "It is switched <b>off</b>."))
 	if(has_power_flow())
 		. += span_notice("RPM: [rotations_per_minute]")
 	else

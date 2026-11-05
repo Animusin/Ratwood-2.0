@@ -17,15 +17,22 @@ GLOBAL_VAR(lordsecondary)
 	color = primary
 
 /mob/proc/lord_color_choice()
+	if(QDELETED(src))
+		return
 	if(!client)
 		addtimer(CALLBACK(src, PROC_REF(lord_color_choice)), 50)
 		return
 	var/prim
 	var/sec
+	var/client/choosing_client = client
 	var/choice = input(src, "Choose a Primary Color", "ROGUETOWN") as anything in GLOB.colorlist
+	if(QDELETED(src) || !client || client != choosing_client)
+		return
 	if(choice)
 		prim = GLOB.colorlist[choice]
 	choice = input(src, "Choose a Secondary Color", "ROGUETOWN") as anything in GLOB.colorlist
+	if(QDELETED(src) || !client || client != choosing_client)
+		return
 	if(choice)
 		sec = GLOB.colorlist[choice]
 	if(!prim || !sec)

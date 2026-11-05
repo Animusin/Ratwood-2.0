@@ -22,8 +22,11 @@
 	message_text = msg || ""
 	if(items)
 		for(var/obj/item/I in items)
+			if(QDELETED(I))
+				continue
 			I.forceMove(origin_cote)
-			payload_items += I
+			if(!QDELETED(I) && I.loc == origin_cote)
+				payload_items += I
 	bombs = clamp(bomb_count, 0, ZAD_CAPACITY_TIER_3)
 	launch_time = world.time
 	var/landing = bombs ? rand(ZAD_FLIGHT_BOMB_LANDING_MIN, ZAD_FLIGHT_BOMB_LANDING_MAX) : ZAD_FLIGHT_LANDING_TIME
@@ -39,5 +42,7 @@
 	if(!destination)
 		return
 	for(var/obj/item/I in payload_items)
+		if(QDELETED(I))
+			continue
 		I.forceMove(destination)
 	payload_items.Cut()

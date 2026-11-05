@@ -22,7 +22,7 @@
 	cut_overlays()
 	underlays.Cut()
 
-	if(reagents.total_volume)
+	if(reagents?.total_volume)
 		var/mutable_appearance/filling = mutable_appearance(icon)
 
 		var/percent = round((reagents.total_volume / volume) * 100)

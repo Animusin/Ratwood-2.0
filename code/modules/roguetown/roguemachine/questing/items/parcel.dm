@@ -69,13 +69,20 @@
 	SIGNAL_HANDLER
 	return
 
+/obj/item/parcel/Exited(atom/movable/gone, direction)
+	. = ..()
+	contained_items -= gone
+
 /obj/item/parcel/attackby(obj/item/I, mob/user)
 	if(istype(I, /obj/item/parcel) || I.w_class > WEIGHT_CLASS_BULKY || length(contained_items))
 		to_chat(user, span_warning("You can't wrap this in [src]."))
 		return
 
 	if(do_after(user, 2 SECONDS, target = src))
-		user.transferItemToLoc(I, src)
+		if(QDELETED(src) || QDELETED(user) || QDELETED(I) || length(contained_items))
+			return
+		if(!user.transferItemToLoc(I, src) || QDELETED(I) || I.loc != src)
+			return
 		contained_items += I
 		name = "parcel ([I.name])"
 		desc = "A securely wrapped parcel containing [I.name]."
@@ -97,21 +104,30 @@
 
 	if(!do_after(user, 2 SECONDS, target = src))
 		return
+	if(QDELETED(src) || QDELETED(user) || !length(contained_items))
+		return
 
 	playsound(get_turf(user), 'sound/foley/dropsound/food_drop.ogg', 40, TRUE, -1)
 	var/datum/component/quest_object/courier_component = GetComponent(/datum/component/quest_object/courier)
 	var/datum/quest/quest = courier_component?.quest_ref?.resolve()
 	if(length(contained_items) == 1)
 		var/obj/item/only = contained_items[1]
+		if(QDELETED(only) || only.loc != src)
+			contained_items -= only
+			return
 		to_chat(user, span_notice("You unwrap [only] from the parcel."))
 		user.put_in_hands(only)
-		only.update_icon()
+		if(!QDELETED(only))
+			only.update_icon()
 	else
 		to_chat(user, span_notice("You unwrap [src] and tip out the contents."))
 		var/turf/drop_loc = get_turf(user)
-		for(var/obj/item/I as anything in contained_items)
+		for(var/obj/item/I as anything in contained_items.Copy())
+			if(QDELETED(I) || I.loc != src)
+				continue
 			I.forceMove(drop_loc)
-			I.update_icon()
+			if(!QDELETED(I))
+				I.update_icon()
 	if(quest && !quest.complete)
 		quest.progress_current++
 		quest.on_progress_update()
@@ -157,20 +173,29 @@
 		return FALSE
 	if(!do_after(user, 2 SECONDS, target = src))
 		return
+	if(QDELETED(src) || QDELETED(user) || !length(contained_items))
+		return
 	playsound(get_turf(user), 'sound/foley/dropsound/food_drop.ogg', 40, TRUE, -1)
 	var/datum/component/quest_object/courier_component = GetComponent(/datum/component/quest_object/courier)
 	var/datum/quest/quest = courier_component?.quest_ref?.resolve()
 	if(length(contained_items) == 1)
 		var/obj/item/only = contained_items[1]
+		if(QDELETED(only) || only.loc != src)
+			contained_items -= only
+			return
 		to_chat(user, span_notice("You unwrap [only] from the [sealed_noun]."))
 		user.put_in_hands(only)
-		only.update_icon()
+		if(!QDELETED(only))
+			only.update_icon()
 	else
 		to_chat(user, span_notice("You open the [sealed_noun] and tip out the contents."))
 		var/turf/drop_loc = get_turf(user)
-		for(var/obj/item/I as anything in contained_items)
+		for(var/obj/item/I as anything in contained_items.Copy())
+			if(QDELETED(I) || I.loc != src)
+				continue
 			I.forceMove(drop_loc)
-			I.update_icon()
+			if(!QDELETED(I))
+				I.update_icon()
 	if(quest && !quest.complete)
 		quest.progress_current++
 		quest.on_progress_update()

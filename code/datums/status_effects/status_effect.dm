@@ -77,8 +77,12 @@
 	
 		mob_effect.plane = ABOVE_LIGHTING_PLANE
 
-	if(!on_apply())
-		on_remove()
+	var/applied = on_apply()
+	// An application callback can remove this effect synchronously through a signal.
+	if(QDELETED(src))
+		return
+	if(!applied || QDELETED(owner))
+		// Destroy performs on_remove; calling it here as well removes the effect twice.
 		qdel(src)
 		return
 

@@ -261,7 +261,7 @@
 				return
 			door_rattle()
 			return
-		if(TryToSwitchState(user))
+		if(TryToSwitchState(user) && !QDELETED(src) && !QDELETED(user))
 			if(swing_closed)
 				if(user.m_intent == MOVE_INTENT_SNEAK)
 					addtimer(CALLBACK(src, PROC_REF(Close), TRUE), 25)
@@ -323,7 +323,7 @@
 	else if(!user.client) // simplemobs aren't allowed to pathfind through doors, currently
 		return FALSE
 	SwitchState(user.m_intent == MOVE_INTENT_SNEAK) // silent when sneaking
-	return TRUE
+	return !QDELETED(src)
 
 /obj/structure/mineral_door/proc/SwitchState(silent = FALSE)
 	if(door_opened)
@@ -332,6 +332,8 @@
 		Open(silent)
 
 /obj/structure/mineral_door/proc/Open(silent = FALSE, mob/user)
+	if(QDELETED(src))
+		return
 	isSwitchingStates = TRUE
 	if(!silent)
 		playsound(src, openSound, 100)
@@ -339,6 +341,8 @@
 		set_opacity(FALSE)
 	flick("[base_state]opening",src)
 	sleep(2)
+	if(QDELETED(src))
+		return
 	density = FALSE
 	door_opened = TRUE
 	layer = OPEN_DOOR_LAYER
@@ -350,7 +354,7 @@
 		addtimer(CALLBACK(src, PROC_REF(Close)), close_delay)
 
 /obj/structure/mineral_door/proc/Close(silent = FALSE, autobump = FALSE, mob/user)
-	if(isSwitchingStates || !door_opened)
+	if(QDELETED(src) || isSwitchingStates || !door_opened)
 		return
 	var/turf/T = get_turf(src)
 	for(var/mob/living/L in T)
@@ -360,6 +364,8 @@
 		playsound(src, closeSound, 100)
 	flick("[base_state]closing",src)
 	sleep(2)
+	if(QDELETED(src))
+		return
 	density = TRUE
 	if(!windowed)
 		set_opacity(TRUE)

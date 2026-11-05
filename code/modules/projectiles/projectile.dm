@@ -301,6 +301,9 @@
 	beam_segments[beam_index] = null
 
 /obj/projectile/Bump(atom/A)
+	// Crossed and movement callbacks can still arrive before firing or after deletion.
+	if(QDELETED(src) || !fired || !trajectory || QDELETED(A))
+		return FALSE
 	var/datum/point/pcache = trajectory.copy_to()
 	var/turf/T = get_turf(A)
 	if(check_ricochet(A) && check_ricochet_flag(A) && ricochets < ricochets_max)
@@ -776,6 +779,8 @@
 
 /obj/projectile/Crossed(atom/movable/AM) //A mob moving on a tile with a projectile is hit by it.
 	. = ..()
+	if(QDELETED(src) || !fired || !trajectory)
+		return
 	if(isliving(AM) && !(pass_flags & PASSMOB))
 		var/mob/living/L = AM
 		if(can_hit_target(L, permutated, (AM == original)))

@@ -360,12 +360,13 @@
 				if(sadv)
 					var/sleep_xp = sadv.get_sleep_xp(i.type)
 					var/needed_xp = sadv.get_requried_sleep_xp_for_skill(i.type, 1)
-					if(sleep_xp > needed_xp)
-						sleep_xp -= sadv.get_requried_sleep_xp_for_skill(i.type, 1)
-						needed_xp = sadv.get_requried_sleep_xp_for_skill(i.type, 2) - sadv.get_requried_sleep_xp_for_skill(i.type, 1)
-						percent = 100 + clamp(round(sleep_xp * 100 / needed_xp), 0, 200)
-					else
-						percent = clamp(round(sleep_xp * 100 / needed_xp), 0, 200)
+					if(needed_xp > 0)
+						percent = clamp(round(sleep_xp * 100 / needed_xp), 0, 100)
+						if(sleep_xp > needed_xp)
+							var/next_needed_xp = sadv.get_requried_sleep_xp_for_skill(i.type, 2) - needed_xp
+							// A temporary skill bonus can leave banked XP above the last attainable rank.
+							if(next_needed_xp > 0)
+								percent = 100 + clamp(round((sleep_xp - needed_xp) * 100 / next_needed_xp), 0, 200)
 			else
 				// Below Apprentice, XP is tracked directly on skill_experience
 				var/list/brackets = get_xp_brackets(raw_skill_level)
@@ -387,6 +388,7 @@
 
 	msg += "</table>"
 	to_chat(user, msg)
+	return msg
 
 /mob/proc/get_inspirational_bonus()
 	return 0

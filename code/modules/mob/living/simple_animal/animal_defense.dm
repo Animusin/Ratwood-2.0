@@ -259,8 +259,13 @@
 		return TRUE
 
 /mob/living/simple_animal/attack_animal(mob/living/simple_animal/M)
+	if(QDELETED(M) || QDELETED(M.a_intent))
+		return FALSE
+	// Damage callbacks may kill the attacker or remove its intent. Preserve this attack's data.
+	var/blade_class = M.a_intent.blade_class
+	var/attack_verb = pick(M.a_intent.attack_verb)
 	. = ..()
-	if(.)
+	if(. && !QDELETED(src) && !QDELETED(M))
 		next_attack_msg.Cut()
 		var/hitlim = simple_limb_hit(M.zone_selected)
 		var/damage = rand(M.melee_damage_lower, M.melee_damage_upper)
@@ -269,9 +274,11 @@
 		if(armor > 0)
 			next_attack_msg += VISMSG_ARMOR_BLOCKED
 		attack_threshold_check(damage, hitlim, M.melee_damage_type, armor)
-		simple_woundcritroll(M.a_intent.blade_class, damage, M, hitlim)
-		visible_message(span_danger("\The [M] [pick(M.a_intent.attack_verb)] [src]![next_attack_msg.Join()]"), \
-					span_danger("\The [M] [pick(M.a_intent.attack_verb)] me![next_attack_msg.Join()]"), null, COMBAT_MESSAGE_RANGE)
+		if(QDELETED(src) || QDELETED(M))
+			return
+		simple_woundcritroll(blade_class, damage, M, hitlim)
+		visible_message(span_danger("\The [M] [attack_verb] [src]![next_attack_msg.Join()]"), \
+					span_danger("\The [M] [attack_verb] me![next_attack_msg.Join()]"), null, COMBAT_MESSAGE_RANGE)
 		next_attack_msg.Cut()
 
 /mob/living/simple_animal/onbite(mob/living/carbon/human/user)

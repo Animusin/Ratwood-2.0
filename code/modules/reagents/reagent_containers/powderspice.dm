@@ -81,6 +81,9 @@
 
 /obj/item/reagent_containers/powder/throw_impact(atom/hit_atom, datum/thrownthing/thrownthing)
 	. = ..()
+	// Falling through a z-level invokes throw_impact without an aimed throw datum.
+	if(QDELETED(src) || !thrownthing)
+		return
 	///if the thrown object's target zone isn't the head
 	if(thrownthing.target_zone != BODY_ZONE_PRECISE_NOSE)
 		return

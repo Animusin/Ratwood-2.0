@@ -316,6 +316,8 @@
 
 /// unsets my_path if it's not valid. that's it that's the proc
 /mob/living/carbon/human/proc/validate_path()
+	if(!length(myPath))
+		return FALSE
 	var/give_up = FALSE
 	if(pathing_frustration > 8)
 		NPC_THINK("Giving up on this path because of frustration!")
@@ -345,6 +347,8 @@
 			pathing_frustration++
 			NPC_THINK("TOO FAR! Strike [pathing_frustration]!")
 			return 0
+	if(QDELETED(src) || !length(myPath))
+		return 0
 	// var/move_started = world.time
 	var/old_pathfinding_target = pathfinding_target
 	var/steps_to_take = maxStepsTick - steps_moved_this_turn // if this isn't our first movement step, limit how many we can take
@@ -352,12 +356,16 @@
 		if(!length(myPath))
 			NPC_THINK("MOVEMENT TURN [movement_turn]: Path complete!")
 			return
+		var/list/current_path = myPath
 		// Try jumping prior to validation to avoid losing our path from being too far away.
 		// Basically a catch-up step. Won't run every time.
 		if(npc_try_jump())
 			NPC_THINK("MOVEMENT TURN [movement_turn]: Jumped, waiting 1ds!")
 			sleep(1)
 			continue
+		// Jumping can yield while another action clears or replaces our route.
+		if(QDELETED(src) || myPath != current_path)
+			return
 		if(!validate_path())
 			NPC_THINK("MOVEMENT TURN [movement_turn]: Path invalidated!")
 			return
@@ -380,14 +388,17 @@
 			NPC_THINK("MOVEMENT TURN [movement_turn]: Out of time to move!")
 			return */
 		var/turf/next_path_turf = myPath[1]
-		var/move_dir = get_dir(src, myPath[1])
+		var/move_dir = get_dir(src, next_path_turf)
 		var/turf/next_step = get_step(src, move_dir)
 		if(next_path_turf.z != z) // if moving up or down z-levels, need specific checks
 			var/obj/structure/stairs/the_stairs = locate() in get_turf(src)
 			if(!the_stairs && HAS_TRAIT(src, TRAIT_ZJUMP)) // do a fancy Z-jump!
-				if(npc_try_jump_to(next_path_turf))
+				var/did_jump = npc_try_jump_to(next_path_turf)
+				if(QDELETED(src) || myPath != current_path || pathfinding_target != old_pathfinding_target || LAZYACCESS(myPath, 1) != next_path_turf)
+					return
+				if(did_jump)
 					pathing_frustration = 0
-					myPath -= myPath[1]
+					myPath.Cut(1, 2)
 					NPC_THINK("MOVEMENT TURN [movement_turn]: Z-jump succeeded, movement on cooldown for [movespeed/10] seconds!")
 					sleep(movespeed) // wait until next move
 				else
@@ -417,6 +428,8 @@
 				return
 			var/did_jump = npc_try_jump_to(jump_turf)
 			m_intent = old_m_intent
+			if(QDELETED(src) || myPath != current_path || pathfinding_target != old_pathfinding_target || LAZYACCESS(myPath, 1) != next_path_turf)
+				return
 			if(did_jump)
 				myPath.Cut(1, 3)
 				pathing_frustration = 0
@@ -434,6 +447,8 @@
 					NPC_THINK("MOVEMENT TURN [movement_turn]: Trying to climb over [O]!")
 					O.climb_structure(src)
 					break
+		if(QDELETED(src) || myPath != current_path || pathfinding_target != old_pathfinding_target || LAZYACCESS(myPath, 1) != next_path_turf)
+			return
 		if(loc != next_step) // movement failed and so did climb_structure
 			pathing_frustration++
 			NPC_THINK("MOVEMENT TURN [movement_turn]: Move failed! Strike [pathing_frustration]!")

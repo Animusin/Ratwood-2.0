@@ -602,7 +602,7 @@ It will also call down lightning strikes from the sky, and fling people with it'
 		current.electrocute_act(bolt_energy,"Lightning Bolt",flags = SHOCK_NOGLOVES)
 		var/list/possible_targets = new
 		for(var/mob/living/M in view(7,target))
-			if(user == M || target == M && los_check(current,M)) // || origin == M ? Not sure double shockings is good or not
+			if(user == M || target == M) // A bounce may return to an earlier victim, but never to its current one.
 				continue
 			possible_targets += M
 		if(!possible_targets.len)

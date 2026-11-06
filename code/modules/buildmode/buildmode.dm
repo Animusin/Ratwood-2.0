@@ -9,6 +9,8 @@
 
 	// login callback
 	var/li_cb
+	/// The registry outlives a disconnected client, so cleanup cannot depend on holder.
+	var/datum/player_details/login_callback_owner
 
 	// SECTION UI
 	var/list/buttons
@@ -30,7 +32,8 @@
 	read_catalog_preferences()
 	buttons = list()
 	li_cb = CALLBACK(src, PROC_REF(post_login))
-	holder.player_details.post_login_callbacks += li_cb
+	login_callback_owner = holder.player_details
+	login_callback_owner.post_login_callbacks += li_cb
 	create_buttons()
 	holder.screen += buttons
 	holder.click_intercept = src
@@ -47,8 +50,10 @@
 	mode?.exit_mode(src)
 	clear_spawn_preview()
 	close_switchstates()
+	login_callback_owner?.post_login_callbacks -= li_cb
+	login_callback_owner = null
+	QDEL_NULL(li_cb)
 	if(holder)
-		holder.player_details.post_login_callbacks -= li_cb
 		holder.screen -= buttons
 		if(holder.click_intercept == src)
 			holder.click_intercept = null
@@ -61,6 +66,11 @@
 	return ..()
 
 /datum/buildmode/proc/post_login()
+	if(QDELETED(src))
+		return
+	if(!holder)
+		qdel(src)
+		return
 	// since these will get wiped upon login
 	holder.screen += buttons
 	refresh_spawn_preview()
@@ -118,7 +128,7 @@
 
 /datum/buildmode/proc/close_modeswitch()
 	switch_state = BM_SWITCHSTATE_NONE
-	holder.screen -= modeswitch_buttons
+	holder?.screen -= modeswitch_buttons
 
 /datum/buildmode/proc/toggle_dirswitch()
 	if(switch_state == BM_SWITCHSTATE_DIR)
@@ -133,7 +143,7 @@
 
 /datum/buildmode/proc/close_dirswitch()
 	switch_state = BM_SWITCHSTATE_NONE
-	holder.screen -= dirswitch_buttons
+	holder?.screen -= dirswitch_buttons
 
 /datum/buildmode/proc/change_mode(newmode)
 	if(!(newmode in subtypesof(/datum/buildmode_mode)))

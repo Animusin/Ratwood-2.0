@@ -91,6 +91,9 @@
 	// Inject assets
 	var/inline_assets_str = ""
 	for(var/datum/asset/asset in assets)
+		if(!client)
+			status = TGUI_WINDOW_CLOSED
+			return
 		var/mappings = asset.get_url_mappings()
 		for(var/name in mappings)
 			var/url = mappings[name]
@@ -99,6 +102,9 @@
 				inline_assets_str += "Byond.loadCss('[url]', true);\n"
 			else if(copytext(name, -3) == ".js")
 				inline_assets_str += "Byond.loadJs('[url]', true);\n"
+		if(!client)
+			status = TGUI_WINDOW_CLOSED
+			return
 		asset.send(client)
 	if(length(inline_assets_str))
 		inline_assets_str = "<script>\n" + inline_assets_str + "</script>\n"
@@ -115,7 +121,14 @@
 		inline_css = "<style>\n[isfile(inline_css) ? file2text(inline_css) : inline_css]\n</style>"
 		html = replacetextEx(html, "<!-- tgui:inline-css -->", inline_css)
 	// Open the window
+	// Asset preparation may yield while the owning client disconnects.
+	if(!client)
+		status = TGUI_WINDOW_CLOSED
+		return
 	client << browse(html, "window=[id];[options]")
+	if(!client)
+		status = TGUI_WINDOW_CLOSED
+		return
 	// Detect whether the control is a browser
 	is_browser = winexists(client, id) == "BROWSER"
 	// Instruct the client to signal UI when the window is closed.

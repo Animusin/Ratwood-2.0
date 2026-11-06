@@ -161,7 +161,9 @@ GLOBAL_LIST_INIT(freqtospan, list(
 			// Make only the language icon clickable; do not display the language name inline
 			var/ln = url_encode(D.name)
 			var/ldesc = url_encode(D.desc)
-			var/client/viewer = usr?.client // usr is null when speech is composed from NPC AI/background procs
+			// The message is rendered for src; usr may be another player or 0 in AI callbacks.
+			var/mob/listener = ismob(src) ? src : null
+			var/client/viewer = listener?.client
 			if(viewer)
 				languageicon = "<a href='byond://?src=\\ref[viewer];lang_name=[ln];lang_desc=[ldesc]'><span style=\"position: relative; bottom: 4px;\">[D.get_icon()]</span></a>"
 			else

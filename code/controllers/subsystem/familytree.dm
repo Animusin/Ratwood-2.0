@@ -527,11 +527,17 @@ SUBSYSTEM_DEF(familytree)
 		families += new_house
 
 /datum/controller/subsystem/familytree/proc/AssignNewlyWed(mob/living/carbon/human/H)
+	if(QDELETED(H) || !H.dna?.species)
+		viable_spouses -= H
+		return
 	viable_spouses += H
 	var/list/potential_matches = list()
 
-	for(var/mob/living/carbon/human/potential_spouse in viable_spouses)
-		if(!potential_spouse || potential_spouse == H)
+	for(var/mob/living/carbon/human/potential_spouse in viable_spouses.Copy())
+		if(QDELETED(potential_spouse) || !potential_spouse.dna?.species)
+			viable_spouses -= potential_spouse
+			continue
+		if(potential_spouse == H)
 			continue
 		if(potential_spouse.stat == DEAD)
 			continue

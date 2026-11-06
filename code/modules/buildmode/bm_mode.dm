@@ -17,8 +17,10 @@
 /datum/buildmode_mode/Destroy()
 	cornerA = null
 	cornerB = null
-	QDEL_LIST(preview)
+	BM?.holder?.images -= preview
+	// Preview entries are /images; release their references instead of qdel.
 	preview = null
+	BM = null
 	return ..()
 
 /datum/buildmode_mode/proc/enter_mode(datum/buildmode/BM)

@@ -74,8 +74,16 @@
 		return
 	..()
 
-/obj/machinery/artificer_table/proc/choose_recipe(user)
-	if(!material)
+/obj/machinery/artificer_table/proc/can_choose_recipe(mob/user, obj/item/expected_material)
+	return !QDELETED(src) && !QDELETED(user) && !QDELETED(expected_material) && material == expected_material && expected_material.loc == src && !expected_material.artrecipe && user.Adjacent(src)
+
+/obj/machinery/artificer_table/proc/prompt_recipe_choice(mob/user, message, list/options)
+	return input(user, message, "Artificer") as null|anything in options
+
+/obj/machinery/artificer_table/proc/choose_recipe(mob/user)
+	// Both menus yield; another player can remove or replace the workpiece meanwhile.
+	var/obj/item/expected_material = material
+	if(!can_choose_recipe(user, expected_material))
 		return
 
 	var/list/valid_types = list()
@@ -88,8 +96,8 @@
 	if(!valid_types.len)
 		return
 
-	var/i_type_choice = input(user, "Choose a type", "Artificer") as null|anything in valid_types
-	if(!i_type_choice)
+	var/i_type_choice = prompt_recipe_choice(user, "Choose a type", valid_types)
+	if(!i_type_choice || !can_choose_recipe(user, expected_material))
 		return
 
 	var/list/appro_recipe = list()
@@ -105,8 +113,8 @@
 			appro_recipe -= R
 
 	if(appro_recipe.len)
-		var/datum/chosen_recipe = input(user, "Choose A Creation", "Artificer") as null|anything in sortNames(appro_recipe.Copy())
-		if(!material.artrecipe && chosen_recipe)
+		var/datum/artificer_recipe/chosen_recipe = prompt_recipe_choice(user, "Choose A Creation", sortNames(appro_recipe.Copy()))
+		if(can_choose_recipe(user, expected_material) && (chosen_recipe in appro_recipe))
 			material.artrecipe = new chosen_recipe.type(material)
 			return TRUE
 

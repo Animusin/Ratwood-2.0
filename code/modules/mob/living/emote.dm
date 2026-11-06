@@ -1674,7 +1674,8 @@
 	if(length(allowed_verbs))
 		verbs += allowed_verbs
 
-/mob/living/carbon/human/proc/show_tongue_noise_warning()
+// A queued or copied noise verb can run after its user has become a ghost.
+/mob/proc/show_tongue_noise_warning()
 	to_chat(src, span_warning("Your tongue doesn't do that"))
 
 /mob/living/carbon/human/verb/emote_meow()

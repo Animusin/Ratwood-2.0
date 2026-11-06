@@ -996,10 +996,11 @@
 
 // get angry at a mob
 /mob/living/carbon/human/proc/retaliate(mob/living/L)
+	// Environmental projectiles may have no living attacker to pursue.
+	if(QDELETED(src) || !isliving(L) || QDELETED(L) || L == src)
+		return
 	if(!wander)
 		wander = TRUE
-	if(L == src)
-		return
 	if(mode != NPC_AI_OFF)
 		if(L.alpha == 0 && L.rogue_sneaking)
 			// we just got hit by something hidden so try and find them

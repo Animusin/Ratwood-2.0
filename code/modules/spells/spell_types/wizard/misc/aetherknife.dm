@@ -48,14 +48,21 @@
 		R.force = R.force + int_scaling
 		R.throwforce = R.throwforce + int_scaling * 2
 		R.name = "aetherknife +[int_scaling]"
-	user.put_in_hands(R)
 	src.conjured_knife = R
+	RegisterSignal(R, COMSIG_QDELETING, PROC_REF(on_conjured_knife_deleted))
+	user.put_in_hands(R)
 	return TRUE
+
+/datum/action/cooldown/spell/aetherknife/proc/on_conjured_knife_deleted(datum/source)
+	SIGNAL_HANDLER
+	UnregisterSignal(source, COMSIG_QDELETING)
+	if(conjured_knife == source)
+		conjured_knife = null
 
 /datum/action/cooldown/spell/aetherknife/Destroy()
 	if(src.conjured_knife)
 		conjured_knife.visible_message(span_warning("[conjured_knife] disintegrates into glittering motes!"))
-		qdel(conjured_knife)
+		QDEL_NULL(conjured_knife)
 	return ..()
 
 /obj/item/rogueweapon/huntingknife/throwingknife/aetherknife

@@ -1,0 +1,6 @@
+author: "Animusin"
+delete-after: true
+changes:
+  - bugfix: "Locate Subordinate no longer fails when a clan member has no body on the map."
+  - bugfix: "Aetherknife and Form Blade release their references when a conjured weapon disappears."
+  - bugfix: "Tamed animals release their owner reference when the owner's body is deleted."

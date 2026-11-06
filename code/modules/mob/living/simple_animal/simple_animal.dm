@@ -217,6 +217,7 @@ GLOBAL_VAR_INIT(farm_animals, FALSE)
 		AddSpell(newspell)
 
 /mob/living/simple_animal/Destroy()
+	set_animal_owner(null)
 	// Clear every status list rather than the one AIStatus names. Remove() takes out a single copy
 	// starting from the end, so one subtraction against a stale status or a duplicated entry
 	// leaves a reference behind and the mob hard deletes.
@@ -386,10 +387,41 @@ GLOBAL_VAR_INIT(farm_animals, FALSE)
 	INVOKE_ASYNC(src, PROC_REF(emote), "lower_head", null, null, null, TRUE)
 	tame = TRUE
 	stop_automated_movement_when_pulled = TRUE
-	if(ismob(user)) // some callers pass TRUE rather than a mob; SEND_SIGNAL on a non-mob reads <num>.comp_lookup
-		owner = user
+	if(ismob(user) && set_animal_owner(user)) // some callers pass TRUE rather than a mob
 		SEND_SIGNAL(user, COMSIG_ANIMAL_TAMED, src)
 	return
+
+/// Keep ownership cleanup separate from enemies, which also subscribes to mob deletion.
+/mob/living/simple_animal/proc/set_animal_owner(mob/new_owner)
+	if(!isnull(new_owner) && (!ismob(new_owner) || QDELETED(new_owner) || QDELETED(src)))
+		return FALSE
+	if(owner == new_owner)
+		return TRUE
+	qdel(GetComponent(/datum/component/simple_animal_owner))
+	owner = new_owner
+	if(owner)
+		AddComponent(/datum/component/simple_animal_owner, owner)
+	return TRUE
+
+/datum/component/simple_animal_owner
+	var/mob/tracked_owner
+
+/datum/component/simple_animal_owner/Initialize(mob/new_owner)
+	if(!istype(parent, /mob/living/simple_animal) || !ismob(new_owner) || QDELETED(new_owner))
+		return COMPONENT_INCOMPATIBLE
+	tracked_owner = new_owner
+	RegisterSignal(tracked_owner, COMSIG_QDELETING, PROC_REF(on_owner_deleted))
+
+/datum/component/simple_animal_owner/Destroy()
+	var/mob/living/simple_animal/animal = parent
+	if(istype(animal) && animal.owner == tracked_owner)
+		animal.owner = null
+	tracked_owner = null
+	return ..()
+
+/datum/component/simple_animal_owner/proc/on_owner_deleted(datum/source)
+	SIGNAL_HANDLER
+	qdel(src)
 
 //mob/living/simple_animal/examine(mob/user)
 //	. = ..()

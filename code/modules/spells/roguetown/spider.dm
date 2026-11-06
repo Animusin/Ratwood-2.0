@@ -106,7 +106,7 @@
 		return FALSE
 
 	var/mob/living/simple_animal/hostile/retaliate/rogue/drider/spider = new /mob/living/simple_animal/hostile/retaliate/rogue/drider/tame/saddled(get_turf(user))
-	spider.owner = user
+	spider.set_animal_owner(user)
 	user.spiderborn_mount = WEAKREF(spider)
 
 	user.AddSpell(new /obj/effect/proc_holder/spell/self/saddleborn/sendaway/spiderborn)

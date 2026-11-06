@@ -332,36 +332,47 @@
 	cooldown_time = 200
 
 /datum/action/clan_hierarchy/locate_subordinate/IsAvailable()
-	if(!..())
+	if(QDELETED(owner) || !..())
 		return FALSE
 
 	var/mob/living/carbon/human/user = owner
+	if(QDELETED(user.clan) || QDELETED(user.clan_position))
+		return FALSE
 	var/list/all_subordinates = user.clan_position.get_all_subordinates()
 
 	for(var/datum/clan_hierarchy_node/sub in all_subordinates)
-		if(sub.assigned_member)
+		if(!QDELETED(sub) && !QDELETED(sub.assigned_member))
 			return TRUE
 
 	return FALSE
 
 /datum/action/clan_hierarchy/locate_subordinate/Trigger(trigger_flags)
 	. = ..()
+	if(!.)
+		return FALSE
 
 	var/mob/living/carbon/human/user = owner
+	if(QDELETED(user) || !istype(user) || QDELETED(user.clan) || QDELETED(user.clan_position))
+		return FALSE
+	var/turf/user_turf = get_turf(user)
+	if(!user_turf)
+		return FALSE
 	var/list/all_subordinates = user.clan_position.get_all_subordinates()
 	var/list/location_info = list()
 
 	for(var/datum/clan_hierarchy_node/sub in all_subordinates)
-		if(sub.assigned_member)
-			var/mob/living/carbon/human/target = sub.assigned_member
-			var/turf/target_turf = get_turf(target)
-			if(is_in_zweb(user.z, target_turf.z))
-				var/dist = get_dist_3d(user, target_turf)
-				location_info += "[target.real_name] ([sub.name]) [(dist > 20 ? "far away" : "nearby")])"
+		if(QDELETED(sub) || QDELETED(sub.assigned_member))
+			continue
+		var/mob/living/carbon/human/target = sub.assigned_member
+		var/turf/target_turf = get_turf(target)
+		if(!target_turf || !is_in_zweb(user_turf.z, target_turf.z))
+			continue
+		var/dist = get_dist_3d(user_turf, target_turf)
+		location_info += "[target.real_name] ([sub.name]) [(dist > 20 ? "far away" : "nearby")])"
 
 	if(!length(location_info))
 		to_chat(user, "<span class='warning'>You have no subordinates to locate!</span>")
-		return
+		return FALSE
 
 	start_cooldown()
 

@@ -63,6 +63,15 @@ GLOBAL_LIST_EMPTY(respawn_states)
 	var/datum/respawn_state/state = GLOB.respawn_states[player_ckey]
 	return state ? state.get_time_left() : 0
 
+/// Read-only display of the same account cooldown used by the latejoin guards.
+/proc/get_respawn_status_text(account_key)
+	var/time_left = get_respawn_time_left_for_ckey(account_key)
+	if(time_left < 0)
+		return "Previous body is still alive; waiting starts when it dies."
+	if(time_left == 0)
+		return "Ready."
+	return "[DisplayTimeText(CEILING(time_left, 1 SECONDS), 1)] remaining."
+
 /proc/reset_respawn_cooldown_for_ckey(account_key)
 	var/datum/respawn_state/state = GLOB.respawn_states[ckey(account_key)]
 	return state?.waive() || FALSE

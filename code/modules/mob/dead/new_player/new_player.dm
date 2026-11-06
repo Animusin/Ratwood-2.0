@@ -137,6 +137,7 @@ GLOBAL_LIST_INIT(roleplay_readme, world.file2list("strings/rt/rp_prompt.txt"))
 	// Eligibility checks in the migrant subsystem must never open payment dialogs.
 	if(!show_message)
 		return FALSE
+	to_chat(src, span_warning("Respawn: [get_respawn_status_text(get_respawn_account_ckey())]"))
 	var/datum/respawn_state/state = GLOB.respawn_states[get_respawn_account_ckey()]
 	if(!state || state.bypass_in_progress)
 		return FALSE
@@ -152,9 +153,12 @@ GLOBAL_LIST_INIT(roleplay_readme, world.file2list("strings/rt/rp_prompt.txt"))
 /mob/dead/new_player/proc/get_respawn_bypass_cost(client/player, refresh = FALSE)
 	return player?.respawn_bypass_cost(refresh)
 
-/mob/dead/new_player/proc/confirm_respawn_bypass(cost)
+/mob/dead/new_player/proc/get_respawn_bypass_message(cost)
 	var/message = cost ? "Skip the remaining respawn wait for [cost] Triumphs? They will only be spent if you choose Yes." : "Skip the remaining respawn wait for free with your HoS-or-higher subscription?"
-	return alert(src, message, "Respawn Cooldown", "Yes", "No") == "Yes"
+	return "Respawn: [get_respawn_status_text(get_respawn_account_ckey())]\n\n[message]"
+
+/mob/dead/new_player/proc/confirm_respawn_bypass(cost)
+	return alert(src, get_respawn_bypass_message(cost), "Respawn Cooldown", "Yes", "No") == "Yes"
 
 /mob/dead/new_player/proc/is_respawn_bypass_context_current(datum/respawn_state/state, client/player)
 	return !QDELETED(state) && state.is_current() && get_respawn_account_ckey() == state.player_ckey && has_respawn_bypass_connection(player, state.player_ckey)

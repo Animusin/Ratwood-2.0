@@ -835,6 +835,8 @@ GLOBAL_VAR_INIT(mobids, 1)
 				stat(null, "Next Map: [cached.map_name]")
 			stat(null, "ROUND ID: [GLOB.rogue_round_id ? GLOB.rogue_round_id : "NULL"]")
 			stat(null, "ROUND TIME: [time2text(STATION_TIME_PASSED(), "hh:mm:ss", 0)] [world.time - SSticker.round_start_time]")
+			if(isobserver(src) || isnewplayer(src) || istype(src, /mob/living/carbon/spirit))
+				stat(null, "RESPAWN: [get_respawn_status_text(ckey)]")
 
 			if(SSgamemode.roundvoteend)
 				stat("ROUND END: [DisplayTimeText(time_left)]")

@@ -131,6 +131,29 @@
 	TEST_ASSERT_EQUAL(SStriumphs.get_triumphs(fixture.account_key), 50, "Retrying entry must never charge a second time.")
 	TEST_ASSERT_EQUAL(fixture.lobby.prompt_calls, 1, "An already waived cooldown must not ask for payment again.")
 
+/datum/unit_test/respawn_wait_display/Run()
+	var/datum/respawn_bypass_fixture/fixture = allocate(/datum/respawn_bypass_fixture)
+	fixture.state.death_time = world.time - 5 MINUTES
+	TEST_ASSERT_EQUAL(get_respawn_status_text(fixture.account_key), "25 minutes remaining.", "The display must use time since the body's death.")
+	for(var/cost in list(0, RESPAWN_BYPASS_COST))
+		var/message = fixture.lobby.get_respawn_bypass_message(cost)
+		TEST_ASSERT(findtext(message, "25 minutes remaining."), "Both free and paid confirmations must show the remaining wait.")
+		TEST_ASSERT(findtext(message, cost ? "50 Triumphs" : "for free"), "The countdown must preserve the bypass price explanation.")
+	fixture.state.death_time -= 1 MINUTES
+	TEST_ASSERT_EQUAL(get_respawn_status_text(fixture.account_key), "24 minutes remaining.", "Refreshing the display must not reuse the previous countdown.")
+	fixture.state.death_time = world.time - RESPAWNTIME + 1
+	TEST_ASSERT_EQUAL(get_respawn_status_text(fixture.account_key), "1 second remaining.", "A positive fraction of a second must not claim respawn is ready.")
+	TEST_ASSERT(!fixture.lobby.check_respawn_cooldown(FALSE), "Reading the countdown must not waive the remaining cooldown.")
+	fixture.state.death_time = world.time - RESPAWNTIME
+	TEST_ASSERT_EQUAL(get_respawn_status_text(fixture.account_key), "Ready.", "An expired wait must display readiness.")
+	fixture.state.death_time = world.time
+	fixture.body.clear_respawn_cooldown_for_burial()
+	TEST_ASSERT_EQUAL(get_respawn_status_text(fixture.account_key), "Ready.", "Burial must immediately update the displayed state.")
+	fixture.body.stat = CONSCIOUS
+	fixture.body.record_respawn_revival()
+	TEST_ASSERT_EQUAL(get_respawn_status_text(fixture.account_key), "Previous body is still alive; waiting starts when it dies.", "A revived body must not display an old death's countdown.")
+	TEST_ASSERT_EQUAL(SStriumphs.get_triumphs(fixture.account_key), 100, "Reading status and confirmation text must not spend Triumphs.")
+
 /datum/unit_test/respawn_bypass_refusal_and_eligibility/Run()
 	var/datum/respawn_bypass_fixture/fixture = allocate(/datum/respawn_bypass_fixture)
 	TEST_ASSERT(!fixture.lobby.check_respawn_cooldown(FALSE), "Background eligibility must respect an active cooldown.")

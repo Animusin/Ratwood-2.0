@@ -389,6 +389,36 @@
 	var/list/knives = list()
 	component_type = /datum/component/storage/concrete/roguetown/belt/knife_belt
 
+/obj/item/storage/belt/rogue/leather/knifebelt/Destroy()
+	for(var/obj/item/knife as anything in knives.Copy())
+		if(QDELETED(knife))
+			continue
+		UnregisterSignal(knife, COMSIG_QDELETING)
+		// Preloaded blades have no loc so they do not occupy the belt's regular storage slots.
+		if(isnull(knife.loc) || knife.loc == src)
+			qdel(knife)
+	knives.Cut()
+	return ..()
+
+/obj/item/storage/belt/rogue/leather/knifebelt/Exited(atom/movable/gone, direction)
+	. = ..()
+	if(gone in knives)
+		remove_knife(gone)
+
+/obj/item/storage/belt/rogue/leather/knifebelt/proc/track_knife(obj/item/knife)
+	if(QDELETED(knife) || (knife in knives))
+		return FALSE
+	knives += knife
+	RegisterSignal(knife, COMSIG_QDELETING, PROC_REF(remove_knife))
+	return TRUE
+
+/obj/item/storage/belt/rogue/leather/knifebelt/proc/remove_knife(obj/item/knife)
+	SIGNAL_HANDLER
+	knives -= knife
+	UnregisterSignal(knife, COMSIG_QDELETING)
+	if(!QDELETED(src))
+		update_icon()
+
 /obj/item/storage/belt/rogue/leather/knifebelt/attack_turf(turf/T, mob/living/user)
 	if(knives.len >= max_storage)
 		to_chat(user, span_warning("Your [src.name] is full!"))
@@ -400,24 +430,27 @@
 				break
 
 /obj/item/storage/belt/rogue/leather/knifebelt/proc/eatknife(obj/A)
-	if(A.type in typesof(/obj/item/rogueweapon/huntingknife/throwingknife))
+	if(!QDELETED(A) && istype(A, /obj/item/rogueweapon/huntingknife/throwingknife))
 		if(knives.len < max_storage)
 			A.forceMove(src)
-			knives += A
+			if(QDELETED(A) || A.loc != src || !track_knife(A))
+				return FALSE
 			update_icon()
 			return TRUE
 		else
 			return FALSE
 
 /obj/item/storage/belt/rogue/leather/knifebelt/attackby(obj/A, loc, params)
-	if(A.type in typesof(/obj/item/rogueweapon/huntingknife/throwingknife))
+	if(!QDELETED(A) && istype(A, /obj/item/rogueweapon/huntingknife/throwingknife))
 		if(knives.len < max_storage)
 			if(ismob(loc))
 				var/mob/M = loc
-				M.doUnEquip(A, TRUE, src, TRUE, silent = TRUE)
+				if(!M.doUnEquip(A, TRUE, src, FALSE, silent = TRUE))
+					return
 			else
 				A.forceMove(src)
-			knives += A
+			if(QDELETED(A) || A.loc != src || !track_knife(A))
+				return
 			update_icon()
 			to_chat(usr, span_notice("I discreetly slip [A] into [src]."))
 		else
@@ -426,13 +459,23 @@
 	..()
 
 /obj/item/storage/belt/rogue/leather/knifebelt/attack_right(mob/user)
-	if(knives.len)
-		var/obj/O = knives[knives.len]
-		knives -= O
+	if(QDELETED(user) || !user.loc)
+		return FALSE
+	while(knives.len)
+		var/obj/item/O = knives[knives.len]
+		knives.Cut(knives.len, knives.len + 1)
+		if(QDELETED(O))
+			continue
+		UnregisterSignal(O, COMSIG_QDELETING)
+		if(O.loc && O.loc != src)
+			continue
 		O.forceMove(user.loc)
-		user.put_in_hands(O)
+		if(!QDELETED(O) && !QDELETED(user))
+			user.put_in_hands(O)
 		update_icon()
 		return TRUE
+	update_icon()
+	return FALSE
 
 /obj/item/storage/belt/rogue/leather/knifebelt/examine(mob/user)
 	. = ..()
@@ -443,7 +486,7 @@
 	. = ..()
 	for(var/i in 1 to max_storage)
 		var/obj/item/rogueweapon/huntingknife/throwingknife/K = new()
-		knives += K
+		track_knife(K)
 	update_icon()
 
 /obj/item/storage/belt/rogue/leather/knifebelt/black
@@ -454,35 +497,35 @@
 	. = ..()
 	for(var/i in 1 to max_storage)
 		var/obj/item/rogueweapon/huntingknife/throwingknife/K = new()
-		knives += K
+		track_knife(K)
 	update_icon()
 
 /obj/item/storage/belt/rogue/leather/knifebelt/black/steel/Initialize(mapload)
 	. = ..()
 	for(var/i in 1 to max_storage)
 		var/obj/item/rogueweapon/huntingknife/throwingknife/steel/K = new()
-		knives += K
+		track_knife(K)
 	update_icon()
 
 /obj/item/storage/belt/rogue/leather/knifebelt/black/silver/Initialize(mapload)
 	. = ..()
 	for(var/i in 1 to max_storage)
 		var/obj/item/rogueweapon/huntingknife/throwingknife/silver/K = new()
-		knives += K
+		track_knife(K)
 	update_icon()
 
 /obj/item/storage/belt/rogue/leather/knifebelt/black/psydon/Initialize(mapload)
 	. = ..()
 	for(var/i in 1 to max_storage)
 		var/obj/item/rogueweapon/huntingknife/throwingknife/psydon/K = new()
-		knives += K
+		track_knife(K)
 	update_icon()
 
 /obj/item/storage/belt/rogue/leather/knifebelt/black/kazengun/Initialize(mapload)
 	. = ..()
 	for(var/i in 1 to max_storage)
 		var/obj/item/rogueweapon/huntingknife/throwingknife/kazengun/K = new()
-		knives += K
+		track_knife(K)
 	update_icon()
 
 /obj/item/storage/belt/rogue/leather/exoticsilkbelt

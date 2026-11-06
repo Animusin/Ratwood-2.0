@@ -11,9 +11,23 @@
 	range = 2
 
 /obj/effect/proc_holder/spell/invoked/refocusstudies/cast(list/targets, mob/user = usr)
+	if(QDELETED(src) || QDELETED(user))
+		return FALSE
 	. = ..()
+	if(QDELETED(src) || QDELETED(user))
+		return FALSE
+	if(!length(targets) || !isliving(targets[1]))
+		revert_cast(user)
+		return FALSE
 	var/list/choices = list()
 	var/mob/living/L = targets[1]
+	if(QDELETED(L))
+		revert_cast(user)
+		return FALSE
+	var/datum/mind/student_mind = L.mind
+	if(!student_mind?.sleep_adv || L.stat == DEAD)
+		revert_cast(user)
+		return FALSE
 	var/list/datum/skill/skill_choices = list(
 	//skills alphabetically... this will be sloppy based on the descriptive name but easier for devs
 	/datum/skill/craft/crafting,
@@ -71,43 +85,49 @@
 
 	var/teachingtime = 30 SECONDS
 
-	if(isliving(targets[1]))
-		if(L == usr)
-			to_chat(L, span_warning("I can not refocus my studies, only others."))
-			return
-		else
-			if(L in range(1, usr))
-				to_chat(usr, span_notice("My student needs some time to select a lesson."))
-				var/chosen_skill = input(L, "Choose which skills to sacrifice, you will get back 3 sleep points and a buff to help you study", "Choose a skill") as null|anything in choices
-				var/datum/skill/item = choices[chosen_skill]
-				if(!item)
-					return  // student canceled
-				if(alert(L, "Are you sure> you want lose a level in [item.name]?", "Learning", "Sacrifice", "Cancel") == "Cancel")
-					return
-				if(L.has_status_effect(/datum/status_effect/buff/refocus))
-					to_chat(L, span_warning("I've refocused too recently"))
-					to_chat(usr, span_warning("My student cannot be refocused so soon"))
-					return // cannot teach the same student twice
-				if(L.get_skill_level(item) < SKILL_LEVEL_JOURNEYMAN)
-					to_chat(L, span_warning("I don't have enough skill in [item.name] to sacrifice it."))
-					to_chat(usr, span_warning("I try teaching [L] [item.name] but my student couldnt grasp the lesson!"))
-					return // some basic skill will not require you novice level
-				else
-					to_chat(L, span_notice("[usr] starts teach me how to refocus my efforts, I slowly lose my grasp on [item.name]!"))
-					to_chat(usr, span_notice("[L] gets to listen carefully to my lesson about refocusing, they slowly lose their grasp on [item.name]."))
-					if(do_after(usr, teachingtime, target = L))
-						user.visible_message("<font color='yellow'>[user] teaches [L] a lesson.</font>")
-						to_chat(usr, span_notice("My student has refocused, but lost insight on [item.name]!"))
-						L.adjust_skillrank(item, -1, FALSE)
-						L.apply_status_effect(/datum/status_effect/buff/refocus)
-						L.mind.sleep_adv.sleep_adv_points += 3
-					else
-						to_chat(usr, span_warning("[L] got distracted and wandered off!"))
-						to_chat(L, span_warning("I must be more focused on my studies!"))
-						return
-			else
-				to_chat(usr, span_warning("My student can barely hear me from there."))
-				return
-	else
-		revert_cast()
-		return FALSE
+	if(L == user)
+		to_chat(L, span_warning("I can not refocus my studies, only others."))
+		return
+	if(!(L in range(1, user)))
+		to_chat(user, span_warning("My student can barely hear me from there."))
+		return
+	var/client/student_client = L.client
+	if(!student_client)
+		return
+	to_chat(user, span_notice("My student needs some time to select a lesson."))
+	var/chosen_skill = input(L, "Choose which skills to sacrifice, you will get back 3 sleep points and a buff to help you study", "Choose a skill") as null|anything in choices
+	if(!can_continue_refocus(L, user, student_mind, student_client))
+		return
+	var/datum/skill/item = choices[chosen_skill]
+	if(!item)
+		return // Student canceled.
+	if(alert(L, "Are you sure> you want lose a level in [item.name]?", "Learning", "Sacrifice", "Cancel") != "Sacrifice")
+		return
+	if(!can_continue_refocus(L, user, student_mind, student_client))
+		return
+	if(L.has_status_effect(/datum/status_effect/buff/refocus))
+		to_chat(L, span_warning("I've refocused too recently"))
+		to_chat(user, span_warning("My student cannot be refocused so soon"))
+		return
+	if(L.get_skill_level(item) < SKILL_LEVEL_JOURNEYMAN)
+		to_chat(L, span_warning("I don't have enough skill in [item.name] to sacrifice it."))
+		to_chat(user, span_warning("I try teaching [L] [item.name] but my student couldnt grasp the lesson!"))
+		return
+	to_chat(L, span_notice("[user] starts teach me how to refocus my efforts, I slowly lose my grasp on [item.name]!"))
+	to_chat(user, span_notice("[L] gets to listen carefully to my lesson about refocusing, they slowly lose their grasp on [item.name]."))
+	if(!do_after(user, teachingtime, target = L))
+		to_chat(user, span_warning("[L] got distracted and wandered off!"))
+		to_chat(L, span_warning("I must be more focused on my studies!"))
+		return
+	if(!can_continue_refocus(L, user, student_mind, student_client) || L.has_status_effect(/datum/status_effect/buff/refocus) || L.get_skill_level(item) < SKILL_LEVEL_JOURNEYMAN)
+		return
+	user.visible_message("<font color='yellow'>[user] teaches [L] a lesson.</font>")
+	to_chat(user, span_notice("My student has refocused, but lost insight on [item.name]!"))
+	L.adjust_skillrank(item, -1, FALSE)
+	L.apply_status_effect(/datum/status_effect/buff/refocus)
+	student_mind.sleep_adv.sleep_adv_points += 3
+
+/obj/effect/proc_holder/spell/invoked/refocusstudies/proc/can_continue_refocus(mob/living/student, mob/teacher, datum/mind/student_mind, client/student_client)
+	return !QDELETED(src) && !QDELETED(student) && !QDELETED(teacher) && student.stat != DEAD \
+		&& student.mind == student_mind && student_mind?.sleep_adv && student_client && student.client == student_client \
+		&& (student in range(1, teacher))

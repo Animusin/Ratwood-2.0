@@ -1237,7 +1237,8 @@ GLOBAL_LIST_INIT(hallucination_list, list(
 	if(target.client && hallucinated_image)
 		target.client.images -= hallucinated_image
 	
-	QDEL_NULL(hallucinated_image)
+	// Images are released by removing their references, not through qdel.
+	hallucinated_image = null
 
 	return ..()
 

@@ -11,12 +11,13 @@
 	BM.holder.images += areaimage
 
 /datum/buildmode_mode/area_edit/exit_mode(datum/buildmode/BM)
-	areaimage.loc = null // de-color the area
-	BM.holder.images -= areaimage
+	areaimage?.loc = null // de-color the area
+	BM?.holder?.images -= areaimage
 	return ..()
 
 /datum/buildmode_mode/area_edit/Destroy()
-	QDEL_NULL(areaimage)
+	BM?.holder?.images -= areaimage
+	areaimage = null
 	storedarea = null
 	return ..()
 

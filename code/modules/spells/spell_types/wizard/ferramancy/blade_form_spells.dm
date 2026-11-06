@@ -62,9 +62,20 @@
 		W.max_integrity = round(W.max_integrity * 0.5)
 		W.obj_integrity = W.max_integrity
 	W.AddComponent(/datum/component/conjured_item, "#5c7cff", FALSE, H, src)
-	H.put_in_hands(W)
 	conjured_weapon = W
+	RegisterSignal(W, COMSIG_QDELETING, PROC_REF(on_conjured_weapon_deleted))
+	H.put_in_hands(W)
 	return TRUE
+
+/datum/action/cooldown/spell/form_blade/proc/on_conjured_weapon_deleted(datum/source)
+	SIGNAL_HANDLER
+	UnregisterSignal(source, COMSIG_QDELETING)
+	if(conjured_weapon == source)
+		conjured_weapon = null
+
+/datum/action/cooldown/spell/form_blade/Destroy()
+	QDEL_NULL(conjured_weapon)
+	return ..()
 
 /datum/action/cooldown/spell/form_blade/Grant(mob/grant_to)
 	. = ..()

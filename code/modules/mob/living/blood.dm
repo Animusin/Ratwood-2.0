@@ -405,27 +405,11 @@
 		if(!suiciding)
 			blood_data["cloneable"] = 1
 		blood_data["blood_type"] = copytext(dna.blood_type,1,0)
-		blood_data["blood_color"] = get_blood_color()
 		blood_data["gender"] = gender
 		blood_data["real_name"] = real_name
 		blood_data["features"] = dna.features
 		blood_data["factions"] = faction
 		return blood_data
-
-/// Hex color used to tint this mob's blood decals, overlays, and reagent.
-/mob/living/proc/get_blood_color()
-	return BLOOD_COLOR_DEFAULT
-
-/mob/living/carbon/human
-	var/blood_hue // Chosen blood hue for drakians. A key in GLOB.drakian_blood_colors.
-
-/mob/living/carbon/human/get_blood_color()
-	if(dna?.species?.id == "dracon" && (blood_hue in GLOB.drakian_blood_colors))
-		var/list/blood_pair = GLOB.drakian_blood_colors[blood_hue]
-		return blood_pair["color"]
-	if(dna?.species?.blood_color)
-		return dna.species.blood_color
-	return BLOOD_COLOR_DEFAULT
 
 //get the id of the substance this mob use as blood.
 /mob/proc/get_blood_id()
@@ -477,7 +461,7 @@
 		if(candidate.type == blood_decal_type && !QDELETED(candidate))
 			existing = candidate
 			break
-	var/obj/effect/decal/cleanable/blood/created = new blood_decal_type(T, get_blood_color())
+	var/obj/effect/decal/cleanable/blood/created = new blood_decal_type(T)
 	var/obj/effect/decal/cleanable/blood/recipient
 	if(existing && !QDELETED(existing))
 		recipient = existing

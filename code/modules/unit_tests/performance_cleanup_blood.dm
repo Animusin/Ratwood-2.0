@@ -47,65 +47,54 @@
 	TEST_ASSERT(stain.add_mob_blood(source), "The stain must continue to accept later samples.")
 	TEST_ASSERT_EQUAL(stain.forensic_bleed_severity, FORENSIC_BLEED_SEVERE, "A later mild sample must not erase the highest observed severity.")
 
-/mob/living/carbon/human/consistent/performance_colored_blood
-	var/test_blood_color = "#00ff00"
-
-/mob/living/carbon/human/consistent/performance_colored_blood/get_blood_color()
-	return test_blood_color
-
-/// Colored fresh blood must rewet existing evidence without losing its source, severity or sample cap.
-/datum/unit_test/performance_forensic_blood_color_lifecycle/Run()
-	var/mob/living/carbon/human/consistent/performance_colored_blood/source = allocate(/mob/living/carbon/human/consistent/performance_colored_blood)
+/// Fresh blood must rewet existing evidence without losing its source, severity or sample cap.
+/datum/unit_test/performance_forensic_blood_lifecycle/Run()
+	var/mob/living/carbon/human/consistent/source = allocate(/mob/living/carbon/human/consistent)
 	var/obj/item/bodypart/limb = source.get_bodypart(BODY_ZONE_L_ARM)
 	limb.bleeding = 12
 	var/obj/effect/decal/cleanable/blood/stain = source.create_sourced_blood_decal(run_loc_floor_bottom_left, /obj/effect/decal/cleanable/blood)
 	TEST_ASSERT_NOTNULL(stain, "The real source helper must create a blood stain.")
 	allocated |= stain
 	var/source_dna = source.dna.unique_enzymes
-	TEST_ASSERT(source_dna in stain.return_blood_DNA(), "A colored stain must retain its source DNA.")
-	TEST_ASSERT_EQUAL(stain.blood_color, "#00ff00", "The source helper must pass the donor color into the decal.")
-	TEST_ASSERT_EQUAL(stain.forensic_bleed_severity, FORENSIC_BLEED_SIGNIFICANT, "The colored stain must retain forensic severity.")
-	TEST_ASSERT(timeleft(stain.blood_timer) > 0, "Fresh colored blood must still be scheduled to dry.")
+	TEST_ASSERT(source_dna in stain.return_blood_DNA(), "A stain must retain its source DNA.")
+	TEST_ASSERT_EQUAL(stain.forensic_bleed_severity, FORENSIC_BLEED_SIGNIFICANT, "The stain must retain forensic severity.")
+	TEST_ASSERT(timeleft(stain.blood_timer) > 0, "Fresh blood must be scheduled to dry.")
 	// Emulate the callback after its scheduled timer has been removed from the queue.
 	deltimer(stain.blood_timer)
 	stain.become_dry()
-	TEST_ASSERT(stain.is_dry && stain.dried, "Visual and forensic drying states must agree.")
-	TEST_ASSERT_EQUAL(stain.color, stain.dried_color, "Dry blood must use its dry donor tint.")
+	TEST_ASSERT(stain.is_dry, "Dry blood must be recorded as dry forensic evidence.")
+	TEST_ASSERT_EQUAL(stain.color, "#967c69", "Dry blood must use the dried appearance.")
 	TEST_ASSERT_NULL(stain.blood_timer, "A completed drying callback must clear its timer handle.")
 
-	source.test_blood_color = "#0000ff"
 	TEST_ASSERT_EQUAL(source.create_sourced_blood_decal(run_loc_floor_bottom_left, /obj/effect/decal/cleanable/blood), stain, "Fresh blood on the same tile must reuse the existing stain.")
-	TEST_ASSERT(!stain.is_dry && !stain.dried, "Rewetting must reset both drying states.")
-	TEST_ASSERT_EQUAL(stain.blood_color, "#0000ff", "Rewetting must accept the new donor tint.")
-	TEST_ASSERT_EQUAL(stain.color, "#0000ff", "The rewetted stain must visibly use its fresh tint.")
+	TEST_ASSERT(!stain.is_dry, "Rewetting must reset forensic freshness.")
+	TEST_ASSERT_EQUAL(stain.color, initial(stain.color), "Rewetting must restore the fresh appearance.")
 	TEST_ASSERT(timeleft(stain.blood_timer) > 0, "Rewetting must restart drying for the existing stain.")
 	TEST_ASSERT(source_dna in stain.return_blood_DNA(), "Rewetting must preserve the original source's evidence.")
 	TEST_ASSERT_EQUAL(stain.forensic_bleed_severity, FORENSIC_BLEED_SIGNIFICANT, "Rewetting must not discard forensic severity.")
 	var/list/samples = list()
 	for(var/index in 1 to FORENSIC_MAX_BLOOD_SAMPLES + 2)
 		samples["extra_sample_[index]"] = "O+"
-	stain.add_blood_DNA(samples, "#ff00ff")
-	TEST_ASSERT_EQUAL(stain.blood_DNA_length(), FORENSIC_MAX_BLOOD_SAMPLES, "The colored-blood API must preserve the per-decal evidence cap.")
+	stain.add_blood_DNA(samples)
+	TEST_ASSERT_EQUAL(stain.blood_DNA_length(), FORENSIC_MAX_BLOOD_SAMPLES, "Blood sampling must preserve the per-decal evidence cap.")
 	TEST_ASSERT(stain.blood_samples_overflow, "Discarded extra DNA must retain the forensic overflow marker.")
-	stain.add_blood_DNA(list("over_capacity" = "AB+"), "#00ff00")
-	TEST_ASSERT_EQUAL(stain.blood_DNA_length(), FORENSIC_MAX_BLOOD_SAMPLES, "A color change must not bypass the sample cap.")
-	TEST_ASSERT_EQUAL(stain.blood_color, "#00ff00", "A full evidence list must still allow the blood's visual color to change.")
+	stain.add_blood_DNA(list("over_capacity" = "AB+"))
+	TEST_ASSERT_EQUAL(stain.blood_DNA_length(), FORENSIC_MAX_BLOOD_SAMPLES, "Further samples must not bypass the sample cap.")
 	TEST_ASSERT(source_dna in stain.return_blood_DNA(), "Overflow must not evict the original source's evidence.")
 
-/// Mapped old blood and the footprint-specific drying override must use the same forensic state.
+/// Mapped old blood and footprints must use the same forensic drying state.
 /datum/unit_test/performance_forensic_blood_dry_variants/Run()
-	var/obj/effect/decal/cleanable/blood/old/old_stain = allocate(/obj/effect/decal/cleanable/blood/old, run_loc_floor_top_right, "#00ff00")
-	TEST_ASSERT(old_stain.is_dry && old_stain.dried, "Old blood must begin dry for both the renderer and investigation.")
-	TEST_ASSERT_EQUAL(old_stain.color, old_stain.dried_color, "Old blood must use its dry donor tint from initialization.")
+	var/obj/effect/decal/cleanable/blood/old/old_stain = allocate(/obj/effect/decal/cleanable/blood/old, run_loc_floor_top_right)
+	TEST_ASSERT(old_stain.is_dry, "Old blood must begin dry for investigation.")
 	TEST_ASSERT_NULL(old_stain.blood_timer, "Already-dry blood must not create another drying timer.")
-	var/obj/effect/decal/cleanable/blood/footprints/footprints = allocate(/obj/effect/decal/cleanable/blood/footprints, run_loc_floor_bottom_left, "#0000ff")
-	footprints.add_blood_DNA(list("footprint_donor" = "B+"), "#0000ff")
+	var/obj/effect/decal/cleanable/blood/footprints/footprints = allocate(/obj/effect/decal/cleanable/blood/footprints, run_loc_floor_bottom_left)
+	footprints.add_blood_DNA(list("footprint_donor" = "B+"))
 	footprints.entered_dirs = NORTH
 	footprints.update_icon()
-	TEST_ASSERT(length(footprints.overlays), "Colored footprints must render their directional overlay.")
+	TEST_ASSERT(length(footprints.overlays), "Footprints must render their directional overlay.")
 	deltimer(footprints.blood_timer)
 	footprints.become_dry()
-	TEST_ASSERT(footprints.is_dry && footprints.dried, "The footprint override must also mark forensic evidence dry.")
+	TEST_ASSERT(footprints.is_dry, "Drying footprints must mark forensic evidence dry.")
 	TEST_ASSERT_NULL(footprints.blood_timer, "Drying footprints must clear their timer handle.")
 	TEST_ASSERT_EQUAL(footprints.return_blood_DNA()["footprint_donor"], "B+", "Drying must retain the footprint's blood evidence.")
 	TEST_ASSERT(length(footprints.overlays), "Drying must retain the directional footprint overlay.")

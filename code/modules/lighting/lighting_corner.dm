@@ -113,7 +113,9 @@ GLOBAL_LIST_INIT(LIGHTING_CORNER_DIAGONAL, list(NORTHEAST, SOUTHEAST, SOUTHWEST,
 	for (var/TT in masters)
 		var/turf/T = TT
 		var/datum/lighting_object/lighting_object = T.lighting_object
-		if (!lighting_object)
+		if (QDELETED(lighting_object))
+			// Repair a stale turf reference instead of putting a deleted overlay back in the queue.
+			T.lighting_object = null
 			if (SSlighting.initialized && T.has_dynamic_lighting())
 				new /datum/lighting_object(T)
 			continue

@@ -88,10 +88,13 @@ SUBSYSTEM_DEF(lighting)
 	while(current_index < length(queue))
 		current_index += 1
 		var/datum/lighting_object/lighting_object = queue[current_index]
-		// these can't delete themselves in update() and so nothing in this should be qdeleted
-		ASSERT(!QDELETED(lighting_object))
-		lighting_object.update()
-		lighting_object.needs_update = FALSE
+		if(QDELETED(lighting_object))
+			// A stale entry must not abort every future tick before the queue is cut.
+			queue.Cut(current_index, current_index + 1)
+			current_index -= 1
+		else
+			lighting_object.update()
+			lighting_object.needs_update = FALSE
 		if(init_tick_checks)
 			if(!TICK_CHECK)
 				continue

@@ -92,8 +92,13 @@
 				recipient_choices += L
 
 	var/recipient_choice = input(src, "Pick a target?", "SLOOC") in recipient_choices
-	if(!recipient_choice)
+	// The sender can disconnect or change bodies while the recipient picker is open.
+	if(!src || QDELETED(S) || mob != S || S.client != src || !recipient_choice)
 		return
+	if(ismob(recipient_choice))
+		var/mob/recipient_mob = recipient_choice
+		if(QDELETED(recipient_mob))
+			return
 
 	mob.log_talk(msg, LOG_LOOC)
 
@@ -114,8 +119,8 @@
 			recipient_admin_label = recipient_label
 
 	// Both links, so a SLOOC line can shut down SLOOC alone or LOOC alongside it
-	var/mute_slooc_link = "<A href='?_src_=holder;[HrefToken()];mute=[s_ckey];mute_type=[MUTE_SLOOC]'><font color='[(prefs.muted & MUTE_SLOOC) ? "red" : "blue"]'>\[MUTE SLOOC\]</font></a>"
-	var/mute_looc_link = "<A href='?_src_=holder;[HrefToken()];mute=[s_ckey];mute_type=[MUTE_LOOC]'><font color='[(prefs.muted & MUTE_LOOC) ? "red" : "blue"]'>\[MUTE LOOC\]</font></a>"
+	var/mute_slooc_link = "<A href='?_src_=holder;[HrefToken(TRUE)];mute=[s_ckey];mute_type=[MUTE_SLOOC]'><font color='[(prefs.muted & MUTE_SLOOC) ? "red" : "blue"]'>\[MUTE SLOOC\]</font></a>"
+	var/mute_looc_link = "<A href='?_src_=holder;[HrefToken(TRUE)];mute=[s_ckey];mute_type=[MUTE_LOOC]'><font color='[(prefs.muted & MUTE_LOOC) ? "red" : "blue"]'>\[MUTE LOOC\]</font></a>"
 	var/admin_info = " ([s_ckey]) [ADMIN_FLW(S)] [mute_slooc_link] [mute_looc_link]"
 	var/prefix_text = span_prefix("[pfx]:")
 

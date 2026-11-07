@@ -33,13 +33,21 @@
 
 /// Languages may be passed as a name string rather than a path. Normalise to a path.
 /datum/language_holder/proc/resolve_language(datum/language/dt)
-	if(!length(GLOB.all_languages) || !isnull(GLOB.language_datum_instances[dt]))
+	if(istype(dt))
+		return dt.type
+	if(ispath(dt, /datum/language))
 		return dt
+	if(!istext(dt))
+		return null
+	// Stored type paths need not match the displayed name (otavan is named Otavais).
+	var/language_path = text2path(dt)
+	if(ispath(language_path, /datum/language))
+		return language_path
 	var/language_name = replacetext("[dt]", "/datum/language/", "")
 	for(var/datum/language/candidate as anything in GLOB.all_languages)
-		if(language_name == LOWER_TEXT(initial(candidate.name)))
+		if(LOWER_TEXT(language_name) == LOWER_TEXT(initial(candidate.name)))
 			return candidate
-	return dt
+	return null
 
 /datum/language_holder/Destroy()
 	owner = null
@@ -83,13 +91,17 @@
 /datum/language_holder/proc/get_random_understood_language()
 	var/list/possible = list()
 	for(var/dt in languages)
-		possible += dt
+		var/language_path = resolve_language(dt)
+		if(language_path)
+			possible |= language_path
 	. = safepick(possible)
 
 /// Drops source from the language's source list, forgetting it only once no source is left.
 /// Pass LANGUAGE_SOURCE_ALL to forget it regardless of who granted it.
 /datum/language_holder/proc/remove_language(datum/language/dt, shadow = FALSE, source = LANGUAGE_SOURCE_GENERIC)
 	dt = resolve_language(dt)
+	if(!dt)
+		return FALSE
 	var/list/cache = shadow ? shadow_languages : languages
 	var/list/sources = cache[dt]
 	if(!sources)
@@ -116,6 +128,9 @@
 		remove_language(language_path, shadow, source)
 
 /datum/language_holder/proc/has_language(datum/language/dt)
+	dt = resolve_language(dt)
+	if(!dt)
+		return FALSE
 	if(is_type_in_typecache(dt, languages))
 		return LANGUAGE_KNOWN
 	else

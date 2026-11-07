@@ -1,0 +1,9 @@
+author: "Animusin"
+delete-after: true
+changes:
+  - bugfix: "Restored lighting updates after a turf replacement invalidates its lighting overlay."
+  - bugfix: "Fixed Rat Form intents, leap movement state, and pathfinding toward removed targets."
+  - bugfix: "Fixed bee smokers, stored language names, Zephyr bonuses, and off-map projectile tracers."
+  - bugfix: "Fixed interrupted quicksand rescues, Limb Guard self-hits, attacks on missing limbs, and exercise with flower crowns."
+  - bugfix: "Fixed SLOOC recipient selection after disconnecting or changing bodies."
+  - bugfix: "Silver utensils no longer fail when damaging cursed armor."

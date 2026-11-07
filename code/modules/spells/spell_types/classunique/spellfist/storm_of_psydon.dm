@@ -89,7 +89,7 @@
 					preferred_target = L
 					break
 
-	if(!preferred_target)
+	if(QDELETED(preferred_target) || !get_turf(preferred_target))
 		to_chat(H, span_warning("I need a target to focus my storm on!"))
 		return FALSE
 
@@ -116,9 +116,9 @@
 	H.visible_message(span_danger("<b>[H] launches toward [preferred_target] with storming intent!</b>"))
 
 	var/old_pass = H.pass_flags
-	var/old_throwing = H.throwing
+	var/leap_source = REF(src)
 	H.pass_flags |= PASSMOB
-	H.throwing = TRUE
+	ADD_TRAIT(H, TRAIT_PREVENT_Z_FALL, leap_source)
 	var/prev_pixel_z = H.pixel_z
 	var/prev_transform = H.transform
 
@@ -126,7 +126,10 @@
 
 	var/mob/living/hit_target
 	for(var/i in 1 to dash_range)
-		if(H.stat != CONSCIOUS || H.IsParalyzed() || H.IsStun() || QDELETED(H))
+		if(QDELETED(src) || QDELETED(H) || H.stat != CONSCIOUS || H.IsParalyzed() || H.IsStun())
+			break
+
+		if(QDELETED(preferred_target) || !get_turf(preferred_target) || !get_turf(H))
 			break
 
 		if(get_dist(H, preferred_target) <= 1)
@@ -155,14 +158,26 @@
 		if(i < dash_range)
 			sleep(step_delay)
 
+	// Always release only this leap's fall protection, including interrupted casts.
+	if(H)
+		H.pass_flags = old_pass
+		REMOVE_TRAIT(H, TRAIT_PREVENT_Z_FALL, leap_source)
+	if(QDELETED(H))
+		return TRUE
+
 	var/land_angle = pick(-20, -15, 15, 20)
 	animate(H, pixel_z = prev_pixel_z, transform = turn(prev_transform, land_angle), time = 1, easing = EASE_IN)
 	animate(transform = prev_transform, time = 2)
 
-	H.pass_flags = old_pass
-	H.throwing = old_throwing
+	var/turf/landing_turf = get_turf(H)
+	var/fell = landing_turf?.zFall(H)
+	if(QDELETED(src))
+		return TRUE
+	if(fell || !landing_turf || QDELETED(H) || H.stat != CONSCIOUS || H.IsParalyzed() || H.IsStun())
+		StartCooldown(get_adjusted_cooldown() / 2)
+		return TRUE
 
-	if(!hit_target && get_dist(H, preferred_target) <= 1)
+	if(!hit_target && !QDELETED(preferred_target) && get_turf(preferred_target) && get_dist(H, preferred_target) <= 1)
 		hit_target = preferred_target
 
 	if(!hit_target)

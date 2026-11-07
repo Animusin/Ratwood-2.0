@@ -30,11 +30,14 @@
 		if("expiry")
 			fixture.state.death_time = world.time - RESPAWNTIME
 		if("revive", "new_death")
+			fixture.body.player_present = TRUE
 			fixture.body.stat = CONSCIOUS
 			fixture.body.record_respawn_revival()
 			if(confirmation_action == "new_death")
 				fixture.body.stat = DEAD
 				fixture.body.record_respawn_death()
+		if("npc_revive")
+			fixture.body.become_alive()
 		if("new_body")
 			var/mob/living/carbon/human/consistent/new_body = new(get_turf(fixture.body))
 			fixture.extra_bodies += new_body
@@ -57,7 +60,7 @@
 /// Use the real Triumph debit, restoring both its account cache and save files afterwards.
 /datum/respawn_bypass_fixture
 	var/account_key
-	var/mob/living/carbon/human/consistent/body
+	var/mob/living/carbon/human/consistent/respawn_test_player/body
 	var/mob/dead/new_player/respawn_bypass_test/lobby
 	var/mob/dead/new_player/respawn_bypass_test/other_lobby
 	var/datum/respawn_state/state
@@ -150,6 +153,7 @@
 	fixture.body.clear_respawn_cooldown_for_burial()
 	TEST_ASSERT_EQUAL(get_respawn_status_text(fixture.account_key), "Ready.", "Burial must immediately update the displayed state.")
 	fixture.body.stat = CONSCIOUS
+	fixture.body.player_present = TRUE
 	fixture.body.record_respawn_revival()
 	TEST_ASSERT_EQUAL(get_respawn_status_text(fixture.account_key), "Previous body is still alive; waiting starts when it dies.", "A revived body must not display an old death's countdown.")
 	TEST_ASSERT_EQUAL(SStriumphs.get_triumphs(fixture.account_key), 100, "Reading status and confirmation text must not spend Triumphs.")
@@ -163,6 +167,7 @@
 	TEST_ASSERT_EQUAL(SStriumphs.get_triumphs(fixture.account_key), 100, "Declining must spend no Triumphs.")
 	TEST_ASSERT(!fixture.state.waived && !fixture.state.bypass_in_progress, "Declining must leave the cooldown active and release the prompt lock.")
 	fixture.body.stat = CONSCIOUS
+	fixture.body.player_present = TRUE
 	fixture.body.record_respawn_revival()
 	fixture.lobby.answer = TRUE
 	TEST_ASSERT(!fixture.lobby.check_respawn_cooldown(), "A living body must not be abandoned by purchasing a timed-cooldown bypass.")
@@ -228,3 +233,18 @@
 		TEST_ASSERT_EQUAL(SStriumphs.get_triumphs(fixture.account_key), 100, "[action] during the dialog must spend no Triumphs.")
 		TEST_ASSERT(!fixture.state.bypass_in_progress, "Rejecting a stale confirmation must release the old prompt lock.")
 		qdel(fixture)
+
+/// An NPC rise during the payment dialog must keep the same death and permit the quoted bypass.
+/datum/unit_test/respawn_bypass_unplayed_revival/Run()
+	var/datum/respawn_bypass_fixture/fixture = allocate(/datum/respawn_bypass_fixture)
+	fixture.state.death_time = world.time - 10 MINUTES
+	var/first_death = fixture.state.death_time
+	fixture.lobby.confirmation_action = "npc_revive"
+	TEST_ASSERT(fixture.lobby.check_respawn_cooldown(), "An NPC revival must not invalidate the player's existing timed cooldown.")
+	TEST_ASSERT(fixture.body.stat != DEAD, "The original body must actually rise during confirmation.")
+	TEST_ASSERT_EQUAL(fixture.state.death_time, first_death, "Paying after an NPC revival must still refer to the first death.")
+	TEST_ASSERT_EQUAL(SStriumphs.get_triumphs(fixture.account_key), 80, "The confirmed bypass must still cost exactly 20 Triumphs.")
+	TEST_ASSERT_EQUAL(get_respawn_status_text(fixture.account_key), "Ready.", "An unplayed revived body must not block a waived cooldown.")
+	fixture.body.player_present = TRUE
+	fixture.body.register_respawn_body(fixture.account_key)
+	TEST_ASSERT_EQUAL(fixture.state.get_time_left(), -1, "Actually returning to the revived body must begin a new life, even after a paid waiver.")

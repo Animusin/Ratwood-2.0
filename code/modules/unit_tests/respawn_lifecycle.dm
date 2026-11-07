@@ -27,9 +27,20 @@
 	existing_accounts = null
 	return ..()
 
+/// Substitute player presence only; revival, death, registration and mind transfers stay real.
+/mob/living/carbon/human/consistent/respawn_test_player
+	var/player_present = FALSE
+
+/mob/living/carbon/human/consistent/respawn_test_player/has_respawn_player()
+	return player_present
+
 /// Exercise the updatehealth callback inside become_alive, including its ordering with death().
 /mob/living/respawn_test_redies
 	var/die_on_health_update = FALSE
+	var/player_present = TRUE
+
+/mob/living/respawn_test_redies/has_respawn_player()
+	return player_present
 
 /mob/living/respawn_test_redies/updatehealth()
 	. = ..()
@@ -60,7 +71,8 @@
 /datum/unit_test/respawn_revival_second_life/Run()
 	var/datum/respawn_test_accounts/accounts = allocate(/datum/respawn_test_accounts)
 	var/account = accounts.track("respawn_test_revival")
-	var/mob/living/carbon/human/consistent/body = allocate(/mob/living/carbon/human/consistent)
+	var/mob/living/carbon/human/consistent/respawn_test_player/body = allocate(/mob/living/carbon/human/consistent/respawn_test_player)
+	body.player_present = TRUE
 	var/datum/respawn_state/state = body.register_respawn_body(account)
 	body.death(FALSE, TRUE)
 	state.death_time = world.time - 20 MINUTES
@@ -93,7 +105,8 @@
 	var/runtimes_before = GLOB.total_runtimes
 	var/datum/respawn_test_accounts/accounts = allocate(/datum/respawn_test_accounts)
 	var/account = accounts.track("respawn_test_zombie")
-	var/mob/living/carbon/human/consistent/body = allocate(/mob/living/carbon/human/consistent)
+	var/mob/living/carbon/human/consistent/respawn_test_player/body = allocate(/mob/living/carbon/human/consistent/respawn_test_player)
+	body.player_present = TRUE
 	var/datum/respawn_state/state = body.register_respawn_body(account)
 	body.death(FALSE, TRUE)
 	state.death_time = world.time - 20 MINUTES
@@ -184,7 +197,8 @@
 /datum/unit_test/respawn_removed_brain/Run()
 	var/datum/respawn_test_accounts/accounts = allocate(/datum/respawn_test_accounts)
 	var/account = accounts.track("respawn_test_brain")
-	var/mob/living/carbon/human/consistent/body = allocate(/mob/living/carbon/human/consistent)
+	var/mob/living/carbon/human/consistent/respawn_test_player/body = allocate(/mob/living/carbon/human/consistent/respawn_test_player)
+	body.player_present = TRUE
 	body.mind_initialize()
 	var/datum/respawn_state/state = body.register_respawn_body(account)
 	body.death(FALSE, TRUE)
@@ -268,3 +282,179 @@
 	body.death(FALSE, TRUE)
 	TEST_ASSERT_EQUAL(state.death_time, 0, "A valid zero timestamp must not be mistaken for an unrecorded death")
 	TEST_ASSERT_EQUAL(state.get_time_left(), max(30 MINUTES - world.time, 0), "A death at world time zero must count down normally")
+
+/// Neither rotting's global wake nor the infection datum's wake gives an absent player a second life.
+/datum/unit_test/respawn_zombie_npc_rise/Run()
+	var/runtimes_before = GLOB.total_runtimes
+	var/datum/respawn_test_accounts/accounts = allocate(/datum/respawn_test_accounts)
+	for(var/wake_path in list("global", "datum"))
+		var/account = accounts.track("respawn_test_npc_[wake_path]")
+		var/mob/living/carbon/human/consistent/body = allocate(/mob/living/carbon/human/consistent)
+		var/datum/respawn_state/state = body.register_respawn_body(account)
+		body.death(FALSE, TRUE)
+		state.death_time = world.time - 20 MINUTES
+		var/first_death = state.death_time
+		var/first_revision = state.revision
+		body.mind_initialize()
+		body.mind.add_antag_datum(/datum/antagonist/zombie)
+		body.infected = TRUE
+		if(wake_path == "global")
+			wake_zombie(body)
+		else
+			var/datum/antagonist/zombie/deadite = body.mind.has_antag_datum(/datum/antagonist/zombie)
+			deadite.wake_zombie()
+		TEST_ASSERT(body.stat != DEAD && body.is_risen_deadite(), "The [wake_path] path must really raise a deadite.")
+		TEST_ASSERT(!body.has_respawn_player(), "The NPC rise must happen without a connected player.")
+		TEST_ASSERT_EQUAL(state.death_time, first_death, "A [wake_path] NPC rise must retain the first death.")
+		TEST_ASSERT_EQUAL(state.revision, first_revision, "An unplayed rise must not invalidate an unchanged cooldown.")
+		TEST_ASSERT_EQUAL(get_respawn_time_left_for_ckey(account), 10 MINUTES, "The ghost must keep the time already spent dead while the NPC is alive.")
+		TEST_ASSERT(findtext(get_respawn_status_text(account), "remaining"), "The lobby must still display a countdown for an NPC's former player.")
+		body.register_respawn_body(account)
+		TEST_ASSERT_EQUAL(state.death_time, first_death, "A keyless registration must not pretend the player returned.")
+		body.death(FALSE, TRUE)
+		TEST_ASSERT_EQUAL(state.death_time, first_death, "An NPC's later death must not restart the player's wait.")
+		TEST_ASSERT_EQUAL(state.revision, first_revision, "An NPC's later death must not become a new player life.")
+		qdel(body)
+		TEST_ASSERT_EQUAL(state.death_time, first_death, "Deleting the NPC corpse must retain the original death.")
+	TEST_ASSERT_EQUAL(GLOB.total_runtimes, runtimes_before, "Both NPC deadite rise/death paths must run without runtimes.")
+
+/// Returning to the living deadite claims one new life; later reconnects cannot create another.
+/datum/unit_test/respawn_zombie_player_return/Run()
+	var/datum/respawn_test_accounts/accounts = allocate(/datum/respawn_test_accounts)
+	var/account = accounts.track("respawn_test_zombie_return")
+	var/mob/living/carbon/human/consistent/respawn_test_player/body = allocate(/mob/living/carbon/human/consistent/respawn_test_player)
+	var/datum/respawn_state/state = body.register_respawn_body(account)
+	body.death(FALSE, TRUE)
+	state.death_time = world.time - 20 MINUTES
+	body.mind_initialize()
+	body.mind.add_antag_datum(/datum/antagonist/zombie)
+	body.infected = TRUE
+	wake_zombie(body)
+	TEST_ASSERT(body.stat != DEAD && body.is_risen_deadite(), "The player must return to an actually raised deadite.")
+	TEST_ASSERT_EQUAL(state.get_time_left(), 10 MINUTES, "The unplayed deadite must preserve the first death's countdown.")
+	var/pre_return_revision = state.revision
+	body.player_present = TRUE
+	body.register_respawn_body(account)
+	TEST_ASSERT_NULL(state.death_time, "Entering the living deadite through registration must start the second life.")
+	TEST_ASSERT_EQUAL(state.revision, pre_return_revision + 1, "Claiming a raised body must create exactly one lifecycle transition.")
+	TEST_ASSERT_EQUAL(state.get_time_left(), -1, "A played deadite must block respawn until its own death.")
+	body.register_respawn_body(account)
+	body.player_present = FALSE
+	body.register_respawn_body(account)
+	body.player_present = TRUE
+	body.register_respawn_body(account)
+	TEST_ASSERT_EQUAL(state.revision, pre_return_revision + 1, "Repeated registration and reconnect must preserve the same living character.")
+	body.death(FALSE, TRUE)
+	TEST_ASSERT_EQUAL(state.get_time_left(), 30 MINUTES, "Death after playing the deadite must start a fresh thirty minutes.")
+	state.death_time = world.time - 5 MINUTES
+	var/second_death = state.death_time
+	var/second_revision = state.revision
+	body.register_respawn_body(account)
+	TEST_ASSERT_EQUAL(state.death_time, second_death, "Returning to an already dead deadite must preserve the second death's timestamp.")
+	TEST_ASSERT_EQUAL(state.revision, second_revision, "A reconnect to a dead body must not create another life.")
+	TEST_ASSERT_EQUAL(state.get_time_left(), 25 MINUTES, "Reconnect must preserve elapsed time after the played deadite dies.")
+
+/// The same rule covers ordinary resurrection, including an already granted burial exemption.
+/datum/unit_test/respawn_unplayed_revival_waiver/Run()
+	var/datum/respawn_test_accounts/accounts = allocate(/datum/respawn_test_accounts)
+	var/account = accounts.track("respawn_test_unplayed_waiver")
+	var/mob/living/carbon/human/consistent/respawn_test_player/body = allocate(/mob/living/carbon/human/consistent/respawn_test_player)
+	var/datum/respawn_state/state = body.register_respawn_body(account)
+	body.death(FALSE, TRUE)
+	state.death_time = world.time - 20 MINUTES
+	var/first_death = state.death_time
+	TEST_ASSERT(body.clear_respawn_cooldown_for_burial(), "The first corpse must receive its burial exemption.")
+	var/burial_revision = state.revision
+	TEST_ASSERT(body.revive(full_heal = TRUE, admin_revive = TRUE), "The corpse must revive through the real revival path.")
+	TEST_ASSERT_EQUAL(state.death_time, first_death, "An unplayed resurrection must preserve the first death.")
+	TEST_ASSERT(state.waived, "An unplayed resurrection must preserve the burial exemption.")
+	TEST_ASSERT_EQUAL(state.revision, burial_revision, "An unplayed resurrection must not invalidate a burial exemption.")
+	TEST_ASSERT_EQUAL(state.get_time_left(), 0, "The absent player must remain free to respawn after burial.")
+	body.death(FALSE, TRUE)
+	TEST_ASSERT_EQUAL(state.get_time_left(), 0, "The unplayed body's next death must preserve the same exemption.")
+	TEST_ASSERT(body.revive(full_heal = TRUE, admin_revive = TRUE), "The unplayed body must be able to rise again.")
+	body.player_present = TRUE
+	body.register_respawn_body(account)
+	TEST_ASSERT_NULL(state.death_time, "Taking control after repeated unplayed revivals must start one new life.")
+	TEST_ASSERT(!state.waived, "The old burial exemption must not waive the newly played life.")
+	TEST_ASSERT_EQUAL(state.get_time_left(), -1, "The claimed resurrection must wait for its own death.")
+	body.death(FALSE, TRUE)
+	TEST_ASSERT_EQUAL(state.get_time_left(), 30 MINUTES, "The played resurrected body must get a fresh death timer.")
+
+/// A failed resurrection with nobody in the body must not extend the previous death's timer.
+/datum/unit_test/respawn_unplayed_immediate_redeath/Run()
+	var/datum/respawn_test_accounts/accounts = allocate(/datum/respawn_test_accounts)
+	var/account = accounts.track("respawn_test_unplayed_redeath")
+	var/mob/living/respawn_test_redies/body = allocate(/mob/living/respawn_test_redies)
+	body.player_present = FALSE
+	var/datum/respawn_state/state = body.register_respawn_body(account)
+	body.death(FALSE, TRUE)
+	state.death_time = world.time - 20 MINUTES
+	var/first_death = state.death_time
+	var/first_revision = state.revision
+	body.die_on_health_update = TRUE
+	body.become_alive()
+	TEST_ASSERT_EQUAL(body.stat, DEAD, "The unplayed fixture must immediately die during updatehealth.")
+	TEST_ASSERT_EQUAL(state.death_time, first_death, "An immediately failed unplayed revival must retain the earlier death.")
+	TEST_ASSERT_EQUAL(state.revision, first_revision, "An immediately failed unplayed revival must not create a player life.")
+	TEST_ASSERT_EQUAL(state.get_time_left(), 10 MINUTES, "An unplayed failed revival must not extend the wait.")
+
+/// Offline transformations preserve the pending death until a player enters the resulting living body.
+/datum/unit_test/respawn_unplayed_body_transfer/Run()
+	var/datum/respawn_test_accounts/accounts = allocate(/datum/respawn_test_accounts)
+	var/account = accounts.track("respawn_test_unplayed_transfer")
+	var/mob/living/carbon/human/consistent/respawn_test_player/body = allocate(/mob/living/carbon/human/consistent/respawn_test_player)
+	var/mob/living/carbon/human/consistent/respawn_test_player/form = allocate(/mob/living/carbon/human/consistent/respawn_test_player)
+	body.mind_initialize()
+	var/datum/respawn_state/state = body.register_respawn_body(account)
+	body.death(FALSE, TRUE)
+	state.death_time = world.time - 20 MINUTES
+	var/first_death = state.death_time
+	TEST_ASSERT(body.revive(full_heal = TRUE, admin_revive = TRUE), "The disconnected body must rise before transferring.")
+	body.mind.transfer_to(form)
+	TEST_ASSERT(state.is_current_body(form), "The unplayed form must receive body authority before Login.")
+	TEST_ASSERT(!state.is_current_body(body), "The discarded shell must lose body authority.")
+	TEST_ASSERT_EQUAL(state.death_time, first_death, "An offline mind transfer must retain the first death's timestamp.")
+	body.death(FALSE, TRUE)
+	body.clear_respawn_cooldown_for_burial()
+	qdel(body)
+	TEST_ASSERT_EQUAL(state.death_time, first_death, "The old shell's death and deletion must preserve the pending first death.")
+	TEST_ASSERT(!state.waived, "Burying the discarded shell must not waive the current form's cooldown.")
+	form.player_present = TRUE
+	form.register_respawn_body(account)
+	TEST_ASSERT_NULL(state.death_time, "Entering the unplayed form must claim its new life.")
+	form.death(FALSE, TRUE)
+	TEST_ASSERT_EQUAL(state.get_time_left(), 30 MINUTES, "The played form's death must start a fresh cooldown.")
+	state.death_time = world.time - 5 MINUTES
+	var/second_death = state.death_time
+	var/mob/living/carbon/human/consistent/other_corpse = allocate(/mob/living/carbon/human/consistent)
+	other_corpse.death(FALSE, TRUE)
+	form.mind.transfer_to(other_corpse)
+	TEST_ASSERT(state.is_current_body(other_corpse), "A transfer into another corpse must still move body authority.")
+	TEST_ASSERT_EQUAL(state.death_time, second_death, "Transferring into a dead body must not manufacture another death even with the player present.")
+
+/// An old body can rise as an NPC after respawn without changing the new character's life.
+/datum/unit_test/respawn_stale_zombie_rise/Run()
+	var/datum/respawn_test_accounts/accounts = allocate(/datum/respawn_test_accounts)
+	var/account = accounts.track("respawn_test_stale_zombie")
+	var/mob/living/carbon/human/consistent/old_body = allocate(/mob/living/carbon/human/consistent)
+	old_body.register_respawn_body(account)
+	old_body.death(FALSE, TRUE)
+	old_body.mind_initialize()
+	old_body.mind.add_antag_datum(/datum/antagonist/zombie)
+	old_body.infected = TRUE
+	var/mob/living/new_body = allocate(/mob/living)
+	var/datum/respawn_state/new_state = new_body.register_respawn_body(account)
+	new_body.death(FALSE, TRUE)
+	new_state.death_time = world.time - 7 MINUTES
+	var/current_death = new_state.death_time
+	var/current_revision = new_state.revision
+	wake_zombie(old_body)
+	TEST_ASSERT(old_body.stat != DEAD && old_body.is_risen_deadite(), "The obsolete corpse must really rise as a deadite.")
+	old_body.death(FALSE, TRUE)
+	old_body.clear_respawn_cooldown_for_burial()
+	qdel(old_body)
+	TEST_ASSERT(GLOB.respawn_states[account] == new_state, "The obsolete deadite must not replace the new character's state.")
+	TEST_ASSERT_EQUAL(new_state.death_time, current_death, "An old deadite's rise and death must not change the newer death.")
+	TEST_ASSERT_EQUAL(new_state.revision, current_revision, "An obsolete deadite must not invalidate the newer life's cooldown.")
+	TEST_ASSERT(!new_state.waived, "Burying the old deadite must not release the newer life's cooldown.")

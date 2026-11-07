@@ -1,0 +1,4 @@
+author: "Animusin"
+delete-after: true
+changes:
+  - bugfix: "Bodies revived without their player keep the original respawn countdown. Returning to the revived body begins a new life and resets the wait for its next death."

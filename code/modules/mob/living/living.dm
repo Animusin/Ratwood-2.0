@@ -1080,7 +1080,7 @@
 	GLOB.dead_mob_list -= src
 	GLOB.alive_mob_list += src
 	stat = new_stat
-	// Record the new life before updatehealth: an immediate re-death must start a fresh cooldown.
+	// Record a played new life before updatehealth: immediate re-death starts a fresh cooldown.
 	if(!istype(src, /mob/living/carbon/spirit) && !respawn_body_override)
 		record_respawn_revival()
 	updatehealth() //then we check if the mob should wake up.

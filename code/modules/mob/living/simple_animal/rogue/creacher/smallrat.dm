@@ -13,6 +13,7 @@
 	melee_damage_upper = 5
 	attack_verb_continuous = "bites"
 	attack_verb_simple = "bite"
+	base_intents = list(INTENT_HELP)
 	response_help_continuous = "pets"
 	response_help_simple = "pet"
 	density = FALSE

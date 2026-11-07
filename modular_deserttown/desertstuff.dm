@@ -655,12 +655,19 @@
 
 /obj/structure/quicksand/attack_hand(mob/user)
 	if(has_buckled_mobs())
-		var/person = buckled_mobs[1].name
-		if(user == buckled_mobs[1])
+		var/mob/living/trapped = buckled_mobs[1]
+		if(QDELETED(trapped) || QDELETED(user))
+			return
+		var/person = trapped.name
+		if(user == trapped)
 			person = "themself"
 		user.visible_message(span_warning("[user.name] starts to pull [person] out of the quicksand!"))
-		if(do_after(user, 2 SECONDS))
-			unbuckle_mob(buckled_mobs[1], TRUE)
+		if(!do_after(user, 2 SECONDS, target = src))
+			return
+		// Another rescuer may have emptied the pit, or a different person may have fallen in.
+		if(QDELETED(src) || QDELETED(user) || QDELETED(trapped) || trapped.buckled != src)
+			return
+		if(unbuckle_mob(trapped, TRUE))
 			user.visible_message(span_warning("[user.name] pulls [person] out of the quicksand."))
 	. = ..()
 

@@ -1,6 +1,11 @@
 /proc/generate_tracer_between_points(datum/point/starting, datum/point/ending, beam_type, color, qdel_in = 5, light_outer_range =  2, light_color_override, light_intensity = 1, instance_key)		//Do not pass z-crossing points as that will not be properly (and likely will never be properly until it's absolutely needed) supported!
 	if(!istype(starting) || !istype(ending) || !ispath(beam_type))
 		return
+	var/turf/start_turf = starting.return_turf()
+	var/turf/end_turf = ending.return_turf()
+	// Hitscan can finish beyond the map edge; no tracer or light may be placed there.
+	if(!start_turf || !end_turf || start_turf.z != end_turf.z)
+		return
 	var/datum/point/midpoint = point_midpoint_points(starting, ending)
 	var/obj/effect/projectile/tracer/PB = new beam_type
 	if(isnull(light_color_override))
@@ -8,7 +13,7 @@
 	PB.apply_vars(angle_between_points(starting, ending), midpoint.return_px(), midpoint.return_py(), color, pixel_length_between_points(starting, ending) / world.icon_size, midpoint.return_turf(), 0)
 	. = PB
 	if(light_outer_range > 0 && light_intensity > 0)
-		var/list/turf/line = getline(starting.return_turf(), ending.return_turf())
+		var/list/turf/line = getline(start_turf, end_turf)
 		tracing_line:
 			for(var/i in line)
 				var/turf/T = i

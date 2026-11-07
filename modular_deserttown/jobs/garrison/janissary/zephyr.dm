@@ -9,7 +9,8 @@
 		STATKEY_SPD = 2,// seems kinda lame but remember guardsman bonus!!
 		STATKEY_PER = 2,
 		STATKEY_WIL = 1,
-		traits_applied = list(TRAIT_DODGEEXPERT))
+	)
+	traits_applied = list(TRAIT_DODGEEXPERT)
 
 	subclass_skills = list(
 		/datum/skill/combat/crossbows = SKILL_LEVEL_MASTER,

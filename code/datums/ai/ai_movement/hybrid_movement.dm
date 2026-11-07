@@ -14,6 +14,17 @@
 	for(var/datum/ai_controller/controller as anything in moving_controllers)
 		if(QDELETED(controller) || !controller.blackboard || QDELETED(controller.pawn))
 			continue
+		var/atom/movable/movable_pawn = controller.pawn
+		var/turf/current_turf = get_turf(movable_pawn)
+		var/turf/end_turf = get_turf(controller.current_movement_target)
+		// Summons and stored pawns can remain alive after leaving the map.
+		if(!current_turf || !end_turf || QDELETED(controller.current_movement_target))
+			controller.CancelActions()
+			controller.set_movement_target(type, null)
+			controller.movement_path = null
+			controller.clear_blackboard_key(future_path_blackboard_key)
+			stop_moving_towards(controller)
+			continue
 		if(!(future_path_blackboard_key in controller.blackboard))
 			controller.add_blackboard_key(future_path_blackboard_key, null)
 		if(!COOLDOWN_FINISHED(controller, movement_cooldown))
@@ -23,11 +34,8 @@
 		if(!controller.can_move())
 			continue
 
-		var/atom/movable/movable_pawn = controller.pawn
 		var/turf/target_turf = get_step_towards(movable_pawn, controller.current_movement_target)
-		var/turf/end_turf = get_turf(controller.current_movement_target)
 		var/advanced = TRUE
-		var/turf/current_turf = get_turf(movable_pawn)
 
 		var/mob/cliented_mob = controller.current_movement_target
 		var/cliented = FALSE

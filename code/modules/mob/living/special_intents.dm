@@ -312,17 +312,21 @@ This allows the devs to draw whatever shape they want at the cost of it feeling 
 ///!This proc is inherently tied to iparent as a rogueweapon type! 
 ///!Do NOT use this for generic "magic" type of damage or if it's called from an obj like a trap!
 /datum/special_intent/proc/apply_generic_weapon_damage(mob/living/target, dam, d_type, zone, bclass, no_pen = FALSE, full_pen = FALSE)
-	if(!istype(iparent, /obj/item/rogueweapon))
+	if(QDELETED(target) || QDELETED(iparent) || !istype(iparent, /obj/item/rogueweapon))
 		return
 	var/obj/item/rogueweapon/W = iparent
 	var/msg = "<font color = '#c2663c'>[name] strikes [target]!"
 	if(ishuman(target))
 		var/mob/living/carbon/human/HT = target
 		var/obj/item/bodypart/affecting = HT.get_bodypart(zone)
+		if(QDELETED(affecting))
+			return
 		var/armor_block = HT.run_armor_check(zone, d_type, 0, damage = dam, used_weapon = W, armor_penetration = (no_pen ? PEN_NONE : 0))
 		if(full_pen)
 			armor_block = 0		//You block NOTHING, sir!
 		if(HT.apply_damage(dam, W.damtype, affecting, armor_block))
+			if(QDELETED(HT) || QDELETED(affecting) || affecting.owner != HT)
+				return
 			affecting.bodypart_attacked_by(bclass, dam, howner, armor = armor_block, crit_message = TRUE, weapon = W)
 			msg += "<b> It pierces through to their flesh!</b>"
 			playsound(HT, pick(W.hitsound), 80, TRUE)

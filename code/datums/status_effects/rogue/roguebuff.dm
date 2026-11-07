@@ -2067,7 +2067,10 @@
 			mob_effect_offset_y = -9
 
 /datum/status_effect/buff/clash/limbguard/process_attack(mob/living/parent, mob/living/target, mob/user, obj/item/I, zone_override)
-	if(is_active)
+	if(QDELETED(owner))
+		return
+	// Guarding against our own hit would remove this status in apply_debuffs(), clearing owner.
+	if(is_active && user != owner)
 		if(ishuman(user) && target == owner)
 			var/mob/living/carbon/human/HM = user
 			if(check_zone(HM.zone_selected) == protected_zone || zone_override == protected_zone)	//User has struck the exact limb that was being protected. Bad!

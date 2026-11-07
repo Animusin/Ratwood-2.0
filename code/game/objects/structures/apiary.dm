@@ -715,9 +715,11 @@
 
 	// Create smoke effects
 	var/turf/T = get_turf(src)
-	var/datum/effect_system/smoke_spread/chem/S = new
-	S.set_up(1, T, 0) // No reagents needed, just visual
-	S.start()
+	if(T)
+		var/datum/effect_system/smoke_spread/S = new
+		S.set_up(1, T) // No reagents needed, just visual.
+		S.start()
+		qdel(S)
 
 	// Calm nearby bees
 	for(var/obj/effect/bees/B in view(3, user))

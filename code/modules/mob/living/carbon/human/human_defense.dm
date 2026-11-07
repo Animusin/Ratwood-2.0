@@ -53,7 +53,7 @@
 
 			if(istype(used_weapon) && used_weapon.is_silver && ((used.smeltresult in list(/obj/item/ingot/aaslag, /obj/item/ingot/decrepit, /obj/item/ingot/gilbranze)) || used.GetComponent(/datum/component/cursed_item)))
 				var/datum/component/silverbless/bless = used_weapon.GetComponent(/datum/component/silverbless)
-				if(bless.is_blessed)
+				if(bless?.is_blessed)
 					intdamage = round(intdamage * bless.cursed_item_intdamage)
 
 		if(consume_debuff)

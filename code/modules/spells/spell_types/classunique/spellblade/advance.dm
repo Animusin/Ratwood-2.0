@@ -79,9 +79,9 @@
 
 	// Leap phase - pass through mobs with jump arc animation
 	var/old_pass = H.pass_flags
-	var/old_throwing = H.throwing
+	var/leap_source = REF(src)
 	H.pass_flags |= PASSMOB
-	H.throwing = TRUE
+	ADD_TRAIT(H, TRAIT_PREVENT_Z_FALL, leap_source)
 	var/prev_pixel_z = H.pixel_z
 	var/prev_transform = H.transform
 
@@ -93,7 +93,7 @@
 
 	var/steps_taken = 0
 	for(var/i in 1 to max_steps)
-		if(H.stat != CONSCIOUS || H.IsParalyzed() || H.IsStun() || QDELETED(H))
+		if(QDELETED(src) || QDELETED(H) || H.stat != CONSCIOUS || H.IsParalyzed() || H.IsStun())
 			break
 		var/turf/before = get_turf(H)
 		var/completed = leap_step(H, facing)
@@ -105,16 +105,22 @@
 		if(i < max_steps)
 			sleep(step_delay)
 
+	// Always release only this leap's fall protection, including interrupted casts.
+	if(H)
+		H.pass_flags = old_pass
+		REMOVE_TRAIT(H, TRAIT_PREVENT_Z_FALL, leap_source)
+	if(QDELETED(H))
+		return TRUE
+
 	// Slam down - fast drop with impact tilt
 	var/land_angle = pick(-20, -15, 15, 20)
 	animate(H, pixel_z = prev_pixel_z, transform = turn(prev_transform, land_angle), time = 1, easing = EASE_IN)
 	animate(transform = prev_transform, time = 2)
 
-	H.pass_flags = old_pass
-	H.throwing = old_throwing
-
 	var/turf/landing_turf = get_turf(H)
 	if(landing_turf?.zFall(H))
+		return TRUE
+	if(QDELETED(src) || !landing_turf || H.stat != CONSCIOUS || H.IsParalyzed() || H.IsStun() || QDELETED(held_weapon))
 		return TRUE
 
 	if(steps_taken == 0)

@@ -122,13 +122,13 @@
 	var/datum/respawn_bypass_fixture/fixture = allocate(/datum/respawn_bypass_fixture)
 	fixture.lobby.confirmation_action = "reenter"
 	TEST_ASSERT(fixture.lobby.check_respawn_cooldown(), "Accepting a paid bypass must release the current cooldown.")
-	TEST_ASSERT_EQUAL(SStriumphs.get_triumphs(fixture.account_key), 50, "The real debit must charge exactly 50 Triumphs.")
+	TEST_ASSERT_EQUAL(SStriumphs.get_triumphs(fixture.account_key), 80, "The real debit must charge exactly 20 Triumphs.")
 	TEST_ASSERT(!fixture.lobby.reentry_result, "Another lobby request must not enter an already open account confirmation.")
 	TEST_ASSERT_EQUAL(fixture.other_lobby.prompt_calls, 0, "Concurrent requests must not open a second payment prompt.")
 	TEST_ASSERT(fixture.state.waived, "The payment must waive this life rather than only the current spawn attempt.")
 	TEST_ASSERT(!fixture.state.bypass_in_progress, "A completed purchase must release its confirmation lock.")
 	TEST_ASSERT(fixture.lobby.check_respawn_cooldown(), "Retrying entry after payment must remain allowed.")
-	TEST_ASSERT_EQUAL(SStriumphs.get_triumphs(fixture.account_key), 50, "Retrying entry must never charge a second time.")
+	TEST_ASSERT_EQUAL(SStriumphs.get_triumphs(fixture.account_key), 80, "Retrying entry must never charge a second time.")
 	TEST_ASSERT_EQUAL(fixture.lobby.prompt_calls, 1, "An already waived cooldown must not ask for payment again.")
 
 /datum/unit_test/respawn_wait_display/Run()
@@ -138,7 +138,7 @@
 	for(var/cost in list(0, RESPAWN_BYPASS_COST))
 		var/message = fixture.lobby.get_respawn_bypass_message(cost)
 		TEST_ASSERT(findtext(message, "25 minutes remaining."), "Both free and paid confirmations must show the remaining wait.")
-		TEST_ASSERT(findtext(message, cost ? "50 Triumphs" : "for free"), "The countdown must preserve the bypass price explanation.")
+		TEST_ASSERT(findtext(message, cost ? "20 Triumphs" : "for free"), "The countdown must preserve the bypass price explanation.")
 	fixture.state.death_time -= 1 MINUTES
 	TEST_ASSERT_EQUAL(get_respawn_status_text(fixture.account_key), "24 minutes remaining.", "Refreshing the display must not reuse the previous countdown.")
 	fixture.state.death_time = world.time - RESPAWNTIME + 1
@@ -170,16 +170,16 @@
 
 /datum/unit_test/respawn_bypass_funds/Run()
 	var/datum/respawn_bypass_fixture/fixture = allocate(/datum/respawn_bypass_fixture)
-	SStriumphs.triumph_amount_cache[fixture.account_key] = 49
-	TEST_ASSERT(!fixture.lobby.check_respawn_cooldown(), "49 Triumphs must be insufficient for a 50-Triumph bypass.")
-	TEST_ASSERT_EQUAL(SStriumphs.get_triumphs(fixture.account_key), 49, "An insufficient balance must remain unchanged.")
+	SStriumphs.triumph_amount_cache[fixture.account_key] = 19
+	TEST_ASSERT(!fixture.lobby.check_respawn_cooldown(), "19 Triumphs must be insufficient for a 20-Triumph bypass.")
+	TEST_ASSERT_EQUAL(SStriumphs.get_triumphs(fixture.account_key), 19, "An insufficient balance must remain unchanged.")
 	SStriumphs.triumph_amount_cache[fixture.account_key] = 100
 	fixture.lobby.confirmation_action = "balance_spent"
 	TEST_ASSERT(!fixture.lobby.check_respawn_cooldown(), "The balance must be checked again after the modal confirmation.")
-	TEST_ASSERT_EQUAL(SStriumphs.get_triumphs(fixture.account_key), 49, "A concurrent purchase must not cause an overdraft or partial payment.")
+	TEST_ASSERT_EQUAL(SStriumphs.get_triumphs(fixture.account_key), 19, "A concurrent purchase must not cause an overdraft or partial payment.")
 	fixture.lobby.confirmation_action = null
-	SStriumphs.triumph_amount_cache[fixture.account_key] = 50
-	TEST_ASSERT(fixture.lobby.check_respawn_cooldown(), "An exact balance of 50 Triumphs must buy the bypass.")
+	SStriumphs.triumph_amount_cache[fixture.account_key] = 20
+	TEST_ASSERT(fixture.lobby.check_respawn_cooldown(), "An exact balance of 20 Triumphs must buy the bypass.")
 	TEST_ASSERT_EQUAL(SStriumphs.get_triumphs(fixture.account_key), 0, "An exact payment must leave zero Triumphs.")
 
 /datum/unit_test/respawn_bypass_subscription_tiers/Run()

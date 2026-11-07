@@ -63,12 +63,6 @@
 	//a door name a skilled artisan can make
 	var/doorname = null
 
-/obj/structure/mineral_door/take_damage(damage_amount, damage_type = BRUTE, damage_flag = "", sound_effect = TRUE, attack_dir, armor_penetration = 0)
-	var/was_broken = obj_broken
-	. = ..()
-	if(obj_broken && !was_broken)
-		log_breakin(null, "was broken open")
-
 /obj/structure/mineral_door/onkick(mob/user)
 	if(isSwitchingStates)
 		return
@@ -80,6 +74,7 @@
 		else
 			user.visible_message(span_warning("[user] kicks [src] shut!"), \
 				span_notice("I kick [src] shut!"))
+		add_forensic_action(user, "kicked shut")
 		force_closed()
 	else
 		if(locked)
@@ -95,18 +90,18 @@
 					else
 						user.visible_message(span_warning("[user] kicks open [src]!"), \
 							span_notice("I kick open [src]!"))
+					add_forensic_action(user, "kicked open, breaking the lock")
 					locked = 0
-					log_breakin(user, "kicked open a locked door")
 					force_open()
 				else
 					playsound(src, 'sound/combat/hits/onwood/woodimpact (1).ogg', 100)
-					log_breakin(user, "kicked a locked door")
 					if(HAS_TRAIT(user, TRAIT_LAMIAN_TAIL))
 						user.visible_message(span_warning("[user] tailslams [src]!"), \
 							span_notice("I slam [src] with my tail!"))
 					else
 						user.visible_message(span_warning("[user] kicks [src]!"), \
 							span_notice("I kick [src]!"))
+					add_forensic_action(user, "kicked while locked")
 			//try to kick open, destroy lock
 		else
 			playsound(src, 'sound/combat/hits/onwood/woodimpact (1).ogg', 100)
@@ -116,6 +111,7 @@
 			else
 				user.visible_message(span_warning("[user] kicks open [src]!"), \
 					span_notice("I kick open [src]!"))
+			add_forensic_action(user, "kicked open")
 			force_open()
 
 /obj/structure/mineral_door/proc/force_open()
@@ -247,11 +243,12 @@
 			if(locked)
 				user.visible_message(span_warning("[user] bashes into [src]!"))
 				var/was_broken = obj_broken || brokenstate
-				log_breakin(user, "bashed into a locked door")
-				take_damage(200, "brute", "blunt", 1)
+				add_forensic_action(user, "bashed into while locked")
+				take_damage_from(user, 200, "brute", "blunt", 1)
 				record_forced_break_transition(was_broken, user)
 			else
 				playsound(src, 'sound/combat/hits/onwood/woodimpact (1).ogg', 100)
+				add_forensic_action(user, "smashed through")
 				force_open()
 				user.visible_message(span_warning("[user] smashes through [src]!"))
 			return
@@ -322,8 +319,14 @@
 			return FALSE
 	else if(!user.client) // simplemobs aren't allowed to pathfind through doors, currently
 		return FALSE
+	var/was_open = door_opened
 	SwitchState(user.m_intent == MOVE_INTENT_SNEAK) // silent when sneaking
-	return !QDELETED(src)
+	if(QDELETED(src))
+		return FALSE
+	// Close() refuses while anyone stands in the doorway, so only log what actually happened
+	if(door_opened != was_open)
+		add_forensic_action(user, door_opened ? "opened" : "closed", routine = TRUE)
+	return TRUE
 
 /obj/structure/mineral_door/proc/SwitchState(silent = FALSE)
 	if(door_opened)
@@ -460,14 +463,17 @@
 	add_blood_DNA(I.return_blood_DNA())
 	. = ..()
 	if(.)
-		log_breakin(user, "struck the door with \a [I.name]")
+		add_forensic_action(user, "hit with [format_text(I.name)]")
 	record_forced_break_transition(was_broken, user, I)
 
 /obj/structure/mineral_door/hitby(atom/movable/AM, skipcatch, hitpush, blocked, datum/thrownthing/throwingdatum, damage_flag = "blunt")
 	var/was_broken = obj_broken || brokenstate
 	var/mob/living/thrower = throwingdatum?.thrower
 	add_blood_DNA(AM.return_blood_DNA())
+	var/forcing = begin_forcing(thrower, "with thrown [format_text(AM.name)]")
 	. = ..()
+	if(forcing)
+		end_forcing()
 	record_forced_break_transition(was_broken, thrower, AM)
 
 /obj/structure/mineral_door/bullet_act(obj/projectile/P)
@@ -478,7 +484,10 @@
 
 /obj/structure/mineral_door/attack_generic(mob/user, damage_amount = 0, damage_type = BRUTE, damage_flag = 0, sound_effect = 1, armor_penetration = 0)
 	var/was_broken = obj_broken || brokenstate
+	var/forcing = begin_forcing(user)
 	. = ..()
+	if(forcing)
+		end_forcing()
 	var/mob/living/attacker = user
 	record_forced_break_transition(was_broken, attacker)
 
@@ -662,6 +671,9 @@
 				lock_toggle(user)
 				if(autobump && !locked)
 					src.Open()
+					if(QDELETED(src) || QDELETED(user))
+						return
+					add_forensic_action(user, "opened", routine = TRUE)
 					addtimer(CALLBACK(src, PROC_REF(Close), FALSE, TRUE), 25)
 					src.last_bumper = user
 				return
@@ -677,6 +689,9 @@
 			lock_toggle(user)
 			if(autobump)
 				src.Open()
+				if(QDELETED(src) || QDELETED(user))
+					return
+				add_forensic_action(user, "opened", routine = TRUE)
 				addtimer(CALLBACK(src, PROC_REF(Close), FALSE, TRUE), 25)
 				src.last_bumper = user
 			return
@@ -732,7 +747,6 @@
 		record_forensic_event(FORENSIC_EVENT_LOCKPICK_ATTEMPT, L, I)
 		var/picked = FALSE
 		user.log_message("attempting to lockpick door \"[src.name]\" (currently [locked ? "locked" : "unlocked"]).", LOG_ATTACK)
-		log_breakin(user, "started picking the lock with \a [I.name]")
 
 		while(!QDELETED(I) &&(lockprogress < locktreshold))
 			if(!do_after(user, picktime, target = src))
@@ -746,7 +760,6 @@
 				if(lockprogress >= locktreshold)
 					picked = TRUE
 					to_chat(user, "<span class='deadsay'>The locking mechanism gives.</span>")
-					log_breakin(user, "picked the lock and [locked ? "unlocked" : "locked"] the door")
 					if(ishuman(user))
 						var/mob/living/carbon/human/H = user
 						message_admins("[H.real_name]([key_name(user)]) successfully lockpicked [src.name] & [locked ? "unlocked" : "locked"] it. [ADMIN_JMP(src)]")
@@ -754,6 +767,7 @@
 						record_featured_stat(FEATURED_STATS_CRIMINALS, user)
 						record_round_statistic(STATS_LOCKS_PICKED)
 					record_forensic_event(FORENSIC_EVENT_LOCKPICK_SUCCESS, L, I)
+					add_forensic_action(user, "lockpicked")
 					lock_toggle(user)
 					break
 				else
@@ -765,8 +779,8 @@
 				add_sleep_experience(L, /datum/skill/misc/lockpicking, L.STAINT/4)
 				continue
 		if(!picked)
+			add_forensic_action(user, "tried to lockpick")
 			user.log_message("stopped/failed lockpicking door \"[src.name]\" (remains [locked ? "locked" : "unlocked"]).", LOG_ATTACK)
-			log_breakin(user, "gave up picking the lock (still [locked ? "locked" : "unlocked"])")
 		return
 
 /obj/structure/mineral_door/proc/tryskeletonlock(mob/user)
@@ -777,13 +791,13 @@
 	if(lockbroken)
 		to_chat(user, span_warning("The lock to this door is broken."))
 		return
-	log_breakin(user, "used a skeleton key and [locked ? "unlocked" : "locked"] the door")
 	if(ishuman(user))
 		var/mob/living/carbon/human/H = user
 		message_admins("[H.real_name]([key_name(user)]) successfully skeletonkey'd [src.name] & [locked ? "unlocked" : "locked"] it. [ADMIN_JMP(src)]")
 		log_admin("[H.real_name]([key_name(user)]) successfully used a skeleton key on [src.name].")
 	do_sparks(3, FALSE, src)
 	playsound(user, 'sound/items/skeleton_key.ogg', 100)
+	add_forensic_action(user, "used a skeleton key")
 	lock_toggle(user) //All That It Does.
 	user.changeNext_move(CLICK_CD_INTENTCAP)
 	return
@@ -791,6 +805,8 @@
 /obj/structure/mineral_door/proc/lock_toggle(mob/user)
 	if(isSwitchingStates || door_opened)
 		return
+	// Routine, so a keyholder coming and going cannot push lockpicks and breaks out. Picks log their own evidence entry
+	add_forensic_action(user, locked ? "unlocked" : "locked", routine = TRUE)
 	if(locked)
 		user?.visible_message(span_warning("[user] unlocks [src]."), \
 			span_notice("I unlock [src]."))
@@ -819,6 +835,7 @@
 		density = FALSE
 		opacity = FALSE
 		brokenstate = TRUE
+		on_forced_break(damage_flag)
 	..()
 
 /obj/structure/mineral_door/OnCrafted(dirin, user)

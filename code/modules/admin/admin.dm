@@ -149,6 +149,10 @@
 		body += "<A href='?_src_=holder;[HrefToken()];newbankey=[M.key]'>Ban</A> | "
 
 	body += "<A href='?_src_=holder;[HrefToken()];showmessageckey=[M.ckey]'>Notes | Messages | Watchlist</A> | "
+	if(isliving(M))
+		var/mob/living/fartravel_target = M
+		if(fartravel_target.get_real_body())
+			body += "<A href='?_src_=holder;[HrefToken()];fartravel=[REF(M)]'>Fartravel</A> | "
 	if(M.client)
 		body += "\ <A href='?_src_=holder;[HrefToken()];sendbacktolobby=[REF(M)]'>Send back to Lobby</A> | "
 		var/muted = M.client.prefs.muted
@@ -174,6 +178,8 @@
 	//body += "<A href='?_src_=holder;[HrefToken()];languagemenu=[REF(M)]'>Language Menu</A>"
 	body += "<br><A href='?_src_=holder;[HrefToken()];heal_panel=[REF(M)]'>Heal Panel</A> | "
 	body += "<A href='?_src_=holder;[HrefToken()];inventory_panel=[REF(M)]'>Inventory Panel</A>"
+	if(ishuman(M) && M.client)
+		body += " | <A href='?_src_=holder;[HrefToken()];pref_refresh=[REF(M)]'>Pref Refresh</A>"
 
 	body += "</div>"
 
@@ -1405,16 +1411,17 @@
 	mob?.admin_send_back_to_lobby(usr)
 
 
-/mob/proc/admin_send_back_to_lobby(mob/admin, delete_character = FALSE)
+/// only_if_present leaves players who have moved to another body in that body.
+/mob/proc/admin_send_back_to_lobby(mob/admin, delete_character = FALSE, only_if_present = FALSE)
 	if(isnewplayer(src))
 		to_chat(admin || src, span_notice("Already in the lobby."))
 		return FALSE
 	var/datum/respawn_state/returned_life
 	if(isliving(src))
-		var/mob/living/body = src
-		if(body.respawn_state?.is_current_body(body))
-			returned_life = body.respawn_state
-		else if(client && (istype(body, /mob/living/carbon/spirit) || body.respawn_body_override))
+		var/mob/living/returned_body = src
+		if(returned_body.respawn_state?.is_current_body(returned_body))
+			returned_life = returned_body.respawn_state
+		else if(client && (istype(returned_body, /mob/living/carbon/spirit) || returned_body.respawn_body_override))
 			returned_life = GLOB.respawn_states[ckey]
 	else if(isobserver(src) && client)
 		returned_life = GLOB.respawn_states[ckey]
@@ -1429,14 +1436,19 @@
 			returned_life.waive()
 		return TRUE
 	var/datum/job/mob_job
-	var/target_job = SSrole_class_handler.get_advclass_by_name(advjob)
-	var/player_key = key ? key : mind?.key
-	if(!player_key)
+	var/mob/living/carbon/human/character = src
+	// Wildshape and werewolf forms carry the character's original body inside them.
+	var/mob/living/carbon/human/body = character.get_real_body()
+	if(!returned_life && body.respawn_state?.is_current_body(body))
+		returned_life = body.respawn_state
+	var/target_job = SSrole_class_handler.get_advclass_by_name(body.advjob)
+	var/player_key = key ? key : (only_if_present ? null : mind?.key)
+	if(!player_key && !only_if_present)
 		to_chat(admin, span_warning("[src] has no key to return to the lobby."))
 		return FALSE
-	SSrole_class_handler.cancel_class_handler(ckey(player_key))
+	if(player_key)
+		SSrole_class_handler.cancel_class_handler(ckey(player_key))
 	mind?.clear_queued_admin_antag()
-	var/mob/living/carbon/human/character = src
 	character.admin_antag_spawn = FALSE
 	character.admin_antag_setup_pending = FALSE
 	if(mind)
@@ -1449,16 +1461,20 @@
 		for(var/datum/mind/MF in get_minds())
 			mind.become_unknown_to(MF)
 		for(var/datum/bounty/removing_bounty in GLOB.head_bounties)
-			if(removing_bounty.target == real_name)
+			if(removing_bounty.target == body.real_name)
 				GLOB.head_bounties -= removing_bounty
 	else if(admin)
 		to_chat(admin, span_warning("Target has no mind!"))
-	GLOB.chosen_names -= real_name
+	GLOB.chosen_names -= body.real_name
 	if(!mob_job)
-		LAZYREMOVE(GLOB.actors_list[SSjob.bitflag_to_department(WANDERERS, FALSE)], mobid)
+		LAZYREMOVE(GLOB.actors_list[SSjob.bitflag_to_department(WANDERERS, FALSE)], body.mobid)
 	else
-		LAZYREMOVE(GLOB.actors_list[SSjob.bitflag_to_department(mob_job.department_flag, mob_job.obsfuscated_job)], mobid)
-	LAZYREMOVE(GLOB.roleplay_ads, mobid)
+		LAZYREMOVE(GLOB.actors_list[SSjob.bitflag_to_department(mob_job.department_flag, mob_job.obsfuscated_job)], body.mobid)
+	LAZYREMOVE(GLOB.roleplay_ads, body.mobid)
+	if(delete_character)
+		body.far_travel_cleanup(mind, player_key && ckey(player_key))
+		if(body != src)
+			character.far_travel_cleanup() // The form's own embedded objects.
 	if(client)
 		SStgui.close_user_uis(src)
 		SSdroning.kill_droning(client)
@@ -1467,16 +1483,51 @@
 	if(player_key)
 		var/mob/dead/new_player/NP = new()
 		NP.key = player_key
-	else if(admin)
+	else if(admin && !only_if_present)
 		to_chat(admin, span_warning("[src] has no key to return to the lobby."))
 	if(delete_character)
 		mind?.remove_all_antag_datums()
+		if(body != src)
+			character.stored_mob = null
+			qdel(body)
 		qdel(src)
 	// Destruction can record a death; the explicit admin exemption must apply afterwards.
 	// Never reset an account's newer life when this operation targeted an obsolete corpse.
 	if(returned_life?.is_current())
 		returned_life.waive()
 	return TRUE
+
+/// Clears what outlives a character leaving the round for good: mercenary statue listings, the lord omen and embedded objects.
+/// The mind and ckey may come from the form the player is in rather than this body.
+/mob/living/carbon/human/proc/far_travel_cleanup(datum/mind/departing_mind, departing_ckey)
+	if(departing_mind && departing_ckey)
+		if(departing_mind.assigned_role == "Mercenary")
+			var/obj/structure/roguemachine/talkstatue/mercenary/statue = SSroguemachine.mercenary_statue
+			if(!statue && length(SSroguemachine.mercenary_statues))
+				statue = SSroguemachine.mercenary_statues[1]
+			if(statue)
+				statue.mercenary_status -= real_name
+		// If departure is a lord, remove them from found_lords to prevent false omen triggers
+		if(departing_mind.assigned_role == "Grand Duke" || departing_mind.assigned_role == "Grand Duchess")
+			if(GLOB.found_lords[departing_ckey])
+				GLOB.found_lords -= departing_ckey
+	if(has_embedded_objects())
+		for(var/thing in get_embedded_objects())
+			QDEL_NULL(thing)
+
+/// Removes this character from the round as far travel does: job slot freed, character and everything on it deleted.
+/// A player still in the body, connected or slumbering, goes to the lobby. Returns FALSE if there is no character.
+/mob/living/proc/admin_fartravel(mob/admin)
+	var/obj/shapeshift_holder/holder = get_shapeshift_holder()
+	if(holder)
+		var/mob/living/carbon/human/caster = holder.stored
+		// Revert the spell shapeshift so the mind, and any player's key, are back in the caster's body.
+		holder.restore()
+		return caster.admin_send_back_to_lobby(admin, TRUE, TRUE)
+	if(!ishuman(src))
+		return FALSE
+	var/mob/living/carbon/human/H = src
+	return H.admin_send_back_to_lobby(admin, TRUE, TRUE)
 
 
 /datum/admins/proc/sleep_view()

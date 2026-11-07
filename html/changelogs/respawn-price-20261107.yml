@@ -1,0 +1,4 @@
+author: "Animusin"
+delete-after: true
+changes:
+  - balance: "Skipping the respawn wait now costs 20 Triumphs instead of 50. HoS-or-higher subscribers can skip it for free."

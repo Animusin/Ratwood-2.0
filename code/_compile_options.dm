@@ -8,7 +8,7 @@
 #define ALLOWPLAY
 
 #define RESPAWNTIME (30 MINUTES)
-#define RESPAWN_BYPASS_COST 50
+#define RESPAWN_BYPASS_COST 20
 //0 test
 //12 minutes norma
 //#define ROUNDTIMERBOAT (300 MINUTES)

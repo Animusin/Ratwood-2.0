@@ -4,7 +4,7 @@ GLOBAL_LIST_EMPTY(respawn_states)
 /datum/respawn_state
 	var/player_ckey
 	var/datum/weakref/body_ref
-	/// Null while the body is alive; zero is a valid death time.
+	/// Null during a played life; unplayed revivals retain the previous death. Zero is a valid death time.
 	var/death_time
 	var/waived = FALSE
 	/// Invalidates confirmations when a body changes, revives, dies, or receives a waiver.
@@ -79,6 +79,10 @@ GLOBAL_LIST_EMPTY(respawn_states)
 /mob/living
 	var/datum/respawn_state/respawn_state
 
+/// A remembered mind/key or a ghost outside the body does not count as playing its new life.
+/mob/living/proc/has_respawn_player()
+	return client && client.mob == src && client.ckey == respawn_state?.player_ckey
+
 /// Called when a player actually controls this body, including a newly created undead role.
 /mob/living/proc/register_respawn_body(account_key = key || mind?.key)
 	if(QDELETED(src) || istype(src, /mob/living/carbon/spirit) || istype(src, /mob/living/brain) || respawn_body_override)
@@ -87,6 +91,9 @@ GLOBAL_LIST_EMPTY(respawn_states)
 	if(!player_ckey)
 		return null
 	if(respawn_state?.player_ckey == player_ckey && respawn_state.is_current_body(src))
+		// Login/re-entry claims an NPC revival only while that body is still alive.
+		if(stat != DEAD && !isnull(respawn_state.death_time) && has_respawn_player())
+			respawn_state.start_life(src)
 		return respawn_state
 	respawn_state = new /datum/respawn_state(player_ckey, src)
 	GLOB.respawn_states[player_ckey] = respawn_state
@@ -109,7 +116,7 @@ GLOBAL_LIST_EMPTY(respawn_states)
 /mob/living/proc/record_respawn_revival()
 	if(istype(src, /mob/living/carbon/spirit) || respawn_body_override)
 		return FALSE
-	if(!respawn_state?.is_current_body(src))
+	if(!respawn_state?.is_current_body(src) || !has_respawn_player())
 		return FALSE
 	respawn_state.start_life(src)
 	return TRUE
@@ -128,6 +135,13 @@ GLOBAL_LIST_EMPTY(respawn_states)
 	if(istype(new_body, /mob/living/brain))
 		new_body.respawn_state = respawn_state
 		return FALSE
+	// Moving an unplayed revived body must not manufacture a second life. Login claims it
+	// after the mind/key transfer; moving between corpses also preserves the original death.
+	if(!isnull(respawn_state.death_time) && (!has_respawn_player() || new_body.stat == DEAD))
+		respawn_state.body_ref = WEAKREF(new_body)
+		new_body.respawn_state = respawn_state
+		respawn_state.revision++
+		return TRUE
 	respawn_state.start_life(new_body)
 	if(new_body.stat == DEAD)
 		respawn_state.start_death(new_body.timeofdeath)

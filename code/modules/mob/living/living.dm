@@ -2064,12 +2064,13 @@
 	else
 		mobility_flags |= MOBILITY_UI|MOBILITY_PULL
 */
-	if(restrained || incapacitated())
+	var/is_incapacitated = incapacitated()
+	if(restrained || is_incapacitated)
 		mobility_flags &= ~MOBILITY_UI
 	else
 		mobility_flags |= MOBILITY_UI
 
-	if(incapacitated())
+	if(is_incapacitated)
 		mobility_flags &= ~MOBILITY_PULL
 	else
 		mobility_flags |= MOBILITY_PULL

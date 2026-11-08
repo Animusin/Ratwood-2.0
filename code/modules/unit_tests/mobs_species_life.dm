@@ -13,21 +13,51 @@
 	flight_checks++
 	return ..()
 
-/// Repeated species ticks must not recalculate unchanged health for a mob that does not breathe.
-/datum/unit_test/mobs_species_noop_health/Run()
-	var/mob/living/carbon/human/consistent/species_life_probe/human = allocate(/mob/living/carbon/human/consistent/species_life_probe)
-	ADD_TRAIT(human, TRAIT_NOBREATH, "unit_test")
+/// Death's Precipice grants blood-loss immunity without changing oxygen damage.
+/// A Revenant already unconscious from blood loss must wake on the next real Life tick.
+/datum/unit_test/mobs_species_deathdoor_health/Run()
+	var/mob/living/carbon/human/consistent/human = allocate(/mob/living/carbon/human/consistent)
+	human.set_species(/datum/species/dullahan)
+	human.mode = NPC_AI_OFF
+	human.set_blood_volume(BLOOD_VOLUME_SURVIVE - 30)
 	human.setOxyLoss(0)
-	human.health_refreshes = 0
-	human.losebreath = 5
-	repeat_species_life(human, 100)
-	TEST_ASSERT_EQUAL(human.health_refreshes, 0, "Healthy non-breathing mobs must not refresh health on every species tick.")
-	TEST_ASSERT_EQUAL(human.losebreath, 0, "Skipping an unchanged health refresh must still clear breath loss.")
+	TEST_ASSERT_EQUAL(human.stat, UNCONSCIOUS, "The Revenant must start unconscious from blood loss.")
+	TEST_ASSERT_EQUAL(human.getOxyLoss(), 0, "The blood-loss fixture must have no oxygen damage to heal.")
 
-/// A fixed workload also allows the local profiler to compare the same path before and after the fix.
-/datum/unit_test/mobs_species_noop_health/proc/repeat_species_life(mob/living/carbon/human/human, iterations)
-	for(var/iteration in 1 to iterations)
-		human.dna.species.spec_life(human)
+	var/area/rogue/indoors/deathsedge/death_area = new
+	allocated += death_area
+	death_area.Entered(human)
+	TEST_ASSERT(human.has_status_effect(/datum/status_effect/debuff/deathdoorwilloss), "Entering Death's Precipice must apply its real status effect.")
+	TEST_ASSERT(HAS_TRAIT(human, TRAIT_BLOODLOSS_IMMUNE), "The area must grant blood-loss immunity before the Life tick.")
+	human.Life(1, 1)
+	TEST_ASSERT_EQUAL(human.stat, CONSCIOUS, "Blood-loss immunity must let a Revenant wake even when oxygen damage was already zero.")
+	TEST_ASSERT(human.mobility_flags & MOBILITY_STAND, "Waking from blood loss must also restore the ability to stand.")
+	TEST_ASSERT_EQUAL(human.getOxyLoss(), 0, "The wakeup must not require unrelated oxygen damage.")
+
+/// Astrata's Favor changes damage-slowdown immunity without changing health.
+/// Applying and removing it must both update the real movement modifiers.
+/datum/unit_test/mobs_species_astrata_health/Run()
+	var/mob/living/carbon/human/consistent/human = allocate(/mob/living/carbon/human/consistent)
+	human.set_species(/datum/species/dullahan)
+	human.mode = NPC_AI_OFF
+	human.setToxLoss(90)
+	TEST_ASSERT(human.has_movespeed_modifier(MOVESPEED_ID_DAMAGE_SLOWDOWN), "The damaged Revenant must start with a damage-slowdown modifier.")
+	TEST_ASSERT_EQUAL(human.getOxyLoss(), 0, "The slowdown fixture must have no oxygen damage to heal.")
+
+	human.apply_status_effect(/datum/status_effect/astrata_favor)
+	TEST_ASSERT(HAS_TRAIT(human, TRAIT_IGNOREDAMAGESLOWDOWN), "Astrata's Favor must grant its actual damage-slowdown immunity.")
+	human.Life(1, 1)
+	TEST_ASSERT(!human.has_movespeed_modifier(MOVESPEED_ID_DAMAGE_SLOWDOWN), "Astrata's Favor must remove ground damage slowdown on the next Life tick.")
+	TEST_ASSERT(!human.has_movespeed_modifier(MOVESPEED_ID_DAMAGE_SLOWDOWN_FLYING), "Astrata's Favor must remove floating damage slowdown too.")
+
+	// A further hit while the buff is active must retain its immunity. The buff's
+	// removal must then restore the slowdown without waiting for another hit.
+	human.adjustToxLoss(1)
+	human.remove_status_effect(/datum/status_effect/astrata_favor)
+	TEST_ASSERT(!HAS_TRAIT(human, TRAIT_IGNOREDAMAGESLOWDOWN), "Removing Astrata's Favor must remove its immunity trait.")
+	human.Life(1, 1)
+	TEST_ASSERT(human.has_movespeed_modifier(MOVESPEED_ID_DAMAGE_SLOWDOWN), "Removing Astrata's Favor must restore ground damage slowdown on the next Life tick.")
+	TEST_ASSERT(human.has_movespeed_modifier(MOVESPEED_ID_DAMAGE_SLOWDOWN_FLYING), "Removing Astrata's Favor must restore floating damage slowdown too.")
 
 /// Actual oxygen recovery must still refresh health; ordinary breathing mobs remain unaffected.
 /datum/unit_test/mobs_species_oxygen_recovery/Run()
@@ -57,7 +87,7 @@
 	TEST_ASSERT_EQUAL(human.getOxyLoss(), 30, "The oxygen setter's existing GODMODE behavior must remain unchanged.")
 	TEST_ASSERT_EQUAL(human.losebreath, 0, "GODMODE must not prevent the existing breath-loss reset.")
 
-/// The no-op guard must not bypass critical damage, its exemption, or species flight processing.
+/// Species ticks must process critical damage, its exemption, and species flight.
 /datum/unit_test/mobs_species_critical_and_flight/Run()
 	var/mob/living/carbon/human/consistent/species_life_probe/human = allocate(/mob/living/carbon/human/consistent/species_life_probe)
 	ADD_TRAIT(human, TRAIT_NOBREATH, "unit_test")

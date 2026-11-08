@@ -674,8 +674,8 @@ GLOBAL_LIST_EMPTY(roundstart_races)
 
 /datum/species/proc/spec_life(mob/living/carbon/human/H)
 	if(HAS_TRAIT(H, TRAIT_NOBREATH))
-		if(H.getOxyLoss())
-			H.setOxyLoss(0)
+		// Trait changes can require a health/stat/mobility refresh even when oxygen damage is already zero.
+		H.setOxyLoss(0)
 		H.losebreath = 0
 
 		var/takes_crit_damage = (!HAS_TRAIT(H, TRAIT_NOCRITDAMAGE))

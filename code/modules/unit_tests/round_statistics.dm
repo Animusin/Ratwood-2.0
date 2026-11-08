@@ -19,7 +19,7 @@
 /datum/unit_test/necra_grave_influence/Run()
 	original_grave_count = GLOB.azure_round_stats[STATS_GRAVES_CONSECRATED]
 	force_set_round_statistic(STATS_GRAVES_CONSECRATED, 0)
-	var/mob/living/carbon/human/caster = allocate(/mob/living/carbon/human/consistent)
+	var/mob/living/carbon/human/caster = allocate(/mob/living/carbon/human/consistent, get_step(run_loc_floor_bottom_left, EAST))
 	var/obj/structure/closet/dirthole/grave/grave = allocate(/obj/structure/closet/dirthole/grave)
 	var/obj/effect/proc_holder/spell/targeted/burialrite/rite = allocate(/obj/effect/proc_holder/spell/targeted/burialrite)
 	var/mob/previous_usr = usr
@@ -36,6 +36,7 @@
 	body.forceMove(grave)
 	grave.stage = 4
 	TEST_ASSERT(grave.close(), "The corpse must be interred before performing Burial Rites.")
+	TEST_ASSERT(isturf(caster.loc) && (grave in view(1, caster)), "The caster must be outside and able to see the sealed grave.")
 
 	var/influence_before = SSgamemode.calculate_storyteller_influence(/datum/storyteller/necra)
 	usr = caster
@@ -46,3 +47,41 @@
 	TEST_ASSERT_EQUAL(SSgamemode.calculate_storyteller_influence(/datum/storyteller/necra), influence_before + 3.75, "Necra's total influence must include the grave.")
 	force_set_round_statistic(STATS_GRAVES_CONSECRATED, 30)
 	TEST_ASSERT_EQUAL(SSgamemode.calculate_specific_influence(/datum/storyteller/necra, STATS_GRAVES_CONSECRATED), 80, "Grave influence must still respect its cap.")
+
+/datum/stressevent/bathwater/test_application
+	var/applications = 0
+
+/datum/stressevent/bathwater/test_application/on_apply(mob/living/user)
+	. = ..()
+	applications++
+
+/datum/unit_test/stress_bath_registration/Run()
+	var/mob/living/carbon/human/bather = allocate(/mob/living/carbon/human/consistent)
+	var/datum/stressevent/bathwater/test_application/event = bather.add_stress(/datum/stressevent/bathwater/test_application)
+	TEST_ASSERT_EQUAL(event.applications, 1, "The bath statistic hook must run when the stress event is first applied.")
+	bather.add_stress(/datum/stressevent/bathwater/test_application)
+	TEST_ASSERT_EQUAL(event.applications, 1, "Refreshing bath stress must not count as another bath.")
+	bather.remove_stress(/datum/stressevent/bathwater/test_application)
+	qdel(event)
+
+/datum/unit_test/bath_and_sewer_stress
+	var/turf/water_tile
+	var/original_turf_type
+	var/original_baseturfs
+
+/datum/unit_test/bath_and_sewer_stress/Destroy()
+	if(water_tile)
+		water_tile.ChangeTurf(original_turf_type, original_baseturfs, CHANGETURF_FORCEOP)
+	return ..()
+
+/datum/unit_test/bath_and_sewer_stress/Run()
+	var/mob/living/carbon/human/bather = allocate(/mob/living/carbon/human/consistent)
+	water_tile = get_step(run_loc_floor_bottom_left, EAST)
+	original_turf_type = water_tile.type
+	original_baseturfs = islist(water_tile.baseturfs) ? water_tile.baseturfs.Copy() : water_tile.baseturfs
+	water_tile = water_tile.ChangeTurf(/turf/open/water/bath, original_baseturfs, CHANGETURF_FORCEOP)
+	bather.handle_inwater(water_tile)
+	TEST_ASSERT(bather.has_stress_event(/datum/stressevent/bathwater), "A bath must apply its relaxation effect.")
+	water_tile = water_tile.ChangeTurf(/turf/open/water/sewer, original_baseturfs, CHANGETURF_FORCEOP)
+	bather.handle_inwater(water_tile)
+	TEST_ASSERT(bather.has_stress_event(/datum/stressevent/sewertouched), "Sewage must still apply its stress effect.")

@@ -36,16 +36,23 @@ Key procs
 
 ///Add a move speed modifier to a mob
 /mob/proc/add_movespeed_modifier(id, update=TRUE, priority=0, flags=NONE, override=FALSE, multiplicative_slowdown=0, movetypes=ALL, blacklisted_movetypes=NONE, conflict=FALSE)
-	var/list/temp = list(priority, flags, multiplicative_slowdown, movetypes, blacklisted_movetypes, conflict) //build the modification list
 	var/resort = TRUE
-	if(LAZYACCESS(movespeed_modification, id))
-		var/list/existing_data = movespeed_modification[id]
-		if(movespeed_modifier_identical_check(existing_data, temp))
-			return FALSE
+	var/list/existing_data = LAZYACCESS(movespeed_modification, id)
+	if(existing_data)
 		if(!override)
+			return FALSE
+		// Repeated health/mobility refreshes usually reapply identical data; avoid allocating a discarded list.
+		if(islist(existing_data) && existing_data.len >= MOVESPEED_DATA_INDEX_MAX && \
+			existing_data[MOVESPEED_DATA_INDEX_PRIORITY] == priority && \
+			existing_data[MOVESPEED_DATA_INDEX_FLAGS] == flags && \
+			existing_data[MOVESPEED_DATA_INDEX_MULTIPLICATIVE_SLOWDOWN] == multiplicative_slowdown && \
+			existing_data[MOVESPEED_DATA_INDEX_MOVETYPE] == movetypes && \
+			existing_data[MOVESPEED_DATA_INDEX_BL_MOVETYPE] == blacklisted_movetypes && \
+			existing_data[MOVESPEED_DATA_INDEX_CONFLICT] == conflict)
 			return FALSE
 		if(priority == existing_data[MOVESPEED_DATA_INDEX_PRIORITY])
 			resort = FALSE // We don't need to re-sort if we're replacing something already there and it's the same priority
+	var/list/temp = list(priority, flags, multiplicative_slowdown, movetypes, blacklisted_movetypes, conflict)
 	LAZYSET(movespeed_modification, id, temp)
 	if(update)
 		update_movespeed(resort)

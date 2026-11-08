@@ -1,6 +1,8 @@
 //IMPORTANT: Multiple animate() calls do not stack well, so try to do them all at once if you can.
 /mob/living/carbon/update_transform(forcepixel)
-	var/matrix/ntransform = matrix(transform) //aka transform.Copy()
+	var/matrix/ntransform
+	if((lying != lying_prev && rotate_on_lying) || resize != RESIZE_DEFAULT_SIZE)
+		ntransform = matrix(transform) // Snapshot before custom rotation callbacks.
 	var/final_pixel_y = pixel_y
 	var/final_dir = dir
 	var/changed = 0

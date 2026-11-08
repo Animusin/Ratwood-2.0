@@ -1,7 +1,8 @@
 /// Check every configured choice, including factors that were not rolled this round.
 /datum/unit_test/storyteller_influence_counters/Run()
-	for(var/storyteller_type in SSgamemode.storytellers)
-		var/datum/storyteller/storyteller = SSgamemode.storytellers[storyteller_type]
+	for(var/storyteller_type in subtypesof(/datum/storyteller))
+		var/datum/storyteller/storyteller = new storyteller_type()
+		allocated += storyteller
 		for(var/set_name in storyteller.influence_sets)
 			var/list/factors = storyteller.influence_sets[set_name]
 			for(var/statistic in factors)
@@ -10,10 +11,17 @@
 /// A successful Burial Rites cast must contribute to Necra's actual storyteller score.
 /datum/unit_test/necra_grave_influence
 	var/original_grave_count
+	var/datum/storyteller/original_necra
+	var/installed_necra = FALSE
 
 /datum/unit_test/necra_grave_influence/Destroy()
 	if(!isnull(original_grave_count))
 		GLOB.azure_round_stats[STATS_GRAVES_CONSECRATED] = original_grave_count
+	if(installed_necra)
+		if(original_necra)
+			SSgamemode.storytellers[/datum/storyteller/necra] = original_necra
+		else
+			SSgamemode.storytellers -= /datum/storyteller/necra
 	return ..()
 
 /datum/unit_test/necra_grave_influence/Run()
@@ -38,6 +46,12 @@
 	TEST_ASSERT(grave.close(), "The corpse must be interred before performing Burial Rites.")
 	TEST_ASSERT(isturf(caster.loc) && (grave in view(1, caster)), "The caster must be outside and able to see the sealed grave.")
 
+	// The unit test runner skips the gamemode's normal population of storytellers.
+	original_necra = SSgamemode.storytellers[/datum/storyteller/necra]
+	var/datum/storyteller/necra/necra = new
+	allocated += necra
+	SSgamemode.storytellers[/datum/storyteller/necra] = necra
+	installed_necra = TRUE
 	var/influence_before = SSgamemode.calculate_storyteller_influence(/datum/storyteller/necra)
 	usr = caster
 	rite.cast(list(), caster)

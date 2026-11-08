@@ -805,6 +805,20 @@ GLOBAL_LIST_INIT(spells, typesof(/obj/effect/proc_holder/spell)) //needed for th
 /obj/effect/proc_holder/spell/aoe_turf //affects all turfs in view or range (depends)
 	var/inner_radius = -1 //for all your ring spell needs
 
+/// Finish the full view scan before waiting for input: its temporary list also contains unrelated effects.
+/obj/effect/proc_holder/spell/targeted/proc/collect_possible_targets(mob/user)
+	var/list/possible_targets = list()
+	for(var/mob/living/target in view_or_range(range, user, selection_type))
+		if(!include_user && user == target)
+			continue
+		if(!can_target(target))
+			continue
+		possible_targets += target
+	return possible_targets
+
+/obj/effect/proc_holder/spell/targeted/proc/prompt_target(mob/user, list/possible_targets)
+	return input("Choose the target for the spell.", "Targeting") as null|mob in sortNames(possible_targets)
+
 /obj/effect/proc_holder/spell/targeted/choose_targets(mob/user = usr)
 	var/list/targets = list()
 
@@ -818,20 +832,12 @@ GLOBAL_LIST_INIT(spells, typesof(/obj/effect/proc_holder/spell)) //needed for th
 			if(range < 0)
 				targets += user
 			else
-				var/possible_targets = list()
+				var/list/possible_targets = collect_possible_targets(user)
 
-				for(var/mob/living/M in view_or_range(range, user, selection_type))
-					if(!include_user && user == M)
-						continue
-					if(!can_target(M))
-						continue
-					possible_targets += M
-
-				//targets += input("Choose the target for the spell.", "Targeting") as mob in possible_targets
 				//Adds a safety check post-input to make sure those targets are actually in range.
 				var/mob/M
 				if(!random_target)
-					M = input("Choose the target for the spell.", "Targeting") as null|mob in sortNames(possible_targets)
+					M = prompt_target(user, possible_targets)
 				else
 					switch(random_target_priority)
 						if(TARGET_RANDOM)

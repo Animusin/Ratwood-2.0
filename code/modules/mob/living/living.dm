@@ -31,6 +31,10 @@
 	QDEL_NULL(spell_rune)
 	cancel_disconnected_admin_alert()
 	surgeries = null
+	// Wounds hold their owner alive; each Destroy removes itself from simple_wounds.
+	for(var/datum/wound/wound as anything in simple_wounds?.Copy())
+		qdel(wound)
+	simple_wounds = null
 	if(LAZYLEN(status_effects))
 		for(var/datum/status_effect/S as anything in status_effects.Copy())
 			if(S.on_remove_on_mob_delete) //the status effect calls on_remove when its mob is deleted

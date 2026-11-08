@@ -49,29 +49,43 @@
 	cast_count++
 	cast_target = targets[1]
 
-/datum/unit_test/spark_retention_pending_spell/proc/start_prompt(obj/effect/proc_holder/spell/targeted/spell, mob/living/caster)
-	var/obj/effect/particle_effect/sparks/spark = new(caster.loc)
-	var/reference = text_ref(spark)
-	INVOKE_ASYNC(spell, TYPE_PROC_REF(/obj/effect/proc_holder/spell/targeted, choose_targets), caster)
+/datum/unit_test/spark_retention_pending_spell/proc/create_spark(turf/location)
+	var/obj/effect/particle_effect/sparks/spark = new(location)
+	return text_ref(spark)
+
+/datum/unit_test/spark_retention_pending_spell/proc/delete_spark(reference)
+	var/obj/effect/particle_effect/sparks/spark = locate(reference)
+	if(!istype(spark))
+		Fail("The spark must exist before opening the target prompt.")
+		return
 	qdel(spark)
-	return reference
+	return spark.gc_destroyed
+
+/datum/unit_test/spark_retention_pending_spell/proc/is_original_spark(reference, deleted_at)
+	var/obj/effect/particle_effect/sparks/candidate = locate(reference)
+	// BYOND can reuse a collected object's reference for a new object during the wait.
+	return istype(candidate) && candidate.gc_destroyed == deleted_at
 
 /// A spell prompt can stay open indefinitely. Unrelated effects must be physically collected meanwhile.
 /datum/unit_test/spark_retention_pending_spell/Run()
 	var/mob/living/carbon/human/consistent/caster = allocate(/mob/living/carbon/human/consistent)
-	var/obj/effect/proc_holder/spell/targeted/unit_test_spark_retention/spell = allocate(/obj/effect/proc_holder/spell/targeted/unit_test_spark_retention)
-	var/spark_reference = start_prompt(spell, caster)
-	if(!spell.prompt_open || !spell.caster_was_available)
-		Fail("The real target collection must reach a pending prompt with its living caster available.")
-	sleep(10 SECONDS)
-	if(locate(spark_reference))
-		Fail("An unrelated spark is still retained by the pending spell target prompt after deletion and the garbage filter.")
-	spell.release_prompt = TRUE
-	sleep(2)
-	if(!spell.prompt_finished)
-		Fail("Cancelling the pending target prompt must finish normally.")
-	if(spell.cast_count || spell.cancel_count != 1)
-		Fail("Cancelling the target prompt must revert the spell without casting.")
+	for(var/selection_type in list("view", "range"))
+		var/obj/effect/proc_holder/spell/targeted/unit_test_spark_retention/spell = allocate(/obj/effect/proc_holder/spell/targeted/unit_test_spark_retention)
+		spell.selection_type = selection_type
+		var/spark_reference = create_spark(caster.loc)
+		INVOKE_ASYNC(spell, TYPE_PROC_REF(/obj/effect/proc_holder/spell/targeted, choose_targets), caster)
+		var/deleted_at = delete_spark(spark_reference)
+		if(!spell.prompt_open || !spell.caster_was_available)
+			Fail("The real [selection_type] target collection must reach a pending prompt with its living caster available.")
+		sleep(10 SECONDS)
+		if(is_original_spark(spark_reference, deleted_at))
+			Fail("An unrelated spark is still retained by the pending [selection_type] target prompt after deletion and the garbage filter.")
+		spell.release_prompt = TRUE
+		sleep(2)
+		if(!spell.prompt_finished)
+			Fail("Cancelling the pending [selection_type] target prompt must finish normally.")
+		if(spell.cast_count || spell.cancel_count != 1)
+			Fail("Cancelling the [selection_type] target prompt must revert the spell without casting.")
 
 /// Filtering must retain the old eligibility rules and revalidate the chosen mob after the prompt.
 /datum/unit_test/spark_retention_target_selection/Run()
@@ -102,3 +116,18 @@
 	spell.delete_selected_target = TRUE
 	spell.choose_targets(caster)
 	TEST_ASSERT(spell.cast_count == 2 && spell.cancel_count == 2, "A target deleted during the prompt must cancel the cast.")
+
+	spell.delete_selected_target = FALSE
+	spell.selected_target = null
+	spell.rejected_target = null
+	caster.see_invisible = 0
+	rejected.invisibility = 100
+	spell.selection_type = "view"
+	spell.choose_targets(caster)
+	TEST_ASSERT(spell.prompt_option_count == 1 && spell.caster_was_available, "View targeting must omit an invisible mob that the caster cannot see.")
+	spell.selection_type = "range"
+	spell.choose_targets(caster)
+	TEST_ASSERT(spell.prompt_option_count == 2 && spell.caster_was_available, "Range targeting must still include an invisible mob in range.")
+	spell.selection_type = "invalid"
+	spell.choose_targets(caster)
+	TEST_ASSERT(spell.prompt_option_count == 0, "An unknown selection type must keep the old empty target collection behavior.")

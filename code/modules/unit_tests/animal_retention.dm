@@ -49,11 +49,15 @@
 	var/list/references = list()
 	for(var/path in list(/mob/living/simple_animal/hostile/retaliate/rogue/wolf, /mob/living/simple_animal/hostile/retaliate/rogue/bigrat, /mob/living/simple_animal/hostile/retaliate/rogue/spider/rock))
 		references["[path]"] = create_deleted_animal(path)
-	// Leave the ordinary garbage queue and its timeout unchanged; retain only reference strings.
+	// Leave the ordinary garbage queue and its timeout unchanged; retain only scalar identities.
 	sleep(10 SECONDS)
 	for(var/path in references)
-		var/datum/remaining = locate(references[path])
-		TEST_ASSERT_NULL(remaining, "Wounded [path] must be collected by the ordinary garbage queue without a hard delete.")
+		TEST_ASSERT(!is_same_deleted_animal(references[path]), "Wounded [path] must be collected by the ordinary garbage queue without a hard delete.")
+
+/// A collected object's raw reference can be reused; a replacement is not a retained corpse.
+/datum/unit_test/animal_wound_native_gc/proc/is_same_deleted_animal(list/identity)
+	var/datum/candidate = locate(identity["reference"])
+	return candidate && candidate.type == identity["type"] && candidate.gc_destroyed == identity["gc_destroyed"]
 
 /datum/unit_test/animal_wound_native_gc/proc/create_deleted_animal(path)
 	var/mob/living/simple_animal/animal = new path(run_loc_floor_bottom_left)
@@ -62,6 +66,7 @@
 	if(length(animal.simple_wounds) != 2)
 		TEST_FAIL("[path] must receive both wounds before collection is tested.")
 	animal.death()
-	var/reference = text_ref(animal)
+	var/list/identity = list("reference" = text_ref(animal), "type" = animal.type)
 	qdel(animal)
-	return reference
+	identity["gc_destroyed"] = animal.gc_destroyed
+	return identity

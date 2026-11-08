@@ -267,9 +267,21 @@
 	return TRUE
 
 /obj/structure/chair/frankenstein/MiddleClick(mob/user)
+	if(QDELETED(src) || QDELETED(user))
+		return
 	if(!ishuman(user))
 		return ..()
+	return try_reanimate(user)
 
+/obj/structure/chair/frankenstein/proc/confirm_reanimation(mob/living/occupant)
+	return alert(occupant, "They are calling for you. Are you ready?", "Reanimation", "I need to wake up", "Don't let me go") == "I need to wake up"
+
+/obj/structure/chair/frankenstein/proc/reanimation_effects(mob/living/occupant)
+	playsound(src, 'sound/magic/lightning.ogg', 100, TRUE)
+	do_sparks(8, TRUE, occupant)
+	occupant.visible_message(span_danger("Bolts of electricity course through [occupant]!"))
+
+/obj/structure/chair/frankenstein/proc/try_reanimate(mob/living/carbon/human/user)
 	var/mob/living/carbon/human/H = user
 
 	// Check medical skill requirement
@@ -278,7 +290,7 @@
 		return
 
 	// Check if chair is occupied
-	var/mob/living/carbon/occupant
+	var/mob/living/occupant
 	for(var/mob/living/carbon/C in get_turf(src))
 		if(C != user)
 			occupant = C
@@ -305,12 +317,12 @@
 
 	//OV edit
 	if(istype(occupant, /mob/living/simple_animal/hostile/retaliate/rogue/ooze_blob/suffering))
-		playsound(src, 'sound/magic/lightning.ogg', 100, TRUE)
-		do_sparks(8, TRUE, occupant)
-		occupant.visible_message(span_danger("Bolts of electricity course through [occupant]!"))
+		reanimation_effects(occupant)
 		occupant.revive()
 		current_brew -= brew_required
 		charge = 0
+		update_icon()
+		return TRUE // Restoring the ooze deletes this form; do not continue using it below.
 	//OV edit end
 
 	// Soul-binding: a foreign brain revives only here, at a full tank and a master's hand
@@ -332,10 +344,12 @@
 
 	// Prompt ghost
 	to_chat(occupant, span_ghostalert("You sense powerful energies attempting to pull you back to your body!"))
-	var/alert_result = alert(occupant, "They are calling for you. Are you ready?", "Reanimation", "I need to wake up", "Don't let me go")
+	var/accepted = confirm_reanimation(occupant)
 
 	// Verify occupant is still valid
-	if(occupant.stat != DEAD || occupant.loc != get_turf(src) || !occupant.buckled)
+	if(QDELETED(src) || QDELETED(H) || QDELETED(occupant))
+		return
+	if(!H.Adjacent(src) || occupant.stat != DEAD || occupant.loc != get_turf(src) || occupant.buckled != src)
 		to_chat(H, span_warning("The subject is no longer properly buckled to the chair!"))
 		return
 
@@ -352,19 +366,22 @@
 		to_chat(H, span_warning("The chair's reserves dwindled while the spirit deliberated!"))
 		return
 
-	if(alert_result != "I need to wake up")
+	if(!accepted)
 		to_chat(H, span_warning("[occupant] refuses to return."))
 		return
-
-	// Animation and sound
-	playsound(src, 'sound/magic/lightning.ogg', 100, TRUE)
-	do_sparks(8, TRUE, occupant)
-	occupant.visible_message(span_danger("Bolts of electricity course through [occupant]!"))
+	if(!occupant.check_revive(user, bypass_foreign_brain_check = binding_foreign))
+		return
 
 	// Revive process
 	occupant.adjustOxyLoss(-occupant.getOxyLoss())
 	// The flag pierces only the foreign brain gate, the conversion itself keys on state
 	if(occupant.revive(full_heal = FALSE, bypass_foreign_brain_check = binding_foreign))
+		// A failed revival keeps its resources and must not create repeatable spark bursts.
+		// Commit the successful use before effects or callbacks can interrupt completion.
+		current_brew -= (binding_foreign ? max_brew : brew_required)
+		charge = 0
+		update_icon()
+		reanimation_effects(occupant)
 		// Restore consciousness
 		occupant.grab_ghost(force = TRUE)
 		occupant.emote("gasp")
@@ -372,11 +389,7 @@
 		occupant.electrocute_act(100, src, 1)
 		occupant.visible_message(span_notice("[occupant] jerks awake with a gasp!"),
 								span_userdanger("You awaken with agonizing pain as unnatural energy courses through your veins!"))
-		current_brew -= (binding_foreign ? max_brew : brew_required)
-		charge = 0
-		update_icon()
-
 		// Apply debuffs
-		occupant.apply_status_effect(/atom/movable/screen/alert/status_effect/debuff/revived)
+		occupant.apply_status_effect(/datum/status_effect/debuff/revived)
 
 	return TRUE

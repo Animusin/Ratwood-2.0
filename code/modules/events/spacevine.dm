@@ -423,10 +423,22 @@
 			DeleteVines()
 
 /datum/vine_controller/proc/DeleteVines()	//this is kill
-	QDEL_LIST(vines)	//this will also qdel us
+	// Deleting the last vine also destroys this controller and clears its lists.
+	var/list/vines_to_delete = vines.Copy()
+	QDEL_LIST(vines_to_delete)
 
 /datum/vine_controller/Destroy()
 	STOP_PROCESSING(SSobj, src)
+	if(tree?.controller == src)
+		tree.controller = null
+	tree = null
+	// Withered vines remain on the map, but must not retain their stopped controller.
+	for(var/obj/structure/vine/vine as anything in vines)
+		if(vine.master == src)
+			vine.master = null
+	vines = null
+	growth_queue = null
+	vine_mutations_list = null
 	return ..()
 
 /datum/vine_controller/proc/spawn_spacevine_piece(turf/location, obj/structure/vine/parent, list/muts)
@@ -493,14 +505,30 @@
 		growth_queue -= SV
 		for(var/datum/vine_mutation/SM in SV.mutations)
 			SM.process_mutation(SV)
+			if(QDELETED(src))
+				return
+			if(QDELETED(SV))
+				break
+		if(QDELETED(SV))
+			queue_end -= SV
+			continue
 		if(SV.energy < 2) //If tile isn't fully grown
 			if(prob(20))
 				SV.grow()
 		else //If tile is fully grown
 			SV.entangle_mob()
+		if(QDELETED(src))
+			return
+		if(QDELETED(SV))
+			queue_end -= SV
+			continue
 		if(vines.len > 25)
 			break
 		SV.spread()
+		if(QDELETED(src))
+			return
+		if(QDELETED(SV))
+			queue_end -= SV
 		if(i >= length)
 			break
 

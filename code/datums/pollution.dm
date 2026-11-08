@@ -165,16 +165,22 @@
 	var/list/sharing_turfs
 	var/list/already_processed_cache = SSpollution.processed_this_run
 	var/list/potential_activers
+	var/deferred_sharing = FALSE
 	for(var/turf/open/open_turf as anything in my_turf.atmos_adjacent_turfs)
 		if(!isopenturf(open_turf) || QDELING(open_turf))
 			continue
-		if(!already_processed_cache[open_turf])
-			if(can_share_with(open_turf))
-				LAZYSET(sharing_turfs, open_turf, TRUE)
+		if(can_share_with(open_turf))
+			if(already_processed_cache[open_turf.pollution])
+				deferred_sharing = TRUE
 			else
-				LAZYSET(potential_activers, open_turf, TRUE)
+				LAZYSET(sharing_turfs, open_turf, TRUE)
+		else
+			// Higher neighbors may need waking after this cell loses pollution, even if already processed.
+			LAZYSET(potential_activers, open_turf, TRUE)
 	if(!length(sharing_turfs))
-		SET_UNACTIVE_POLLUTION(src)
+		// A visited neighbor can receive pollution next cycle; do not put the source to sleep.
+		if(!deferred_sharing)
+			SET_UNACTIVE_POLLUTION(src)
 		return
 	LAZYSET(sharing_turfs, my_turf, TRUE)
 	//Now we've gotten all the turfs that should share pollution. Gather their total pollutions and split evenly

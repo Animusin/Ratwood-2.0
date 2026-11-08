@@ -126,8 +126,8 @@
 	soundloop.stop()
 	QDEL_NULL(soundloop)
 	if(controller)
-		controller.endvines()
 		controller.tree = null
+		controller.endvines()
 	controller = null
 	. = ..()
 

@@ -20,6 +20,8 @@
 	var/last_aggro_loss = null
 	var/wander = TRUE
 	var/ai_when_client = FALSE
+	/// Preserve custom base-turn behavior that needs to run without nearby clients.
+	var/ai_process_while_sleeping = FALSE
 	var/next_idle = 0
 	var/next_seek = 0
 	var/next_passive_detect = 0
@@ -97,6 +99,13 @@
 	return FALSE
 
 /mob/living/carbon/human/proc/process_ai()
+	// Keep sleepers registered so direct commands and state changes wake them on the next turn.
+	// Custom process_ai overrides still run; only the idle base behavior is skipped.
+	if(mode == NPC_AI_SLEEP && !ai_process_while_sleeping && !client && stat == CONSCIOUS && health > 0 && \
+		!target && !pathfinding_target && !length(myPath) && !is_currently_pathing && !pickupTarget && \
+		!doing && !resisting && !pickpocketing && !on_fire && !buckled && \
+		(mobility_flags & MOBILITY_STAND) && (mobility_flags & MOBILITY_FLAGS_INTERACTION) && !restrained(ignore_grab = FALSE))
+		return FALSE
 	if(IsDeadOrIncap())
 		walk_to(src,0)
 		return stat == DEAD // only stop processing if we're dead-dead
@@ -131,7 +140,7 @@
 	// Special case: Taunt people hiding in trees directly above us.
 	var/turf/my_turf = get_turf(src)
 	var/turf/their_turf = get_turf(target)
-	if(!IsDeadOrIncap() && !length(myPath) && their_turf && my_turf.z < their_turf.z && my_turf.Distance_cardinal_3d(their_turf, src) == 1 && istransparentturf(their_turf))
+	if(!length(myPath) && my_turf && their_turf && my_turf.z < their_turf.z && my_turf.Distance_cardinal_3d(their_turf, src) == 1 && istransparentturf(their_turf) && !IsDeadOrIncap())
 		// They're directly above us, now are they in a tree?
 		var/obj/structure/flora/newbranch/the_branch = locate() in their_turf
 		var/should_try_taunt = prob(5) // this is a var so that when debugging i can just set it to TRUE

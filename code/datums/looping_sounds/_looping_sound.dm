@@ -87,6 +87,9 @@ GLOBAL_LIST_EMPTY(created_sound_groups)
 	var/channel
 	var/datum/sound_group/sound_group
 	var/starttime // A world.time snapshot of when the loop was started.
+	/// Scheduling metadata owned by SSsoundloopers; no per-repeat timer is needed.
+	var/next_sound_time = 0
+	var/sound_queue_index = 0
 
 /datum/looping_sound/New(_parent, start_immediately=FALSE, _direct=FALSE, _channel = 0)
 /*	if(!mid_sounds)
@@ -142,6 +145,10 @@ GLOBAL_LIST_EMPTY(created_sound_groups)
 /datum/looping_sound/proc/set_mid_sounds(list/new_mid_sounds)
 	mid_sounds = canonize_sounds(new_mid_sounds)
 	cursound = null
+
+/datum/looping_sound/proc/set_mid_length(new_length)
+	mid_length = new_length
+	SSsoundloopers.schedule_sound(src)
 
 /datum/looping_sound/Destroy()
 	stop()
@@ -202,6 +209,7 @@ GLOBAL_LIST_EMPTY(created_sound_groups)
 		return
 
 	starttime = world.time
+	SSsoundloopers.schedule_sound(src)
 
 	if(direct)
 		if(ismob(parent))
@@ -258,13 +266,16 @@ GLOBAL_LIST_EMPTY(created_sound_groups)
 		. = pickweight(.)
 
 /datum/looping_sound/proc/on_start()
+	if(timerid)
+		deltimer(timerid)
+		timerid = null
 	var/start_wait = 0
 	if(start_sound) //does ANYTHING even use start_sound
 		play(start_sound)
 		start_wait = start_length
 	if(persistent_loop)
 		attach_loop_to_all_clients()
-	addtimer(CALLBACK(src, PROC_REF(begin_loop)), start_wait, TIMER_CLIENT_TIME)
+	timerid = addtimer(CALLBACK(src, PROC_REF(begin_loop)), start_wait, TIMER_CLIENT_TIME | TIMER_STOPPABLE)
 	if(persistent_loop)
 		GLOB.persistent_sound_loops |= src
 
@@ -285,12 +296,18 @@ GLOBAL_LIST_EMPTY(created_sound_groups)
 		M.playsound_local(null, soundfile, 0, vary, frequency, falloff, channel, FALSE, null, src) 
 
 /datum/looping_sound/proc/begin_loop()
+	timerid = null
+	if(stopped || QDELETED(src))
+		return
 	sound_loop()
-	START_PROCESSING(SSsoundloopers, src)
+	SSsoundloopers.register_sound(src)
 
 /datum/looping_sound/proc/on_stop()
 //	play(end_sound)
-	STOP_PROCESSING(SSsoundloopers, src)
+	if(timerid)
+		deltimer(timerid)
+		timerid = null
+	SSsoundloopers.unregister_sound(src)
 	if(persistent_loop)
 		GLOB.persistent_sound_loops -= src
 	if(!direct)
@@ -321,3 +338,11 @@ GLOBAL_LIST_EMPTY(created_sound_groups)
 /datum/looping_sound/proc/handle_parent_del(datum/source)
 	SIGNAL_HANDLER
 	set_parent(null)
+
+/// Keep moving sources and late listeners audible independently of the next playback deadline.
+/datum/looping_sound/proc/refresh_listeners()
+	var/turf/parent_turf = get_turf(parent)
+	if(!parent_turf)
+		return
+	for(var/mob/listener in get_hearers_in_range(world.view + extra_range, parent_turf, SPATIAL_GRID_CONTENTS_TYPE_CLIENTS))
+		listener.client?.update_persistent_sound_loop(src)

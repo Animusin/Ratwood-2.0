@@ -5,56 +5,124 @@ SUBSYSTEM_DEF(soundloopers)
 	flags = SS_NO_INIT
 	priority = FIRE_PRIORITY_DEFAULT
 	var/list/processing = list()
+	/// Existing sound datums form an indexed min-heap; repeating a sound allocates no timer or queue node.
+	var/list/sound_queue = list()
+	/// Persistent loops and clients awaiting the half-second audibility pass.
 	var/list/currentrun = list()
-	var/client_ticker = 0
+	var/list/clientrun = list()
+	var/next_client_update = 0
+	var/sound_deadline = 0
+	var/processing_due_sounds = FALSE
 
 /datum/controller/subsystem/soundloopers/fire(resumed = 0)
-	MC_SPLIT_TICK_INIT(2)
-	MC_SPLIT_TICK
-	if (!resumed || !currentrun.len)
-		src.currentrun = processing.Copy()
+	if(!resumed)
+		// A loop gets at most one attempt per fire, including fires resumed on later ticks.
+		sound_deadline = world.time
+		processing_due_sounds = TRUE
+		if(world.time >= next_client_update)
+			next_client_update = world.time + 0.5 SECONDS
+			currentrun = GLOB.persistent_sound_loops.Copy()
+			clientrun = GLOB.clients.Copy()
 
-	//cache for sanic speed (lists are references anyways)
-	var/list/current = src.currentrun
-	var/check_clients = FALSE
-	client_ticker++
-
-	if(client_ticker>=5) //this is dumb but necessary- clients update every half tick but sounds themselves need to be updated regularly
-		client_ticker = 0
-		check_clients = TRUE
-	else
-		check_clients = FALSE
-
-	while (current.len)
-		var/datum/looping_sound/thing = current[current.len]
-		current.len--
-		if (!thing || !istype(thing) || QDELETED(thing))
-			processing -= thing
-			if (MC_TICK_CHECK)
+	if(processing_due_sounds)
+		while(length(sound_queue))
+			var/datum/looping_sound/thing = sound_queue[1]
+			if(thing.next_sound_time >= sound_deadline)
 				break
-			continue
+			remove_queued_sound(thing)
+			if(QDELETED(thing) || thing.stopped)
+				unregister_sound(thing)
+			else
+				thing.sound_loop()
+				// Failed chance rolls retry next fire, as before, without replaying in this fire.
+				if(!QDELETED(thing) && !thing.stopped)
+					schedule_sound(thing, TRUE)
+			if(MC_TICK_CHECK)
+				return
+		processing_due_sounds = FALSE
 
-		if(world.time > thing.starttime + thing.mid_length) //Make sure we don't try to trigger it while a loop is playing
-			if(thing.sound_loop()) //returns 1 if it fails for some reason
-				continue
+	while(length(currentrun))
+		var/datum/looping_sound/thing = currentrun[currentrun.len]
+		currentrun.len--
+		if(!QDELETED(thing) && !thing.stopped && thing.persistent_loop && processing[thing])
+			thing.refresh_listeners()
+		if(MC_TICK_CHECK)
+			return
 
-		if(check_clients && thing.persistent_loop)
-			var/turf/parent_turf = get_turf(thing.parent)
-			for(var/mob/M in get_hearers_in_range(world.view + thing.extra_range, parent_turf, SPATIAL_GRID_CONTENTS_TYPE_CLIENTS))
-				M.client?.update_persistent_sound_loop(thing)
+	while(length(clientrun))
+		var/client/listener = clientrun[clientrun.len]
+		clientrun.len--
+		if(listener?.mob)
+			listener.update_sounds()
+		if(MC_TICK_CHECK)
+			return
 
-		if (MC_TICK_CHECK)
+/datum/controller/subsystem/soundloopers/proc/register_sound(datum/looping_sound/thing)
+	if(QDELETED(thing) || thing.stopped)
+		return
+	processing[thing] = TRUE
+	schedule_sound(thing, TRUE)
+
+/datum/controller/subsystem/soundloopers/proc/unregister_sound(datum/looping_sound/thing)
+	remove_queued_sound(thing)
+	processing -= thing
+	currentrun -= thing
+
+/// Reposition a running loop after playback or a change to its interval.
+/datum/controller/subsystem/soundloopers/proc/schedule_sound(datum/looping_sound/thing, after_attempt = FALSE)
+	if(!processing[thing] || QDELETED(thing) || thing.stopped)
+		return
+	thing.next_sound_time = thing.starttime + thing.mid_length
+	if(after_attempt)
+		thing.next_sound_time = max(world.time, thing.next_sound_time)
+	if(!thing.sound_queue_index)
+		sound_queue += thing
+		thing.sound_queue_index = sound_queue.len
+	repair_sound_queue(thing.sound_queue_index)
+
+/datum/controller/subsystem/soundloopers/proc/remove_queued_sound(datum/looping_sound/thing)
+	var/index = thing.sound_queue_index
+	if(!index)
+		return
+	thing.sound_queue_index = 0
+	var/last_index = sound_queue.len
+	if(index == last_index)
+		sound_queue.len--
+		return
+	var/datum/looping_sound/replacement = sound_queue[last_index]
+	sound_queue.len--
+	sound_queue[index] = replacement
+	replacement.sound_queue_index = index
+	repair_sound_queue(index)
+
+/datum/controller/subsystem/soundloopers/proc/swap_sounds(first_index, second_index)
+	var/datum/looping_sound/first = sound_queue[first_index]
+	var/datum/looping_sound/second = sound_queue[second_index]
+	sound_queue.Swap(first_index, second_index)
+	first.sound_queue_index = second_index
+	second.sound_queue_index = first_index
+
+/datum/controller/subsystem/soundloopers/proc/repair_sound_queue(index)
+	var/datum/looping_sound/thing = sound_queue[index]
+	while(index > 1)
+		var/parent_index = index >> 1
+		var/datum/looping_sound/parent_sound = sound_queue[parent_index]
+		if(parent_sound.next_sound_time <= thing.next_sound_time)
 			break
-
-	MC_SPLIT_TICK
-
-	if(check_clients)
-		for(var/client/C in GLOB.clients)
-			if(!C.mob)
-				continue // no lobby
-			C.update_sounds()
-			if (MC_TICK_CHECK)
-				break
+		swap_sounds(index, parent_index)
+		index = parent_index
+	while(index * 2 <= sound_queue.len)
+		var/child_index = index * 2
+		var/datum/looping_sound/child = sound_queue[child_index]
+		if(child_index < sound_queue.len)
+			var/datum/looping_sound/right_child = sound_queue[child_index + 1]
+			if(right_child.next_sound_time < child.next_sound_time)
+				child_index++
+				child = right_child
+		if(thing.next_sound_time <= child.next_sound_time)
+			break
+		swap_sounds(index, child_index)
+		index = child_index
 
 /client/proc/update_persistent_sound_loop(datum/looping_sound/PS)
 	if(PS in played_loops) //Make sure it's not already on the list

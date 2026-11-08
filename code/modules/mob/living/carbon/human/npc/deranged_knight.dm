@@ -13,6 +13,8 @@ GLOBAL_LIST_INIT(hedgeknight_aggro, world.file2list("strings/rt/hedgeknightaggro
 	aggressive = TRUE
 	rude = TRUE
 	mode = NPC_AI_IDLE
+	// Idle chatter can reach listeners outside the nearby-client grid (including other z-levels).
+	ai_process_while_sleeping = TRUE
 	faction = list("dundead")
 	ambushable = FALSE
 	dodgetime = 3 SECONDS

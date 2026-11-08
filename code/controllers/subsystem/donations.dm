@@ -246,59 +246,58 @@ SUBSYSTEM_DEF(donations)
 /datum/controller/subsystem/donations/proc/update_client(client/player)
 	if(!player?.ckey)
 		return FALSE
-	var/player_ckey = player.ckey
-	var/player_exists = ensure_player(player_ckey)
+	var/list/info = get_donation_info(player.ckey)
 	if(!player)
 		return FALSE
-	if(!player_exists)
+	if(!info)
 		player.donation_info_loaded = FALSE
 		return FALSE
 
-	var/list/tier_result = query({"
-		SELECT patron_types.type
-		FROM players
-		LEFT JOIN patron_types ON players.patron_type = patron_types.id
-		WHERE players.ckey = :ckey
-		LIMIT 1
-	"}, list("ckey" = player_ckey))
-
-	if(!player)
-		return FALSE
-	if(!tier_result)
-		player.donation_info_loaded = FALSE
-		return FALSE
-
-	var/tier = DONATION_TIER_NONE
-	var/list/tier_rows = tier_result?["rows"]
-	if(length(tier_rows))
-		var/list/tier_row = tier_rows[1]
-		if(tier_row[1])
-			tier = LOWER_TEXT(tier_row[1])
-
-	var/list/opyx_result = query({"
-		SELECT COALESCE(SUM(points_transactions.`change`), 0)
-		FROM points_transactions
-		JOIN players ON players.id = points_transactions.player
-		WHERE players.ckey = :ckey
-	"}, list("ckey" = player_ckey))
-
-	if(!opyx_result || !player)
-		if(player)
-			player.donation_info_loaded = FALSE
-		return FALSE
-
-	var/opyxes = 0
-	var/list/opyx_rows = opyx_result?["rows"]
-	if(length(opyx_rows))
-		var/list/opyx_row = opyx_rows[1]
-		opyxes = text2num(opyx_row[1])
-
+	var/tier = info["tier"]
+	var/opyxes = info["opyxes"]
 	player.donation_tier = tier
 	player.opyxes = opyxes
 	player.is_donator = (tier != DONATION_TIER_NONE) || (opyxes > 0)
 	player.donation_info_loaded = TRUE
 	player.patreonlevel = -1
 	return TRUE
+
+/// Read the current account in one query; only create a player record when it is actually missing.
+/datum/controller/subsystem/donations/proc/get_donation_info(player_ckey)
+	if(!player_ckey)
+		return null
+	var/sql = {"
+		SELECT patron_types.type, (
+			SELECT COALESCE(SUM(points_transactions.`change`), 0)
+			FROM points_transactions
+			WHERE points_transactions.player = players.id
+		)
+		FROM players
+		LEFT JOIN patron_types ON players.patron_type = patron_types.id
+		WHERE players.ckey = :ckey
+		LIMIT 1
+	"}
+	var/list/arguments = list("ckey" = player_ckey)
+	var/list/result = query(sql, arguments)
+	if(!result)
+		return null
+	var/list/rows = result["rows"]
+	if(!length(rows))
+		if(!ensure_player(player_ckey))
+			return null
+		// Re-read after INSERT IGNORE: another connection may have created or linked the account.
+		result = query(sql, arguments)
+		rows = result?["rows"]
+		if(!length(rows))
+			return null
+	var/list/row = rows[1]
+	if(!islist(row) || length(row) < 2)
+		return null
+	var/tier = row[1] ? LOWER_TEXT(row[1]) : DONATION_TIER_NONE
+	var/opyxes = isnum(row[2]) ? row[2] : text2num(row[2])
+	if(!isnum(opyxes))
+		return null
+	return list("tier" = tier, "opyxes" = opyxes)
 
 /datum/controller/subsystem/donations/proc/get_tier_for_ckey(ckey)
 	if(!ckey)

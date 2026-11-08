@@ -267,10 +267,13 @@ SUBSYSTEM_DEF(garbage)
 	del(to_delete)
 
 	tick = (TICK_USAGE-tick+((world.time-ticktime)/world.tick_lag*100))
-
+	var/delete_time_ms = TICK_DELTA_TO_MS(tick)
 
 	trash.hard_deletes++
-	trash.hard_delete_time += TICK_DELTA_TO_MS(tick)
+	trash.hard_delete_time += delete_time_ms
+	// Short stalls matter too; keep them in qdel.log without flooding admin chat.
+	if(delete_time_ms >= 100)
+		log_qdel("Slow hard delete: [type] ([refID]), [round(delete_time_ms, 0.1)] ms; world.time=[ticktime].")
 
 
 	if (tick > highest_del_tickusage)

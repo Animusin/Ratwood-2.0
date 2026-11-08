@@ -603,6 +603,10 @@
 			rogue_sneaking = FALSE
 		return
 
+	// Ordinary movement has no visibility transition to calculate.
+	if(!reset && !rogue_sneaking && !sneak_faded && m_intent != MOVE_INTENT_SNEAK)
+		return
+
 	var/turf/T = get_turf(src)
 
 	if(!T) //if the turf they're headed to is invalid
@@ -612,10 +616,11 @@
 
 	var/used_time = 50
 	var/light_threshold = rogue_sneaking_light_threshhold
-	var/held_invis_value = (SEE_INVISIBLE_LIVING + (get_skill_level(/datum/skill/misc/sneaking) * 0.55))+1 //At 5 sneak, you get a total of ~24 invis - 3.75 bonus
+	var/sneaking_skill = get_skill_level(/datum/skill/misc/sneaking)
+	var/held_invis_value = (SEE_INVISIBLE_LIVING + (sneaking_skill * 0.55))+1 //At 5 sneak, you get a total of ~24 invis - 3.75 bonus
 	if(mind)
-		used_time = max(used_time - (get_skill_level(/datum/skill/misc/sneaking) * 8), 0)
-		light_threshold += (get_skill_level(/datum/skill/misc/sneaking) / 20)
+		used_time = max(used_time - (sneaking_skill * 8), 0)
+		light_threshold += (sneaking_skill / 20)
 
 	if(!reset && m_intent != MOVE_INTENT_SNEAK && sneak_faded) // prevents funny bugs with getting stuck transparent
 		if(!wallpressed)

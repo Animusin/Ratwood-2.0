@@ -2253,6 +2253,8 @@
 	var/offset = -round((1 - ratio) * meter_bar_fill_height)
 	var/list/existing = filter_data?["meter_fill"]
 	if(existing)
+		if(existing["y"] == offset)
+			return
 		var/time = meter_bar_fill_anim_time + round(abs(offset - existing["y"]) / meter_bar_fill_height * meter_bar_fill_anim_scale)
 		transition_filter("meter_fill", list("y" = offset), time, SINE_EASING)
 	else

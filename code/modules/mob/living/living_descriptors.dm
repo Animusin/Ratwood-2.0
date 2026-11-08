@@ -20,7 +20,8 @@
 /mob/living/proc/clear_mob_descriptors()
 	mob_descriptors = null
 
-/mob/living/proc/get_mob_descriptors(is_obscured, mob/watcher)
+/// If supplied, slots limits which descriptors need eligibility and visibility checks.
+/mob/living/proc/get_mob_descriptors(is_obscured, mob/watcher, list/slots)
 	var/list/descriptors = list()
 	if(mob_descriptors)
 		descriptors += mob_descriptors
@@ -30,6 +31,8 @@
 	var/list/passed_descriptors = list()
 	for(var/desc_type in descriptors)
 		var/datum/mob_descriptor/descriptor = MOB_DESCRIPTOR(desc_type)
+		if(slots && !(descriptor.slot in slots))
+			continue
 		if(is_obscured && !descriptor.show_obscured)
 			continue
 		if(!descriptor.can_describe(src))

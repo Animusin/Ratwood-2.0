@@ -221,10 +221,7 @@
 	if(istype(onturf, /turf/open/water/bath))
 		if(!wear_armor && !wear_shirt && !wear_pants)
 			add_stress(/datum/stressevent/bathwater)
-
-/mob/living/carbon/human/handle_inwater(turf/onturf, extinguish = TRUE, force_drown = FALSE)
-	. = ..()
-	if(istype(onturf, /turf/open/water/sewer) && !HAS_TRAIT(src, TRAIT_NOSTINK))
+	else if(istype(onturf, /turf/open/water/sewer) && !HAS_TRAIT(src, TRAIT_NOSTINK))
 		if(!HAS_TRAIT(src, TRAIT_HOLDBREATH))
 			add_stress(/datum/stressevent/sewertouched)
 

@@ -41,6 +41,7 @@ GLOBAL_LIST_INIT(stress_messages, world.file2list("strings/rt/stress_messages.tx
 		if(!event.can_apply(src))
 			return
 		stressors[event_type] = event
+		event.on_apply(src)
 	event.time_added = world.time
 	if(event.stacks >= event.max_stacks)
 		return event

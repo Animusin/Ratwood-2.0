@@ -357,6 +357,12 @@
 		if((HAS_TRAIT(user, TRAIT_INQUISITION) || HAS_TRAIT(user, TRAIT_PURITAN)))
 			var/obj/item/paper/inqslip/confession/I = P
 			if(I.signee && I.signed)
+				if(QDELETED(I.signee) || QDELETED(I.signee.mind))
+					to_chat(user, span_warning("This confession no longer identifies its signee."))
+					return
+				if(I.paired && (QDELETED(I.paired.subject) || QDELETED(I.paired.subject.mind)))
+					to_chat(user, span_warning("The INDEXER no longer identifies its subject."))
+					return
 				var/no
 				var/accused
 				var/stopfarming
@@ -483,6 +489,10 @@
 		var/obj/item/paper/inqslip/accusation/I = P
 		if(I.paired)
 			if(I.signee && I.paired.full && I.paired.subject)
+				// Rewards are deduplicated on the subject's mind, which can be absent or transferred away.
+				if(QDELETED(I.paired.subject) || QDELETED(I.paired.subject.mind))
+					to_chat(user, span_warning("The INDEXER no longer identifies its subject."))
+					return
 				var/no
 				var/specialno
 				var/stopfarming

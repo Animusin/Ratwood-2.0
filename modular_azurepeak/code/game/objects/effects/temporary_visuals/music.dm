@@ -95,22 +95,40 @@
 	alert_type = null
 	tick_interval = 10
 	duration = -1
-	var/mob/living/carbon/human/harpy
+	/// The original instrument may no longer be in the singer's organ slot when singing ends.
+	var/datum/weakref/vocals_ref
+
+/datum/status_effect/buff/harpy_sing/on_creation(mob/living/new_owner)
+	if(ishuman(new_owner))
+		var/mob/living/carbon/human/harpy = new_owner
+		var/obj/item/organ/vocal_cords/harpy/vocal_cords = harpy.getorganslot(ORGAN_SLOT_VOICE)
+		if(istype(vocal_cords) && !QDELETED(vocal_cords.vocals))
+			vocals_ref = WEAKREF(vocal_cords.vocals)
+	return ..()
 
 /datum/status_effect/buff/harpy_sing/tick()
 	. = ..()
-	harpy = owner
-	if(harpy.has_status_effect(STATUS_EFFECT_UNCONSCIOUS))
-		harpy.remove_status_effect(/datum/status_effect/buff/harpy_sing)
-	if(harpy.has_status_effect(STATUS_EFFECT_SLEEPING))
-		harpy.remove_status_effect(/datum/status_effect/buff/harpy_sing)
+	if(!ishuman(owner))
+		qdel(src)
+		return
+	var/mob/living/carbon/human/harpy = owner
+	var/obj/item/organ/vocal_cords/harpy/vocal_cords = harpy.getorganslot(ORGAN_SLOT_VOICE)
+	var/obj/item/rogue/instrument/vocals/harpy_vocals/vocals = vocals_ref?.resolve()
+	if(!istype(vocal_cords) || QDELETED(vocals) || vocal_cords.vocals != vocals || harpy.has_status_effect(STATUS_EFFECT_UNCONSCIOUS) || harpy.has_status_effect(STATUS_EFFECT_SLEEPING))
+		qdel(src)
 
 /datum/status_effect/buff/harpy_sing/on_remove()
 	. = ..()
-	harpy = owner
-	if(harpy.has_status_effect(/datum/status_effect/buff/playing_music))
-		var/obj/item/organ/vocal_cords/harpy/vocal_cords = harpy.getorganslot(ORGAN_SLOT_VOICE)
-		vocal_cords.vocals.attack_self(harpy)
+	var/obj/item/rogue/instrument/vocals/harpy_vocals/vocals = vocals_ref?.resolve()
+	vocals_ref = null
+	if(!ishuman(owner))
+		return
+	var/mob/living/carbon/human/harpy = owner
+	if(!QDELETED(vocals) && vocals.playing)
+		vocals.attack_self(harpy)
+	else
+		// A removed or destroyed organ must not leave its music effect running.
+		harpy.remove_status_effect(/datum/status_effect/buff/playing_music)
 
 
 /obj/effect/temp_visual/songs

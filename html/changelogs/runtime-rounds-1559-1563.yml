@@ -1,0 +1,7 @@
+author: "Animusin"
+delete-after: true
+changes:
+  - bugfix: "HERMES now preserves Inquisition documents and rejects unidentifiable blood samples or signees without errors or untracked rewards."
+  - bugfix: "Harpy songs stop safely if the original vocal organ is removed, replaced, or destroyed."
+  - bugfix: "Ghosts can examine brain squid safely; human reactions and Abyssor worshippers' benefits are preserved."
+  - bugfix: "Statless effects such as bad meals no longer interrupt spell windups when calculating unbuffed speed."

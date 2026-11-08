@@ -95,6 +95,7 @@
 #include "component_tests.dm"
 #include "create_and_destroy.dm"
 #include "focus_only_tests.dm"
+#include "fulmenor_chair.dm"
 #include "ghost_protection.dm"
 #include "harddels.dm"
 #include "market_daily_recovery.dm"

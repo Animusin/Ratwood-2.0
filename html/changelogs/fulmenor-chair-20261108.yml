@@ -1,0 +1,5 @@
+author: "Animusin"
+delete-after: true
+changes:
+  - bugfix: "Failed Fulmenor chair revivals no longer emit repeatable spark bursts. Successful revivals correctly apply their recovery debuff."
+  - bugfix: "Fulmenor chairs reject stale consent after the patient or operator moves, and clear their charged appearance after restoring an ooze."

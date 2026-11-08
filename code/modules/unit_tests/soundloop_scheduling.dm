@@ -262,19 +262,24 @@
 	TEST_ASSERT_EQUAL(first.attempts, 1, "Moving a persistent source must not replay its long sound.")
 
 /// Deletion must remove both playback and paused listener references, allowing the loop to collect.
-/datum/unit_test/soundloop_deleted_cleanup/Run()
-	var/datum/soundloop_test_context/context = allocate(/datum/soundloop_test_context)
+/datum/unit_test/soundloop_deleted_cleanup/proc/create_queued_loop()
 	var/datum/looping_sound/scheduling_probe/loop = new(run_loc_floor_bottom_left)
 	loop.persistent_loop = TRUE
 	loop.start_without_timer()
 	SSsoundloopers.currentrun += loop
+	return loop
+
+/datum/unit_test/soundloop_deleted_cleanup/Run()
+	var/datum/soundloop_test_context/context = allocate(/datum/soundloop_test_context)
+	// Finish the setup frame first so BYOND's expression temporaries cannot inflate the reference count.
+	var/datum/looping_sound/scheduling_probe/loop = create_queued_loop()
 	qdel(loop)
 	var/remaining_refs = refcount(loop)
 	var/queues_clear = !length(SSsoundloopers.sound_queue) && !length(SSsoundloopers.processing) && !length(SSsoundloopers.currentrun)
 	var/global_clear = !(loop in GLOB.persistent_sound_loops)
 	qdel(context)
 	TEST_ASSERT(queues_clear && global_clear, "Deleted loops must leave all scheduling and listener collections.")
-	TEST_ASSERT(remaining_refs <= baseline_refs(), "A deleted loop must not be retained by the heap or paused snapshot.")
+	TEST_ASSERT(remaining_refs <= baseline_refs(), "A deleted loop must not be retained by the heap or paused snapshot: [remaining_refs] references remain (baseline [baseline_refs()]).")
 
 /// Dynamic intervals preserve the strict deadline and can move a loop earlier or later without duplicate entries.
 /datum/unit_test/soundloop_dynamic_interval/Run()

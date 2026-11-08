@@ -119,9 +119,11 @@
 	npc.handle_ai()
 	npc.Stun(10 SECONDS, ignore_canstun = TRUE)
 	TEST_ASSERT(npc.IsStun() && (npc.mobility_flags & MOBILITY_STAND), "The regression fixture must be stunned while still standing.")
+	// Applying stun updates mobility and the cone before the scheduled AI turn.
+	var/cone_updates_before_ai = npc.cone_updates
 	SShumannpc.try_process_ai(npc)
 	TEST_ASSERT_EQUAL(npc.incap_checks, 1, "A standing stunned sleeper must reach its incapacitation cleanup.")
-	TEST_ASSERT_EQUAL(npc.cone_updates, 0, "An incapacitated NPC must not continue its active turn.")
+	TEST_ASSERT_EQUAL(npc.cone_updates, cone_updates_before_ai, "An incapacitated NPC must not continue its active turn.")
 	TEST_ASSERT(npc in SShumannpc.processing, "A stunned NPC must remain scheduled for recovery.")
 	npc.SetStun(0, ignore_canstun = TRUE)
 	SShumannpc.try_process_ai(npc)

@@ -31,7 +31,9 @@
 	TEST_ASSERT(HAS_TRAIT(human, TRAIT_BLOODLOSS_IMMUNE), "The area must grant blood-loss immunity before the Life tick.")
 	human.Life(1, 1)
 	TEST_ASSERT_EQUAL(human.stat, CONSCIOUS, "Blood-loss immunity must let a Revenant wake even when oxygen damage was already zero.")
-	TEST_ASSERT(human.mobility_flags & MOBILITY_STAND, "Waking from blood loss must also restore the ability to stand.")
+	// Collapsing sets resting=TRUE; waking restores control but does not stand up automatically.
+	TEST_ASSERT(human.mobility_flags & MOBILITY_MOVE, "Waking from blood loss must restore movement control.")
+	TEST_ASSERT(human.mobility_flags & MOBILITY_CANSTAND, "Waking from blood loss must restore the ability to choose to stand up.")
 	TEST_ASSERT_EQUAL(human.getOxyLoss(), 0, "The wakeup must not require unrelated oxygen damage.")
 
 /// Astrata's Favor changes damage-slowdown immunity without changing health.

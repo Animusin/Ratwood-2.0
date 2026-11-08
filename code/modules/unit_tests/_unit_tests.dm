@@ -126,6 +126,7 @@
 #include "respawn_burial.dm"
 #include "respawn_bypass.dm"
 #include "respawn_lifecycle.dm"
+#include "round_statistics.dm"
 #include "rural_income.dm"
 #include "runtime_combat.dm"
 #include "runtime_interfaces.dm"

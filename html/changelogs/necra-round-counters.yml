@@ -1,0 +1,5 @@
+author: "Animusin"
+delete-after: true
+changes:
+  - bugfix: "Consecrated graves now contribute influence to Necra."
+  - bugfix: "Restored round counters for baths, skeletons killed, Humen deaths, earned Marques, and recovered spoils."

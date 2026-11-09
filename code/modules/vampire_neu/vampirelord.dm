@@ -6,7 +6,7 @@
 	generation = GENERATION_METHUSELAH
 	show_in_antagpanel = TRUE
 	antag_hud_type = ANTAG_HUD_VAMPIRE
-	antag_hud_name = "vamplord"
+	antag_hud_name = "vamp_lord_ancient_hud"
 	confess_lines = list(
 		"I AM ANCIENT!",
 		"I AM THE LAND!",
@@ -31,6 +31,10 @@
 		/datum/skill/misc/reading = 5,
 		/datum/skill/misc/climbing = 5,
 	)
+
+// The ancient lord keeps its own icon whether or not it leads a clan
+/datum/antagonist/vampire/lord/get_hud_icon()
+	return "vamp_lord_ancient_hud"
 
 /datum/antagonist/vampire/lord/on_gain()
 	. = ..()

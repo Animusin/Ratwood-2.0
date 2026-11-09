@@ -33,13 +33,13 @@
 	return ensure_skills().mentor
 
 /mob/proc/set_mentor(mob/living/carbon/human/M)
-	ensure_skills().mentor = M
+	ensure_skills().set_mentor(M)
 
 /mob/proc/get_apprentice()
 	return ensure_skills().my_apprentice
 
 /mob/proc/set_apprentice(mob/living/carbon/human/A)
-	ensure_skills().my_apprentice = A
+	ensure_skills().set_apprentice(A)
 
 /datum/skill_holder
 	///our current host
@@ -64,7 +64,40 @@
 
 /datum/skill_holder/Destroy()
 	current = null
+	set_mentor(null)
+	set_apprentice(null)
 	. = ..()
+
+/// Apprenticeships survive death and revival, but must not pin a body after its destruction.
+/datum/skill_holder/proc/set_mentor(mob/living/carbon/human/new_mentor)
+	if(QDELETED(new_mentor))
+		new_mentor = null
+	if(mentor == new_mentor)
+		return
+	if(mentor && mentor != my_apprentice)
+		UnregisterSignal(mentor, COMSIG_QDELETING)
+	mentor = new_mentor
+	if(mentor && mentor != my_apprentice)
+		RegisterSignal(mentor, COMSIG_QDELETING, PROC_REF(on_apprenticeship_body_deleted))
+
+/datum/skill_holder/proc/set_apprentice(mob/living/carbon/human/new_apprentice)
+	if(QDELETED(new_apprentice))
+		new_apprentice = null
+	if(my_apprentice == new_apprentice)
+		return
+	if(my_apprentice && my_apprentice != mentor)
+		UnregisterSignal(my_apprentice, COMSIG_QDELETING)
+	my_apprentice = new_apprentice
+	if(my_apprentice && my_apprentice != mentor)
+		RegisterSignal(my_apprentice, COMSIG_QDELETING, PROC_REF(on_apprenticeship_body_deleted))
+
+/datum/skill_holder/proc/on_apprenticeship_body_deleted(mob/deleted_body)
+	SIGNAL_HANDLER
+	if(mentor == deleted_body)
+		mentor = null
+	if(my_apprentice == deleted_body)
+		my_apprentice = null
+	UnregisterSignal(deleted_body, COMSIG_QDELETING)
 
 /datum/skill_holder/proc/set_current(mob/incoming)
 	if(current && current != incoming)

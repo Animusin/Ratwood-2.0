@@ -117,7 +117,7 @@
 		else
 			lordscommandment = new /datum/objective/assassinate
 
-		lordscommandment.target = poor_sod.mind
+		lordscommandment.set_target_mind(poor_sod.mind)
 		lordscommandment.owner = owner
 		lordscommandment.update_explanation_text()
 		objectives += lordscommandment

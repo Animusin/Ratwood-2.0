@@ -796,9 +796,9 @@
 
 	var/mob/living/simple_animal/hostile/retaliate/rogue/fae/dryad/lesser/D = new(spawn_turf, H)
 	conjured_dryad = D
-	D.summoner_spell = src
+	D.summoner_spell_ref = WEAKREF(src)
 	// Immediately follow the summoner on spawn.
-	D.follow_target = H
+	D.follow_target_ref = WEAKREF(H)
 	// Register cleanup if the dryad dies on its own
 	RegisterSignal(D, COMSIG_QDELETING, PROC_REF(on_dryad_deleted))
 	to_chat(H, span_green("A lesser dryad emerges from the roots, answering my call."))
@@ -930,7 +930,7 @@
 /// Uses the standard minion_order cast+click targeting (same as primordials):
 /// cast and click yourself to follow, a tile to guard there, or an enemy to attack.
 /// Overrides process_minions() to drive the dryad's old-style simple_animal AI vars
-/// (follow_target / guard_turf / enemies / target) instead of ai_controller blackboard keys.
+/// (follow_target_ref / guard_turf / enemies / target) instead of ai_controller blackboard keys.
 /obj/effect/proc_holder/spell/invoked/minion_order/lesser_dryad
 	name = "Order Dryad"
 	desc = "Command your lesser dryad. Cast and click yourself to follow, a tile to guard there, or an enemy to attack."
@@ -950,7 +950,7 @@
 		return
 	switch(order_type)
 		if("goto")
-			D.follow_target = null
+			D.follow_target_ref = null
 			D.clear_enemies()
 			D.target = null
 			D.LoseTarget()
@@ -966,7 +966,7 @@
 			D.LoseTarget()
 			D.lastattacker_weakref = null
 			D.ignore_owner_defense_until = world.time + 2 SECONDS
-			D.follow_target = caster
+			D.follow_target_ref = WEAKREF(caster)
 			D.guard_turf = null
 			D.aggressive = FALSE
 			D.toggle_ai(AI_IDLE)
@@ -975,7 +975,7 @@
 				D.faction += "neutral"
 			to_chat(caster, span_notice("[D.name] will follow me."))
 		if("attack")
-			D.follow_target = null
+			D.follow_target_ref = null
 			D.guard_turf = null
 			walk(D, 0)
 			D.clear_enemies()
@@ -990,12 +990,12 @@
 		if("toggle_stance")
 			// Clicking the dryad itself — toggle between follow and stand-ground.
 			if("neutral" in D.faction)
-				D.follow_target = null
+				D.follow_target_ref = null
 				D.guard_turf = get_turf(D)
 				D.faction -= "neutral"
 				to_chat(caster, span_notice("[D.name] holds its ground."))
 			else
-				D.follow_target = caster
+				D.follow_target_ref = WEAKREF(caster)
 				D.guard_turf = null
 				D.clear_enemies()
 				D.target = null
@@ -1008,7 +1008,7 @@
 				to_chat(caster, span_notice("[D.name] will follow me."))
 		if("aggressive")
 			// Clicking an ally — send dryad to their tile as a guard position.
-			D.follow_target = null
+			D.follow_target_ref = null
 			D.clear_enemies()
 			D.target = null
 			D.LoseTarget()

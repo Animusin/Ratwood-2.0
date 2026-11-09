@@ -48,8 +48,8 @@
 	var/organ_dna_type = /datum/organ_dna
 	/// What food typepath should be used when eaten
 	var/food_type = /obj/item/reagent_containers/food/snacks/organ
-	/// Original owner of the organ, the one who had it inside them last
-	var/mob/living/carbon/last_owner = null
+	/// Internal-only organs delete when moved after insertion; no former body reference is needed.
+	var/has_been_owned = FALSE
 	/// Whether or not this organ should be regenerated at /datum/job/proc/equip() in _job.dm via /mob/living/carbon/proc/apply_organ_stuff()
 	var/should_regenerate = FALSE
 	/// Branded enslavement mark on this organ
@@ -75,7 +75,7 @@
 			qdel(replaced)
 
 	owner = M
-	last_owner = M
+	has_been_owned = TRUE
 	M.internal_organs |= src
 	M.internal_organs_slot[slot] = src
 	moveToNullspace()
@@ -111,7 +111,7 @@
 //	START_PROCESSING(SSobj, src)
 
 /obj/item/organ/forceMove(atom/destination)
-	if((organ_flags & ORGAN_INTERNAL_ONLY) && last_owner)
+	if((organ_flags & ORGAN_INTERNAL_ONLY) && has_been_owned)
 		qdel(src)
 		return
 	..()
@@ -227,7 +227,6 @@
 		// The special flag is important, because otherwise mobs can die
 		// while undergoing transformation into different mobs.
 		Remove(owner, special=TRUE)
-	last_owner = null
 	STOP_PROCESSING(SSobj, src)
 	return ..()
 

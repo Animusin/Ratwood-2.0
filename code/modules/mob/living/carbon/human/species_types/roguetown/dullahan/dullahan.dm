@@ -259,7 +259,9 @@
 /datum/species/dullahan/proc/on_aheal(datum/source, full_heal, admin_revive)
 	if(!admin_revive)
 		return
-	var/mob/living/carbon/user = my_head.original_owner
+	var/mob/living/carbon/user = my_head?.original_owner
+	if(QDELETED(user))
+		return
 	if(!headless)
 		return
 
@@ -273,8 +275,8 @@
 // Butchering a head permas their user as the organs don't drop, that is bad.
 // I'll not fix that as it may be on purpose in some codebases.
 /datum/species/dullahan/proc/on_head_destroyed()
-	var/mob/living/carbon/user = my_head.original_owner
-	if(!(user.status_flags & GODMODE))
+	var/mob/living/carbon/user = my_head?.original_owner
+	if(!QDELETED(user) && !(user.status_flags & GODMODE))
 		user.death()
 
 	UnregisterSignal(my_head, COMSIG_QDELETING)
@@ -289,7 +291,9 @@
 	QDEL_NULL(mob_light_obj)
 
 /datum/species/dullahan/proc/on_say_postprocess(datum/source, list/speech_args)
-	var/mob/living/carbon/human/human = my_head.original_owner
+	var/mob/living/carbon/human/human = my_head?.original_owner
+	if(QDELETED(human))
+		return
 
 	if(!headless)
 		return
@@ -348,7 +352,9 @@
 
 /datum/species/dullahan/proc/get_nodrop_head()
 	var/obj/item/bodypart/head/dullahan/head = my_head
-	var/mob/living/carbon/human/user = head.original_owner
+	var/mob/living/carbon/human/user = head?.original_owner
+	if(QDELETED(user))
+		return FALSE
 	for(var/obj/item/equipped_item in user.get_equipped_items(include_pockets = FALSE, include_beltslots = FALSE))
 		if(HAS_TRAIT(equipped_item, TRAIT_NODROP))
 			if(equipped_item.slot_flags & (ITEM_SLOT_MOUTH | ITEM_SLOT_HEAD | ITEM_SLOT_NECK | ITEM_SLOT_MASK))

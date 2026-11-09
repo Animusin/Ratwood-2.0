@@ -117,7 +117,7 @@
 				continue
 
 			// Necra vow check
-			if(same_owner && limb.original_owner && limb.original_owner != human_target)
+			if(same_owner && (limb.original_owner_deleted || (limb.original_owner && limb.original_owner != human_target)))
 				to_chat(user, span_warning("Limb [limb] doesn't belong to target due to Necra vow!"))
 				continue
 

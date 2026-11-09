@@ -29,9 +29,24 @@ GLOBAL_LIST(admin_objective_list) //Prefilled admin assignable objective list
 	if(owner)
 		owner.personal_objectives -= src
 	owner = null
-	target = null
+	set_target_mind(null)
 	team = null
 	return ..()
+
+/// Keep targets through death and revival, but never retain a mind after its deletion.
+/datum/objective/proc/set_target_mind(datum/mind/new_target)
+	if(target == new_target)
+		return
+	if(target)
+		UnregisterSignal(target, COMSIG_QDELETING)
+	target = QDELETED(new_target) ? null : new_target
+	if(target)
+		RegisterSignal(target, COMSIG_QDELETING, PROC_REF(on_target_deleted))
+
+/datum/objective/proc/on_target_deleted(datum/mind/deleted_target)
+	SIGNAL_HANDLER
+	if(target == deleted_target)
+		set_target_mind(null)
 
 /datum/objective/proc/get_owners() // Combine owner and team into a single list.
 	. = (team && team.members) ? team.members.Copy() : list()
@@ -66,11 +81,11 @@ GLOBAL_LIST(admin_objective_list) //Prefilled admin assignable objective list
 		return
 
 	if (new_target == "Free objective")
-		target = null
+		set_target_mind(null)
 	else if (new_target == "Random")
 		find_target()
 	else
-		target = new_target.mind
+		set_target_mind(new_target.mind)
 
 	update_explanation_text()
 
@@ -143,7 +158,7 @@ GLOBAL_LIST(admin_objective_list) //Prefilled admin assignable objective list
 		if(!possible_targets.len)
 			possible_targets = all_possible_targets
 	if(possible_targets.len > 0)
-		target = pick(possible_targets)
+		set_target_mind(pick(possible_targets))
 	update_explanation_text()
 	return target
 
@@ -169,7 +184,7 @@ GLOBAL_LIST(admin_objective_list) //Prefilled admin assignable objective list
 				possible_targets += possible_target
 				break
 	if(length(possible_targets))
-		target = pick(possible_targets)
+		set_target_mind(pick(possible_targets))
 	update_explanation_text()
 	return target
 
@@ -379,7 +394,7 @@ GLOBAL_LIST(admin_objective_list) //Prefilled admin assignable objective list
 	var/target_missing_id
 
 /datum/objective/escape/escape_with_identity/find_target(dupe_search_range)
-	target = ..()
+	..()
 	update_explanation_text()
 
 /datum/objective/escape/escape_with_identity/update_explanation_text()

@@ -153,7 +153,8 @@
 			. += A
 		else if(istype(A, /obj/item/bodypart/head/dullahan))
 			var/obj/item/bodypart/head/dullahan/head = A
-			. += head.original_owner
+			if(!QDELETED(head.original_owner))
+				. += head.original_owner
 		processing_list.Cut(1, 2)
 		processing_list += A.contents
 

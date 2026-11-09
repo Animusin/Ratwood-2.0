@@ -30,11 +30,14 @@
 
 /obj/item/bodypart/head/Hear(message, atom/movable/speaker, message_language, raw_message, radio_freq, list/spans, message_mode)
 	. = ..()
-	src.original_owner.Hear(message, speaker, message_language, raw_message, radio_freq, spans, message_mode)
+	if(!QDELETED(original_owner))
+		original_owner.Hear(message, speaker, message_language, raw_message, radio_freq, spans, message_mode)
 
 // Support dropping yourself on a detached head. Check sexcon_helpers for original code with docs.
 /obj/item/bodypart/head/dullahan/MiddleMouseDrop_T(atom/movable/dragged, mob/living/user)
 	var/mob/living/carbon/human/target = src.original_owner
+	if(QDELETED(target))
+		return
 	if(user.mmb_intent)
 		return ..()
 	// Maybe call target.MiddleMouseDrop_T() instead, may have side effects and so opted not to.
@@ -61,6 +64,8 @@
 
 /obj/item/bodypart/head/dullahan/proc/check_closest_zones(mob/living/carbon/human/target)
 	var/mob/living/carbon/human/user = original_owner
+	if(QDELETED(user))
+		return FALSE
 	var/datum/species/dullahan/user_species = user.dna.species
 	var/list/acceptable = list()
 	if(!user_species.headless)
@@ -190,7 +195,7 @@
 
 	. = ..()
 
-	if(reset_perspective)
+	if(reset_perspective && !QDELETED(original_owner))
 		if(vision?.viewing_head)
 			original_owner.reset_perspective(src)
 		else
@@ -212,7 +217,7 @@
 
 // Relay food items. Band-aid implementation. Allows body to be fed despite not having a head. May be seen as a feature.
 /obj/item/bodypart/head/dullahan/attackby(obj/item/reagent_containers/food/item, mob/living/user)
-	if(istype(item, /obj/item/reagent_containers/food/) && ishuman(user))
+	if(istype(item, /obj/item/reagent_containers/food/) && ishuman(user) && !QDELETED(original_owner))
 		item.attack(original_owner, user)
 	else
 		..()
@@ -220,10 +225,12 @@
 // Could track in forceMove() but this seems more reliable. Change would not take much.
 /obj/item/bodypart/head/dullahan/drop_organs(mob/user, violent_removal)
 	. = ..()
-	if(!(original_owner.status_flags & GODMODE))
+	if(!QDELETED(original_owner) && !(original_owner.status_flags & GODMODE))
 		original_owner.death()
 
 /obj/item/bodypart/head/dullahan/attach_limb(mob/living/carbon/human/user)
+	if(original_owner_deleted)
+		return FALSE
 	var/mob/living/carbon/human/user_dullahan = original_owner ? original_owner : user
 	var/datum/species/dullahan/user_species = user_dullahan.dna.species
 	user_species.soul_light_off()
@@ -280,6 +287,8 @@
 
 /obj/item/bodypart/head/dullahan/drop_limb(special)
 	var/mob/living/carbon/human/user = original_owner
+	if(QDELETED(user))
+		return FALSE
 	var/datum/species/dullahan/user_species = user.dna.species
 
 	user_species.soul_light_on(user)
@@ -403,7 +412,7 @@
 		burn()
 		return TRUE
 
-	var/obj/item/organ/dullahan_vision/vision = original_owner.getorganslot(ORGAN_SLOT_HUD)
+	var/obj/item/organ/dullahan_vision/vision = original_owner?.getorganslot(ORGAN_SLOT_HUD)
 	if(vision)
 		vision.viewing_head = TRUE
 
@@ -533,6 +542,8 @@
 
 // This also sucks.
 /obj/item/bodypart/head/dullahan/send_speech(message, message_range = 6, obj/source = src, bubble_type = null, list/spans, datum/language/message_language=null, message_mode, original_message)
+	if(QDELETED(original_owner))
+		return
 	var/static/list/eavesdropping_modes = list(MODE_WHISPER = TRUE, MODE_WHISPER_CRIT = TRUE)
 	var/eavesdrop_range = 0
 	var/Zs_too = FALSE
@@ -667,9 +678,9 @@
 		. = verb_whisper
 	else if(message_mode == MODE_WHISPER_CRIT)
 		. = "[verb_whisper] in [p_their()] last breath"
-	else if(original_owner.stuttering)
+	else if(original_owner?.stuttering)
 		. = "stammers"
-	else if(original_owner.derpspeech)
+	else if(original_owner?.derpspeech)
 		. = "gibbers"
 	else if(message_mode == MODE_SING)
 		. = verb_sing

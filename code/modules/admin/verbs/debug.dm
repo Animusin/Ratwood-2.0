@@ -1416,6 +1416,7 @@ GLOBAL_LIST_EMPTY(loadout_selected_advclasses)
 	set name = "Display del() Log"
 	set desc = ""
 
+	var/recorder_start = Master.lag_recorder ? TICK_USAGE : 0
 	var/list/dellog = list("<B>List of things that have gone through qdel this round</B><BR><BR><ol>")
 	sortTim(SSgarbage.items, cmp=/proc/cmp_qdel_item_time, associative = TRUE)
 	for(var/path in SSgarbage.items)
@@ -1439,6 +1440,8 @@ GLOBAL_LIST_EMPTY(loadout_selected_advclasses)
 	dellog += "</ol>"
 
 	usr << browse(dellog.Join(), "window=dellog")
+	if(Master.lag_recorder && TICK_USAGE_TO_MS(recorder_start) >= 4)
+		Master.lag_recorder.record_sample("admin", "Display del() Log", TICK_USAGE_TO_MS(recorder_start), world.time)
 
 /client/proc/cmd_display_overlay_log()
 	set category = "Debug"

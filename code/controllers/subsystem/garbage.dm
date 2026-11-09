@@ -268,6 +268,8 @@ SUBSYSTEM_DEF(garbage)
 
 	tick = (TICK_USAGE-tick+((world.time-ticktime)/world.tick_lag*100))
 	var/delete_time_ms = TICK_DELTA_TO_MS(tick)
+	if(Master.lag_recorder && delete_time_ms >= 20)
+		Master.lag_recorder.record_sample("hard_delete", "[type]", delete_time_ms, ticktime)
 
 	trash.hard_deletes++
 	trash.hard_delete_time += delete_time_ms

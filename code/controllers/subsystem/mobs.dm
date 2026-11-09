@@ -38,6 +38,14 @@ SUBSYSTEM_DEF(mobs)
 		alive_mobs = 0
 	var/list/currentrun = src.currentrun
 	var/times_fired = src.times_fired
+	var/datum/lag_recorder/recorder = Master.lag_recorder
+	var/slice_tick = recorder ? world.time : 0
+	var/slice_start = recorder ? TICK_USAGE : 0
+	var/list/type_costs = recorder ? list() : null
+	var/slowest_cost = 0
+	var/slowest_type
+	var/slowest_phase
+	var/processed = 0
 
 	while(currentrun.len)
 		var/mob/living/L = currentrun[currentrun.len]
@@ -47,11 +55,26 @@ SUBSYSTEM_DEF(mobs)
 			GLOB.mob_living_list.Remove(L)
 			continue
 
-		if(L.stat == DEAD)
+		var/start_usage = recorder ? TICK_USAGE : 0
+		var/mob_type = recorder ? L.type : null
+		var/dead = L.stat == DEAD
+		if(dead)
 			L.DeadLife()
 		else
 			L.Life(seconds, times_fired)
 			alive_mobs++
 
+		if(recorder && slice_tick == world.time)
+			processed++
+			var/cost_ms = TICK_USAGE_TO_MS(start_usage)
+			if(cost_ms > 0)
+				type_costs[mob_type] = (type_costs[mob_type] || 0) + cost_ms
+				if(cost_ms > slowest_cost)
+					slowest_cost = cost_ms
+					slowest_type = mob_type
+					slowest_phase = dead ? "DeadLife" : "Life"
 		if (MC_TICK_CHECK)
-			return
+			break
+
+	if(recorder && !QDELETED(recorder) && slice_tick == world.time && TICK_USAGE_TO_MS(slice_start) >= 4)
+		recorder.record_mob_slice(TICK_USAGE_TO_MS(slice_start), type_costs, processed, slowest_type, slowest_phase, slowest_cost)

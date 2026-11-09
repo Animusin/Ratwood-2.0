@@ -25,6 +25,8 @@ GLOBAL_REAL(Master, /datum/controller/master)
 
 	// world.time of last fire, for tracking lag outside of the mc
 	var/last_run
+	/// Temporary spike capture, enabled by an admin.
+	var/datum/lag_recorder/lag_recorder
 
 	// List of subsystems to process().
 	var/list/subsystems
@@ -99,6 +101,7 @@ GLOBAL_REAL(Master, /datum/controller/master)
 		new /datum/controller/global_vars
 
 /datum/controller/master/Destroy()
+	QDEL_NULL(lag_recorder)
 	..()
 	// Tell qdel() to Del() this object.
 	return QDEL_HINT_HARDDEL_NOW
@@ -434,6 +437,8 @@ GLOBAL_REAL(Master, /datum/controller/master)
 	while (1)
 		tickdrift = max(0, MC_AVERAGE_FAST(tickdrift, (((REALTIMEOFDAY - init_timeofday) - (world.time - init_time)) / world.tick_lag)))
 		var/starting_tick_usage = TICK_USAGE
+		if(lag_recorder && !lag_recorder.observe_tick(rustg_time_milliseconds("lag_recorder"), world.time, starting_tick_usage))
+			QDEL_NULL(lag_recorder)
 		if (processing <= 0)
 			current_ticklimit = TICK_LIMIT_RUNNING
 			sleep(10)
@@ -521,6 +526,8 @@ GLOBAL_REAL(Master, /datum/controller/master)
 			queue_priority_count = 0
 			queue_priority_count_bg = 0
 
+		if(lag_recorder && TICK_DELTA_TO_MS(TICK_USAGE) >= 80)
+			lag_recorder.record_sample("tick", "Controller pass", TICK_DELTA_TO_MS(TICK_USAGE), world.time, list("start_pct" = starting_tick_usage))
 		iteration++
 		last_run = world.time
 		src.sleep_delta = MC_AVERAGE_FAST(src.sleep_delta, sleep_delta)
@@ -649,6 +656,8 @@ GLOBAL_REAL(Master, /datum/controller/master)
 			tick_usage = TICK_USAGE
 			var/state = queue_node.ignite(queue_node_paused)
 			tick_usage = TICK_USAGE - tick_usage
+			if(lag_recorder && TICK_DELTA_TO_MS(tick_usage) >= 4)
+				lag_recorder.record_sample("subsystem", queue_node.name, TICK_DELTA_TO_MS(tick_usage), world.time, list("resumed" = !!queue_node_paused, "state" = state))
 
 			if(use_rolling_usage)
 				queue_node.prune_rolling_usage()

@@ -216,6 +216,7 @@ GLOBAL_PROTECT(admin_verbs_debug)
 	/client/proc/cmd_debug_del_all,
 	/client/proc/cmd_controller_view_ui,
 	/client/proc/restart_controller,
+	/client/proc/toggle_lag_recorder,
 	/client/proc/enable_debug_verbs,
 	/client/proc/callproc,
 	/client/proc/callproc_datum,

@@ -180,6 +180,10 @@
 	var/generation = 0 // 0 = founder, 1 = their children, etc.
 	var/tmp/recalculating_generation = FALSE
 	var/mutable_appearance/cloned_look
+	/// Historical identity retained after the associated body is deleted.
+	var/person_deleted = FALSE
+	var/removed_person_name
+	var/removed_person_pronouns
 
 /datum/family_member/New(mob/living/carbon/human/new_person, datum/heritage/new_family)
 	person = new_person
@@ -192,6 +196,36 @@
 	cloned_look = new_person?.appearance
 	person?.dir = old_dir
 	person?.invisibility = old_inivisiity
+	if(person)
+		RegisterSignal(person, COMSIG_QDELETING, PROC_REF(on_person_deleted))
+
+/// Preserve the genealogy while releasing the removed body and its world-space indicators.
+/datum/family_member/proc/on_person_deleted(mob/living/carbon/human/deleted_person)
+	SIGNAL_HANDLER
+	if(person != deleted_person)
+		return
+	person_deleted = TRUE
+	removed_person_name = person.real_name
+	removed_person_pronouns = person.pronouns
+	family?.RemoveFamilyIcon(person)
+	for(var/datum/family_member/spouse as anything in (spouses | former_spouses))
+		if(!ishuman(spouse.person))
+			continue
+		if(spouse.person.spouse_mob == person)
+			spouse.person.spouse_mob = null
+		if(spouse.person.spouse_indicator?.loc == person)
+			spouse.person.clear_spouse_indicator()
+	if(ishuman(person))
+		person.spouse_mob = null
+		person.clear_spouse_indicator()
+	UnregisterSignal(person, COMSIG_QDELETING)
+	person = null
+
+/datum/family_member/proc/get_recorded_name()
+	return person ? person.real_name : removed_person_name
+
+/datum/family_member/proc/get_recorded_pronouns()
+	return person ? person.pronouns : removed_person_pronouns
 
 /datum/family_member/proc/AddParent(datum/family_member/parent, skip_reciprocal = FALSE)
 	if(!parent || (parent in parents))
@@ -368,15 +402,15 @@
 
 	// Direct relationships
 	if(other in parents)
-		return other.person?.pronouns == HE_HIM ? "father" : "mother"
+		return other.get_recorded_pronouns() == HE_HIM ? "father" : "mother"
 	if(other in children)
-		return other.person?.pronouns == HE_HIM ? "son" : "daughter"
+		return other.get_recorded_pronouns() == HE_HIM ? "son" : "daughter"
 	if(other in spouses)
-		return other.person?.pronouns == HE_HIM ? "husband" : "wife"
+		return other.get_recorded_pronouns() == HE_HIM ? "husband" : "wife"
 
 	// Sibling check
 	if(AreSiblings(other))
-		return other.person?.pronouns == HE_HIM ? "brother" : "sister"
+		return other.get_recorded_pronouns() == HE_HIM ? "brother" : "sister"
 
 	// Grandparent/Grandchild
 	var/grandparent_rel = GetGrandparentRelation(other)
@@ -417,26 +451,26 @@
 	for(var/datum/family_member/spouse in spouses)
 		// Check direct relationships to spouse's family
 		if(other in spouse.parents)
-			return other.person?.pronouns == HE_HIM ? "father-in-law" : "mother-in-law"
+			return other.get_recorded_pronouns() == HE_HIM ? "father-in-law" : "mother-in-law"
 		if(other in spouse.children)
-			return other.person?.pronouns == HE_HIM ? "son-in-law" : "daughter-in-law"
+			return other.get_recorded_pronouns() == HE_HIM ? "son-in-law" : "daughter-in-law"
 		if(spouse.AreSiblings(other))
-			return other.person?.pronouns == HE_HIM ? "brother-in-law" : "sister-in-law"
+			return other.get_recorded_pronouns() == HE_HIM ? "brother-in-law" : "sister-in-law"
 
 		// Check spouse's grandparents
 		for(var/datum/family_member/spouse_parent in spouse.parents)
 			if(other in spouse_parent.parents)
-				return other.person?.pronouns == HE_HIM ? "grandfather-in-law" : "grandmother-in-law"
+				return other.get_recorded_pronouns() == HE_HIM ? "grandfather-in-law" : "grandmother-in-law"
 
 	// Check if other is married to our sibling
 	for(var/datum/family_member/member in family.members)
 		if(AreSiblings(member) && (other in member.spouses))
-			return other.person?.pronouns == HE_HIM ? "brother-in-law" : "sister-in-law"
+			return other.get_recorded_pronouns() == HE_HIM ? "brother-in-law" : "sister-in-law"
 
 	// Check if other is married to our child (son/daughter-in-law)
 	for(var/datum/family_member/child in children)
 		if(other in child.spouses)
-			return other.person?.pronouns == HE_HIM ? "son-in-law" : "daughter-in-law"
+			return other.get_recorded_pronouns() == HE_HIM ? "son-in-law" : "daughter-in-law"
 
 	return null
 
@@ -456,14 +490,14 @@
 	// Check if other is aunt/uncle of src (sibling of parent)
 	for(var/datum/family_member/parent in parents)
 		if(other.AreSiblings(parent) && other != parent)
-			return other.person?.pronouns == HE_HIM ? "uncle" : "aunt"
+			return other.get_recorded_pronouns() == HE_HIM ? "uncle" : "aunt"
 	return null
 
 /datum/family_member/proc/GetNieceNephewRelation(datum/family_member/other)
 	// Check if other is niece/nephew of src (child of sibling)
 	for(var/datum/family_member/sibling in family.members)
 		if(AreSiblings(sibling) && (sibling != src) && (other in sibling.children))
-			return other.person?.pronouns == HE_HIM ? "nephew" : "niece"
+			return other.get_recorded_pronouns() == HE_HIM ? "nephew" : "niece"
 	return null
 
 
@@ -471,7 +505,7 @@
 	// Check if other is grandparent of src
 	for(var/datum/family_member/parent in parents)
 		if(other in parent.parents)
-			if(other.person?.pronouns == HE_HIM)
+			if(other.get_recorded_pronouns() == HE_HIM)
 				return "grandfather"
 			else
 				return "grandmother"
@@ -481,7 +515,7 @@
 	// Check if other is grandchild of src
 	for(var/datum/family_member/child in children)
 		if(other in child.children)
-			if(other.person?.pronouns == HE_HIM)
+			if(other.get_recorded_pronouns() == HE_HIM)
 				return "grandson"
 			else
 				return "granddaughter"
@@ -504,7 +538,7 @@
 	for(var/datum/family_member/parent in parents)
 		for(var/datum/family_member/grandparent in parent.parents)
 			if(other in grandparent.parents)
-				if(other.person?.pronouns == HE_HIM)
+				if(other.get_recorded_pronouns() == HE_HIM)
 					return "great-grandfather"
 				else
 					return "great-grandmother"
@@ -513,7 +547,7 @@
 	for(var/datum/family_member/child in children)
 		for(var/datum/family_member/grandchild in child.children)
 			if(other in grandchild.children)
-				if(other.person?.pronouns == HE_HIM)
+				if(other.get_recorded_pronouns() == HE_HIM)
 					return "great-grandson"
 				else
 					return "great-granddaughter"
@@ -540,7 +574,7 @@
 			dominant_species = founder_person?.dna?.species?.type
 
 /datum/heritage/proc/CreateFamilyMember(mob/living/carbon/human/person)
-	if(!ishuman(person))
+	if(!ishuman(person) || QDELETED(person))
 		return null
 
 	// Check if already in family
@@ -603,6 +637,8 @@
 	return TRUE
 
 /datum/heritage/proc/GetFamilyMember(mob/living/carbon/human/person)
+	if(!person)
+		return null
 	for(var/datum/family_member/member in members)
 		if(member.person == person)
 			return member
@@ -673,17 +709,19 @@
 				for(var/datum/family_member/spouse in member.spouses)
 					if(spouse_names)
 						spouse_names += ", "
-					spouse_names += spouse.person?.real_name
+					spouse_names += spouse.get_recorded_name()
 				status_text += " (Married to: [spouse_names])"
 			relation_text = uppertext(relation_text)
 
 			. += "<B><font color=#[name_color];text-shadow:0 0 10px #8d5958, 0 0 20px #8d5958, 0 0 30px #8d5958, 0 0 40px #8d5958, 0 0 50px #e60073, 0 0 60px #8d5958, 0 0 70px #8d5958;>\
-				[member.person?.real_name]</font></B> <B>[relation_text]</B> [status_text]<BR>"
+				[member.get_recorded_name()]</font></B> <B>[relation_text]</B> [status_text]<BR>"
 		. += "<BR>"
 
 	. += "----------<br>"
 
 /datum/heritage/proc/GetMemberForPerson(mob/living/carbon/human/P)
+	if(!P)
+		return null
 	for(var/datum/family_member/member in members)
 		if(member.person == P)
 			return member
@@ -715,9 +753,9 @@
 	popup.open()
 
 /datum/heritage/proc/SpeciesCalculation(mob/living/carbon/human/child, mob/living/carbon/human/parent1, mob/living/carbon/human/parent2)
-	var/datum/species/child_species = child.dna?.species
-	var/datum/species/dad_species = parent1.dna?.species
-	var/datum/species/mom_species = parent2.dna?.species
+	var/datum/species/child_species = child?.dna?.species
+	var/datum/species/dad_species = parent1?.dna?.species
+	var/datum/species/mom_species = parent2?.dna?.species
 
 	if(!child_species || !dad_species || !mom_species)
 		return FALSE
@@ -788,11 +826,27 @@
 	var/icon_state = member.adoption_status ? "adopted" : "related"
 	var/image/I = new('icons/relations.dmi', loc = famicon, icon_state = icon_state)
 
-	if(famicon in family_icons)
-		family_icons.Remove(famicon)
+	RemoveFamilyIcon(famicon)
 	family_icons[famicon] = I
 
 	return TRUE
+
+/datum/heritage/proc/RemoveFamilyIcon(mob/living/carbon/human/famicon)
+	var/image/old_icon = family_icons[famicon]
+	family_icons -= famicon
+	clear_family_indicator(old_icon)
+
+/// Viewers may have changed bodies since the image was shown. Remove this image only, from every client.
+/proc/clear_family_indicator(image/indicator)
+	if(!indicator)
+		return
+	for(var/client/viewer in GLOB.clients)
+		viewer.images -= indicator
+	indicator.loc = null
+
+/mob/living/carbon/human/proc/clear_spouse_indicator()
+	clear_family_indicator(spouse_indicator)
+	spouse_indicator = null
 
 /mob/living/carbon/human/verb/ReturnFamilyList()
 	set name = "List Family"

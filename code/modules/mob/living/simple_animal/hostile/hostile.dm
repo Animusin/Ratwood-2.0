@@ -78,6 +78,8 @@
 
 
 /mob/living/simple_animal/hostile/Destroy()
+	// Mutual combat targets otherwise keep both deleted combatants alive.
+	target = null
 	targets_from = null
 	return ..()
 

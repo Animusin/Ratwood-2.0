@@ -14,14 +14,24 @@
 	var/previewing = ""
 
 /datum/examine_panel/New(mob/holder_mob)
-	if(holder_mob)
+	if(!QDELETED(holder_mob))
 		holder = holder_mob
+		RegisterSignal(holder, COMSIG_QDELETING, PROC_REF(on_holder_deleted))
 
 /datum/examine_panel/Destroy(force)
+	SStgui.close_uis(src)
+	if(holder)
+		UnregisterSignal(holder, COMSIG_QDELETING)
 	holder = null
 	viewing = null
-	qdel(examine_panel_screen)
+	pref = null
+	QDEL_NULL(examine_panel_screen)
 	return ..()
+
+/// Keep corpse examination available, closing only when the body itself is removed.
+/datum/examine_panel/proc/on_holder_deleted(mob/deleted_holder)
+	SIGNAL_HANDLER
+	qdel(src)
 
 /datum/examine_panel/ui_state(mob/user)
 	return GLOB.always_state

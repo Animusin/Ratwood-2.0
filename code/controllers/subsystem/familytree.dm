@@ -215,7 +215,7 @@ SUBSYSTEM_DEF(familytree)
 /datum/controller/subsystem/familytree/proc/GetCurrentMonarch()
 	// Find the monarch at generation 12 (current ruling generation)
 	for(var/datum/family_member/member in ruling_family.members)
-		if(member.generation == 12 && (member.person.job == "Grand Duke" || member.person.job == "Grand Duchess"))
+		if(member.person && member.generation == 12 && (member.person.job == "Grand Duke" || member.person.job == "Grand Duchess"))
 			return member
 	return null
 
@@ -528,14 +528,16 @@ SUBSYSTEM_DEF(familytree)
 
 /datum/controller/subsystem/familytree/proc/AssignNewlyWed(mob/living/carbon/human/H)
 	if(QDELETED(H) || !H.dna?.species)
-		viable_spouses -= H
+		remove_viable_spouse(H)
 		return
-	viable_spouses += H
+	if(!(H in viable_spouses))
+		viable_spouses += H
+		RegisterSignal(H, COMSIG_QDELETING, PROC_REF(on_viable_spouse_deleted))
 	var/list/potential_matches = list()
 
 	for(var/mob/living/carbon/human/potential_spouse in viable_spouses.Copy())
 		if(QDELETED(potential_spouse) || !potential_spouse.dna?.species)
-			viable_spouses -= potential_spouse
+			remove_viable_spouse(potential_spouse)
 			continue
 		if(potential_spouse == H)
 			continue
@@ -576,9 +578,19 @@ SUBSYSTEM_DEF(familytree)
 		else if(p == best_priority)
 			best_matches += match_data[1]
 	var/mob/living/carbon/human/chosen_spouse = pick(best_matches)
-	viable_spouses -= chosen_spouse
-	viable_spouses -= H
+	remove_viable_spouse(chosen_spouse)
+	remove_viable_spouse(H)
 	H.MarryTo(chosen_spouse)
+
+/// This subsystem does not fire, so an unmatched body must release itself without another arrival.
+/datum/controller/subsystem/familytree/proc/on_viable_spouse_deleted(mob/living/carbon/human/deleted_spouse)
+	SIGNAL_HANDLER
+	remove_viable_spouse(deleted_spouse)
+
+/datum/controller/subsystem/familytree/proc/remove_viable_spouse(mob/living/carbon/human/removed_spouse)
+	viable_spouses -= removed_spouse
+	if(removed_spouse)
+		UnregisterSignal(removed_spouse, COMSIG_QDELETING)
 
 /datum/controller/subsystem/familytree/proc/AssignAuntUncle(mob/living/carbon/human/H)
 	var/base_species = H.dna.species.name
@@ -594,7 +606,7 @@ SUBSYSTEM_DEF(familytree)
 		// Check if there are children who could use an aunt/uncle
 		var/has_children = FALSE
 		for(var/datum/family_member/member in house.members)
-			if(member.children.len > 0)
+			if(member.person && member.children.len > 0)
 				has_children = TRUE
 				break
 
@@ -608,7 +620,7 @@ SUBSYSTEM_DEF(familytree)
 		if(new_member)
 			// Find a parent to be sibling to
 			for(var/datum/family_member/member in chosen_house.members)
-				if(member.children.len > 0 && CanBeSiblings(H.age, member.person.age))
+				if(member.person && member.children.len > 0 && CanBeSiblings(H.age, member.person.age))
 					// Share the same parents as this member
 					for(var/datum/family_member/grandparent in member.parents)
 						new_member.AddParent(grandparent)
@@ -631,22 +643,22 @@ SUBSYSTEM_DEF(familytree)
 			ValidateFamily(family)
 
 /datum/controller/subsystem/familytree/proc/ValidateFamily(datum/heritage/family)
-	// Clean up any broken references
+	// A removed body can still have a valid historical record and reciprocal family links.
 	for(var/datum/family_member/member in family.members)
-		if(!member.person)
+		if(QDELETED(member) || (!member.person && !member.person_deleted))
 			family.members -= member
 			continue
 
 		// Validate parent relationships
 		for(var/datum/family_member/parent in member.parents)
-			if(!parent.person || !(member in parent.children))
+			if(QDELETED(parent) || (!parent.person && !parent.person_deleted) || !(member in parent.children))
 				member.parents -= parent
-				if(parent.person)
+				if(!QDELETED(parent))
 					parent.children -= member
 
 		// Validate child relationships
 		for(var/datum/family_member/child in member.children)
-			if(!child.person || !(member in child.parents))
+			if(QDELETED(child) || (!child.person && !child.person_deleted) || !(member in child.parents))
 				member.children -= child
-				if(child.person)
+				if(!QDELETED(child))
 					child.parents -= member

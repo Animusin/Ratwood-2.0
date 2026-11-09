@@ -10,6 +10,8 @@
 	layer = BELOW_MOB_LAYER //so it isn't hidden behind objects when on the floor
 	var/mob/living/carbon/owner = null
 	var/mob/living/carbon/original_owner = null
+	/// Keep a removed donor's limb foreign without retaining the destroyed body itself.
+	var/original_owner_deleted = FALSE
 	var/status = BODYPART_ORGANIC
 	var/needs_processing = FALSE
 
@@ -188,7 +190,9 @@
 	if(owner)
 		owner.bodyparts -= src
 		owner.bodyparts_by_zone -= body_zone
-		owner = null
+	set_detached_owner(null)
+	if(original_owner)
+		UnregisterSignal(original_owner, COMSIG_QDELETING)
 	original_owner = null
 	if(bandage)
 		QDEL_NULL(bandage)
@@ -204,7 +208,7 @@
 
 /obj/item/bodypart/onbite(mob/living/carbon/human/user)
 	if((user.mind && user.mind.has_antag_datum(/datum/antagonist/zombie)) || istype(user.dna.species, /datum/species/werewolf))
-		if(owner.has_status_effect(/datum/status_effect/fire_handler/fire_stacks/sunder) || owner.has_status_effect(/datum/status_effect/fire_handler/fire_stacks/sunder/blessed))
+		if(owner?.has_status_effect(/datum/status_effect/fire_handler/fire_stacks/sunder) || owner?.has_status_effect(/datum/status_effect/fire_handler/fire_stacks/sunder/blessed))
 			to_chat(user, span_notice("My power is weakened, I cannot heal!"))
 			return
 		if(do_after(user, 50, target = src))
@@ -532,13 +536,17 @@
 	var/mob/living/carbon/C
 	if(source)
 		C = source
-		if(!original_owner)
-			original_owner = source
-	else if(original_owner && owner != original_owner) //Foreign limb
+	if(original_owner_deleted || (!source && original_owner && owner != original_owner)) //Foreign limb
 		no_update = TRUE
-	else
+	else if(!source)
 		C = owner
 		no_update = FALSE
+	// Initial bodyparts can be refreshed through their owner without an explicit source argument.
+	if(!QDELETED(C) && !original_owner && !original_owner_deleted)
+		original_owner = C
+		var/list/owner_signals = signal_procs?[original_owner]
+		if(owner_signals?[COMSIG_QDELETING] != PROC_REF(on_body_owner_deleted))
+			RegisterSignal(original_owner, COMSIG_QDELETING, PROC_REF(on_body_owner_deleted))
 
 	if((C) && HAS_TRAIT(C, TRAIT_HUSK) && is_organic_limb())
 		species_id = "husk" //overrides species_id
@@ -552,7 +560,7 @@
 
 	var/mob/living/carbon/human/H = C
 	should_draw_greyscale = FALSE
-	if(!H.dna || !H.dna.species)
+	if(!H?.dna || !H.dna.species)
 		return
 	var/datum/species/S = H.dna.species
 	species_id = S.limbs_id
@@ -592,6 +600,26 @@
 		no_update = TRUE //when attached, the limb won't be affected by the appearance changes of its mob owner.
 
 	invalidate_limb_cache()
+
+/// Combat dismemberment retains owner for bookkeeping even though the limb is no longer attached.
+/// Keep that reference deletion-aware, sharing a subscription when the owner is also the donor.
+/obj/item/bodypart/proc/set_detached_owner(mob/living/carbon/new_owner)
+	if(owner && owner != original_owner)
+		UnregisterSignal(owner, COMSIG_QDELETING)
+	owner = QDELETED(new_owner) ? null : new_owner
+	if(owner && owner != original_owner)
+		RegisterSignal(owner, COMSIG_QDELETING, PROC_REF(on_body_owner_deleted))
+
+/// Ordinary death retains ownership for revival and reattachment; only destruction releases it.
+/obj/item/bodypart/proc/on_body_owner_deleted(mob/living/carbon/deleted_owner)
+	SIGNAL_HANDLER
+	UnregisterSignal(deleted_owner, COMSIG_QDELETING)
+	if(original_owner == deleted_owner)
+		original_owner = null
+		original_owner_deleted = TRUE
+	// Dismemberment can retain owner for combat bookkeeping after removing the limb from bodyparts.
+	if(owner == deleted_owner && !(src in deleted_owner.bodyparts))
+		owner = null
 
 //to update the bodypart's icon when not attached to a mob
 /obj/item/bodypart/proc/update_icon_dropped()

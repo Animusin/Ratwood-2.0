@@ -159,8 +159,9 @@ GLOBAL_VAR_INIT(year_integer, text2num(year)) // = 2013???
 				if(FM && FM.spouses.len)
 					var/list/spouse_list = list()
 					for(var/datum/family_member/S in FM.spouses)
-						if(S.person)
-							spouse_list += S.person.real_name
+						var/spouse_name = S.get_recorded_name()
+						if(spouse_name)
+							spouse_list += spouse_name
 					if(spouse_list.len)
 						spousetext = jointext(spouse_list, ", ")
 				to_chat(usr, span_notice("They are a member of house[family_datum.housename].[spousetext ? " Married to [spousetext]." : ""]"))

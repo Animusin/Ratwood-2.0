@@ -20,16 +20,29 @@ GLOBAL_LIST_EMPTY(antagonist_teams)
 
 /datum/team/Destroy(force, ...)
 	GLOB.antagonist_teams -= src
+	for(var/datum/mind/member as anything in members)
+		UnregisterSignal(member, COMSIG_QDELETING)
+	members.Cut()
 	. = ..()
 
 /datum/team/proc/is_solo()
 	return members.len == 1
 
 /datum/team/proc/add_member(datum/mind/new_member)
+	if(QDELETED(new_member) || (new_member in members))
+		return
 	members |= new_member
+	RegisterSignal(new_member, COMSIG_QDELETING, PROC_REF(on_member_deleted))
 
 /datum/team/proc/remove_member(datum/mind/member)
+	if(!(member in members))
+		return
 	members -= member
+	UnregisterSignal(member, COMSIG_QDELETING)
+
+/datum/team/proc/on_member_deleted(datum/mind/member)
+	SIGNAL_HANDLER
+	remove_member(member)
 
 //Display members/victory/failure/objectives for the team
 /datum/team/proc/roundend_report()

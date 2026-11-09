@@ -26,14 +26,14 @@
 	var/special_cd = 0
 	/// The conjuring player's ckey — used for faction tagging.
 	var/conjurer_ckey = null
-	/// Back-reference to the spell instance that summoned this dryad.
-	var/obj/effect/proc_holder/spell/targeted/summon_lesser_dryad/summoner_spell
-	/// Mob to follow when ordered to follow (old-style AI).
-	var/mob/living/follow_target = null
+	/// The companion outlives a forgotten spell; do not retain that deleted spell.
+	var/datum/weakref/summoner_spell_ref
+	/// Mob to follow when ordered to follow (old-style AI), without retaining a deleted body.
+	var/datum/weakref/follow_target_ref
 	/// Turf to guard — dryad walks here and stands until given a new order.
 	var/turf/guard_turf = null
-	/// Direct reference to the summoning owner — used for auto-defend.
-	var/mob/living/owner_mob = null
+	/// Auto-defend still recognizes the owner's corpse, but must release a deleted body.
+	var/datum/weakref/owner_mob_ref
 	/// Brief grace period after a follow order so stale owner-attacker refs do not immediately re-aggro.
 	var/ignore_owner_defense_until = 0
 	/// Bark armor: current and max integrity of the protective bark layer.
@@ -57,7 +57,7 @@
 	// Parent dryad sets unarmed to rank 4 (expert) — lesser inherits that directly.
 	faction |= "neutral"
 	if(owner)
-		owner_mob = owner
+		owner_mob_ref = WEAKREF(owner)
 		conjurer_ckey = owner.ckey
 		// Tag with owner faction so minion_order/lesser_dryad can command it.
 		var/faction_tag = "[owner.real_name]_faction"
@@ -88,6 +88,7 @@
 	if(target)
 		return ..()
 	// Auto-defend the summoner unless we are still inside the brief follow-order grace period.
+	var/mob/living/owner_mob = owner_mob_ref?.resolve()
 	if(!QDELETED(owner_mob) && world.time >= ignore_owner_defense_until)
 		var/mob/living/attacker = owner_mob.lastattacker_weakref?.resolve()
 		if(isliving(attacker) && attacker.stat != DEAD && attacker != src && attacker != owner_mob)
@@ -96,6 +97,7 @@
 			toggle_ai(AI_ON)
 			return
 	// Follow mode: walk toward the ordered target.
+	var/mob/living/follow_target = follow_target_ref?.resolve()
 	if(!QDELETED(follow_target))
 		if(get_dist(src, follow_target) > 2)
 			walk_towards(src, follow_target, move_to_delay)
@@ -117,6 +119,7 @@
 /mob/living/simple_animal/hostile/retaliate/rogue/fae/dryad/lesser/Retaliate()
 	toggle_ai(AI_ON)
 	var/mob/living/attacker = lastattacker_weakref?.resolve()
+	var/mob/living/owner_mob = owner_mob_ref?.resolve()
 	if(isliving(attacker) && attacker != owner_mob && !faction_check_mob(attacker) && attacker.stat != DEAD)
 		add_enemy(attacker)
 
@@ -184,6 +187,7 @@
 /mob/living/simple_animal/hostile/retaliate/rogue/fae/dryad/lesser/death(gibbed)
 	visible_message(span_boldwarning("[src] dissolves into greenish light..."))
 	playsound(get_turf(src), 'sound/items/dig_shovel.ogg', 70, TRUE)
+	var/obj/effect/proc_holder/spell/targeted/summon_lesser_dryad/summoner_spell = summoner_spell_ref?.resolve()
 	if(summoner_spell)
 		summoner_spell.on_dryad_deleted(src)
 	if(bark_regen_timer)

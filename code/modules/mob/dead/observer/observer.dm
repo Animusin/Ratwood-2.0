@@ -197,6 +197,8 @@ GLOBAL_VAR_INIT(observer_default_invisibility, INVISIBILITY_OBSERVER)
 				name = random_unique_name(gender)
 
 		mind = body.mind	//we don't transfer the mind but we keep a reference to it.
+		if(mind)
+			RegisterSignal(mind, COMSIG_QDELETING, PROC_REF(on_character_deleted))
 
 		set_suicide(body.suiciding) // Transfer whether they committed suicide.
 
@@ -272,7 +274,16 @@ GLOBAL_VAR_INIT(observer_default_invisibility, INVISIBILITY_OBSERVER)
 	animate(src, color = old_color, time = 10, flags = ANIMATION_PARALLEL)
 	addtimer(CALLBACK(src, TYPE_PROC_REF(/atom, update_atom_colour)), 10)
 
+/// Body death and transfers preserve the character; only deletion of the mind ends this association.
+/mob/dead/observer/proc/on_character_deleted(datum/mind/character)
+	SIGNAL_HANDLER
+	if(mind == character)
+		mind = null
+	UnregisterSignal(character, COMSIG_QDELETING)
+
 /mob/dead/observer/Destroy()
+	if(mind)
+		UnregisterSignal(mind, COMSIG_QDELETING)
 	// These are /image, not qdel-able datums - qdel() trips the CRASH() in /image/Destroy.
 	// Dropping the references (after pulling them from the GLOB lists) is enough for them to be freed.
 	clear_ghost_images(ghostimage_default, ghostimage_simple)

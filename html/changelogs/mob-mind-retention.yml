@@ -1,0 +1,4 @@
+author: "Animusin"
+delete-after: true
+changes:
+  - bugfix: "Deleted characters and animals are released from combat targets, companions, ghost associations, objectives, teams, apprenticeships, examine windows, family records, detached bodyparts, and extracted organs. Ordinary death, revival, family history, and transplant ownership are preserved."

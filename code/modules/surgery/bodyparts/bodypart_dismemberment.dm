@@ -161,7 +161,7 @@
 		if(new_turf.density)
 			break
 	throw_at(target_turf, throw_range, throw_speed)
-	owner = C
+	set_detached_owner(C)
 	return TRUE
 
 //Admin dismember - bypasses armor checks but otherwise functions like normal dismember
@@ -281,7 +281,7 @@
 		if(new_turf.density)
 			break
 	throw_at(target_turf, throw_range, throw_speed)
-	owner = C
+	set_detached_owner(C)
 	return TRUE
 
 /obj/item/bodypart/chest/dismember(dam_type = BRUTE, bclass = BCLASS_CUT, mob/living/user, zone_precise = src.body_zone, damage = 0, vorpal = FALSE)
@@ -346,7 +346,7 @@
 		was_owner.remove_movespeed_modifier("[src.type]_slow", update = TRUE)
 	was_owner.bodyparts -= src
 	was_owner.bodyparts_by_zone -= body_zone
-	owner = null
+	set_detached_owner(null)
 
 	if(ishuman(was_owner))
 		var/mob/living/carbon/human/H = was_owner
@@ -558,6 +558,7 @@
 
 /obj/item/bodypart/proc/attach_limb(mob/living/carbon/C, special)
 	moveToNullspace()
+	set_detached_owner(null)
 	owner = C
 	C.bodyparts += src
 	if(C.bodyparts_by_zone[body_zone])

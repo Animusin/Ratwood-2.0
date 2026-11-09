@@ -161,3 +161,25 @@
 	TEST_ASSERT(QDELETED(sleep), "Deleting the mind must clean up its sleep datum.")
 	TEST_ASSERT_NULL(new_body.mind, "Mind deletion must detach the body from its deleted sleep state.")
 	TEST_ASSERT_EQUAL(GLOB.total_runtimes, runtimes_before, "The supported mind lifecycle must not runtime.")
+
+/// Forced dreams before the first stress sample should use the ordinary neutral reward.
+/datum/unit_test/sleep_adv_without_stress_samples/Run()
+	var/mob/living/carbon/human/consistent/body = allocate(/mob/living/carbon/human/consistent)
+	body.mind_initialize()
+	allocated += body.mind
+	var/datum/sleep_adv/advancement = body.mind.sleep_adv
+	var/runtimes_before = GLOB.total_runtimes
+	advancement.advance_cycle()
+	TEST_ASSERT_EQUAL(advancement.sleep_adv_cycle, 1, "A forced dream with no stress samples must complete.")
+	var/neutral_points = advancement.sleep_adv_points
+	TEST_ASSERT(neutral_points > 0, "The forced dream must award points.")
+	for(var/stress in list(0, -3, 6))
+		advancement.retained_dust = 0
+		advancement.sleep_adv_points = 0
+		advancement.stress_cycles = 1
+		advancement.stress_amount = stress
+		advancement.advance_cycle()
+		var/expected_points = neutral_points + (stress < 0 ? 1 : (stress > 0 ? -1 : 0))
+		TEST_ASSERT_EQUAL(advancement.sleep_adv_points, expected_points, "Measured stress must still affect dream points.")
+		TEST_ASSERT_EQUAL(advancement.stress_cycles, 0, "The completed dream must clear the stress samples.")
+	TEST_ASSERT_EQUAL(GLOB.total_runtimes, runtimes_before, "Advancing the sleep cycle must not runtime.")

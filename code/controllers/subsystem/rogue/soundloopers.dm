@@ -72,9 +72,13 @@ SUBSYSTEM_DEF(soundloopers)
 /datum/controller/subsystem/soundloopers/proc/schedule_sound(datum/looping_sound/thing, after_attempt = FALSE)
 	if(!processing[thing] || QDELETED(thing) || thing.stopped)
 		return
-	thing.next_sound_time = thing.starttime + thing.mid_length
+	var/next_sound_time = thing.starttime + thing.mid_length
 	if(after_attempt)
-		thing.next_sound_time = max(world.time, thing.next_sound_time)
+		next_sound_time = max(world.time, next_sound_time)
+	// Playback can already have queued this deadline before fire() finishes the attempt.
+	if(thing.sound_queue_index && thing.next_sound_time == next_sound_time)
+		return
+	thing.next_sound_time = next_sound_time
 	if(!thing.sound_queue_index)
 		sound_queue += thing
 		thing.sound_queue_index = sound_queue.len

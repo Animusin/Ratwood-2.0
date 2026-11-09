@@ -281,7 +281,8 @@ GLOBAL_LIST_INIT(cross_training_map, list(
 	else if (int > 10)
 		to_chat(mind.current, span_notice("My creative thinking enhances them..."))
 
-	var/stress_median = stress_amount / stress_cycles
+	// A forced dream can start before the first stress sample.
+	var/stress_median = stress_cycles ? stress_amount / stress_cycles : 0
 
 	if(stress_median <= -1)
 		// Unstressed, happy

@@ -71,6 +71,8 @@
 /datum/charflaw/addiction/flaw_on_life(mob/user)
 	if(!ishuman(user))
 		return
+	if(sated && (!next_sate || world.time <= next_sate))
+		return
 	if(user.mind?.antag_datums)
 		for(var/datum/antagonist/D in user.mind?.antag_datums)
 			if(istype(D, /datum/antagonist/vampire/lord) || istype(D, /datum/antagonist/werewolf) || istype(D, /datum/antagonist/skeleton) || istype(D, /datum/antagonist/zombie) || istype(D, /datum/antagonist/lich))

@@ -63,7 +63,7 @@
 		H.ambushable = FALSE
 		H.underwear = null
 		if(H.charflaw)
-			QDEL_NULL(H.charflaw)
+			H.delete_legacy_charflaw()
 		H.update_body()
 		H.faction = list("orcs")
 		H.name = "goblin"

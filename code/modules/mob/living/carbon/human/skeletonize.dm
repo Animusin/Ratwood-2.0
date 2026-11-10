@@ -2,7 +2,7 @@
 	set_species(/datum/species/human/northern)
 
 	if (charflaw)
-		QDEL_NULL(charflaw)
+		delete_legacy_charflaw()
 	hairstyle = "Bald"
 	facial_hairstyle = "Shaved"
 	mob_biotypes = MOB_UNDEAD

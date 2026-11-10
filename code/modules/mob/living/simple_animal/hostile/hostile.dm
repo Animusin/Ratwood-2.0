@@ -4,6 +4,7 @@
 	obj_damage = 40
 	environment_smash = ENVIRONMENT_SMASH_STRUCTURES //Bitflags. Set to ENVIRONMENT_SMASH_STRUCTURES to break closets,tables,racks, etc; ENVIRONMENT_SMASH_WALLS for walls; ENVIRONMENT_SMASH_RWALLS for rwalls
 	var/atom/target
+	var/datum/component/hostile_combat_target/combat_target_tracker
 	var/ranged = FALSE
 	var/rapid = 0 //How many shots per volley.
 	var/rapid_fire_delay = 2 //Time between rapid fire shots
@@ -79,7 +80,8 @@
 
 /mob/living/simple_animal/hostile/Destroy()
 	// Mutual combat targets otherwise keep both deleted combatants alive.
-	target = null
+	set_combat_target(null)
+	QDEL_NULL(combat_target_tracker)
 	targets_from = null
 	return ..()
 
@@ -306,9 +308,36 @@
 
 	return FALSE
 
-/mob/living/simple_animal/hostile/proc/GiveTarget(new_target)//Step 4, give us our selected target
-
+/mob/living/simple_animal/hostile/proc/set_combat_target(atom/new_target)
+	if(QDELETED(new_target))
+		new_target = null
+	if(target == new_target)
+		return
+	if(target)
+		combat_target_tracker?.UnregisterSignal(target, COMSIG_QDELETING)
+		walk(src, 0)
 	target = new_target
+	if(target)
+		if(!combat_target_tracker)
+			combat_target_tracker = AddComponent(/datum/component/hostile_combat_target)
+		combat_target_tracker.track_target(target)
+
+/// A separate signal listener lets combat tracking coexist with the mob's enemy list.
+/datum/component/hostile_combat_target/Initialize()
+	if(!istype(parent, /mob/living/simple_animal/hostile))
+		return COMPONENT_INCOMPATIBLE
+
+/datum/component/hostile_combat_target/proc/track_target(atom/target)
+	RegisterSignal(target, COMSIG_QDELETING, PROC_REF(on_combat_target_deleted))
+
+/datum/component/hostile_combat_target/proc/on_combat_target_deleted(atom/source)
+	SIGNAL_HANDLER
+	var/mob/living/simple_animal/hostile/hunter = parent
+	if(hunter?.target == source)
+		hunter.LoseTarget()
+
+/mob/living/simple_animal/hostile/proc/GiveTarget(new_target)//Step 4, give us our selected target
+	set_combat_target(new_target)
 	LosePatience()
 	if(target != null)
 		GainPatience()
@@ -401,7 +430,7 @@
 	. = ..()
 	if(!ckey && !stat && search_objects < 3 && . > 0)//Not unconscious, and we don't ignore mobs
 		if(search_objects)//Turn off item searching and ignore whatever item we were looking at, we're more concerned with fight or flight
-			target = null
+			set_combat_target(null)
 			LoseSearchObjects()
 		if(AIStatus != AI_ON && AIStatus != NPC_AI_OFF)
 			toggle_ai(AI_ON)
@@ -435,7 +464,7 @@
 /mob/living/simple_animal/hostile/proc/LoseTarget()
 	if(target)
 		last_aggro_loss = world.time
-	target = null
+	set_combat_target(null)
 	next_seek = 0
 	next_full_seek = 0
 	approaching_target = FALSE
@@ -602,7 +631,7 @@
 
 /mob/living/simple_animal/hostile/RangedAttack(atom/A, params) //Player firing
 	if(ranged && ranged_cooldown <= world.time)
-		target = A
+		set_combat_target(A)
 		OpenFire(A)
 	..()
 

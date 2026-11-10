@@ -234,7 +234,7 @@
 	eyes.Insert(src)
 	src.underwear = null
 	if(src.charflaw)
-		QDEL_NULL(src.charflaw)
+		src.delete_legacy_charflaw()
 	update_body()
 	faction = list("orcs")
 	name = "goblin"

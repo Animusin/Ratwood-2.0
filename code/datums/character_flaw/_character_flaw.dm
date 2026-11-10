@@ -72,6 +72,13 @@ GLOBAL_LIST_INIT(character_flaws, list(
 /datum/charflaw/proc/on_bath(mob/user)
 	return
 
+/// The legacy slot can point to the same vice that is stored in the list.
+/mob/living/carbon/human/proc/delete_legacy_charflaw()
+	if(!charflaw)
+		return
+	vices?.RemoveAll(charflaw)
+	QDEL_NULL(charflaw)
+
 /mob/proc/has_flaw(flaw)
 	return
 

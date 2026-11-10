@@ -32,6 +32,7 @@ import {
   updateMessageCount,
 } from './actions';
 import { MAX_PERSISTED_MESSAGES, MESSAGE_SAVE_INTERVAL } from './constants';
+import { decodeChatHistory, encodeChatHistory } from './history';
 import { createMessage, serializeMessage } from './model';
 import { chatRenderer } from './renderer';
 import { selectChat, selectCurrentChatPage } from './selectors';
@@ -39,23 +40,26 @@ import { selectChat, selectCurrentChatPage } from './selectors';
 // List of blacklisted tags
 const FORBID_TAGS = ['a', 'iframe', 'link', 'video'];
 
-const saveChatToStorage = async (store: Store) => {
-  const state = selectChat(store.getState());
-  const fromIndex = Math.max(
-    0,
-    chatRenderer.messages.length - MAX_PERSISTED_MESSAGES,
-  );
-  const messages = chatRenderer.messages
-    .slice(fromIndex)
-    .map((message) => serializeMessage(message));
-  storage.set('chat-state', state);
-  storage.set('chat-messages', messages);
+const CHAT_HISTORY_KEY = 'chat-messages';
+const COMPRESSED_CHAT_HISTORY_KEY = 'chat-messages-gzip';
+
+const loadChatHistory = async () => {
+  try {
+    const compressed = await storage.get(COMPRESSED_CHAT_HISTORY_KEY);
+    const history = await decodeChatHistory(compressed);
+    if (history) {
+      return history;
+    }
+  } catch (error) {
+    console.warn('Failed to load compressed chat history', error);
+  }
+  return storage.get(CHAT_HISTORY_KEY).then(decodeChatHistory);
 };
 
 const loadChatFromStorage = async (store: Store) => {
   const [state, messages] = await Promise.all([
     storage.get('chat-state'),
-    storage.get('chat-messages'),
+    loadChatHistory(),
   ]);
   // Discard incompatible versions
   if (state && state.version <= 4) {
@@ -86,6 +90,54 @@ const loadChatFromStorage = async (store: Store) => {
 export const chatMiddleware = (store: Store) => {
   let initialized = false;
   let loaded = false;
+  let saving = false;
+  let restarting = false;
+
+  const saveChatToStorage = async (immediate = false) => {
+    if (!loaded || (!immediate && (saving || restarting))) {
+      return;
+    }
+
+    const state = selectChat(store.getState());
+    const messages = chatRenderer.messages
+      .slice(-MAX_PERSISTED_MESSAGES)
+      .map(serializeMessage);
+
+    if (immediate) {
+      // The server can disconnect this panel before compression completes.
+      restarting = true;
+    } else {
+      saving = true;
+    }
+
+    try {
+      const history = immediate ? messages : await encodeChatHistory(messages);
+      if (!immediate && restarting) {
+        return;
+      }
+
+      if (typeof history === 'string') {
+        await Promise.all([
+          storage.set('chat-state', state),
+          storage.set(COMPRESSED_CHAT_HISTORY_KEY, history),
+        ]);
+      } else {
+        await Promise.all([
+          storage.set('chat-state', state),
+          storage.set(CHAT_HISTORY_KEY, history),
+        ]);
+        // Keep the previous snapshot available until the replacement is stored.
+        await storage.remove(COMPRESSED_CHAT_HISTORY_KEY);
+      }
+    } catch (error) {
+      console.warn('Failed to save chat history', error);
+    } finally {
+      if (!immediate) {
+        saving = false;
+      }
+    }
+  };
+
   const sequences: number[] = [];
   const sequences_requested: number[] = [];
   chatRenderer.events.on('batchProcessed', (countByType) => {
@@ -104,9 +156,7 @@ export const chatMiddleware = (store: Store) => {
     const settings = selectSettings(store.getState());
     // Load the chat once settings are loaded
     if (!initialized && settings.initialized) {
-      setInterval(() => {
-        saveChatToStorage(store);
-      }, MESSAGE_SAVE_INTERVAL);
+      setInterval(() => saveChatToStorage(), MESSAGE_SAVE_INTERVAL);
       initialized = true;
       loadChatFromStorage(store);
     }
@@ -194,7 +244,7 @@ export const chatMiddleware = (store: Store) => {
     }
     if (type === 'roundrestart') {
       // Save chat as soon as possible
-      saveChatToStorage(store);
+      saveChatToStorage(true);
       return next(action);
     }
     if (type === saveChatToDisk.type) {

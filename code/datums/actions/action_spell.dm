@@ -36,6 +36,14 @@
 
 /datum/action/spell_action/spell
 
+/datum/action/spell_action/spell/clear_ref(datum/ref)
+	SIGNAL_HANDLER
+
+	// The spell's Destroy() needs our owner to unlink itself before it deletes this action.
+	if(ref == target)
+		return
+	return ..()
+
 /datum/action/spell_action/spell/IsAvailable()
 	if(!target || !owner)
 		return FALSE

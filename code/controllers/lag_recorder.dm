@@ -2,6 +2,7 @@
 #define LAG_RECORDER_WORK_HISTORY 16
 #define LAG_RECORDER_DURATION_MS 900000
 #define LAG_RECORDER_COOLDOWN_MS 2000
+#define LAG_RECORDER_PING_TIMEOUT_MS 10000
 
 /// Bounded capture of synchronous work. Uses the existing downloadable memory_stats.log.
 /datum/lag_recorder
@@ -18,10 +19,52 @@
 	var/window_world_time
 	var/next_report_ms = 0
 	var/slow_sample = FALSE
+	/// Only sample the admin who started the capture. Keep a key so reconnecting can resume the samples.
+	var/ping_ckey
+	var/ping_sequence = 0
+	var/pending_ping_token
+	var/ping_sent_ms
+	var/ping_sent_world_ds
 
-/datum/lag_recorder/New()
+/datum/lag_recorder/New(ping_ckey)
 	. = ..()
 	capture_id = ++last_capture_id
+	src.ping_ckey = ping_ckey
+
+/datum/lag_recorder/proc/poll_ping()
+	if(!ping_ckey)
+		return
+	var/client/recipient = GLOB.directory[ping_ckey]
+	if(!recipient && !pending_ping_token)
+		return
+
+	var/token = begin_ping(rustg_time_milliseconds("lag_recorder"), world.time, !!recipient)
+	if(token)
+		winset(recipient, null, "command=.lag_recorder_ping+[token]")
+
+/// Keep at most one request pending so a slow reply can still be measured.
+/datum/lag_recorder/proc/begin_ping(wall_ms, game_ds, can_send = TRUE)
+	if(wall_ms >= LAG_RECORDER_DURATION_MS)
+		return
+	if(pending_ping_token)
+		var/elapsed_ms = wall_ms - ping_sent_ms
+		if(elapsed_ms < LAG_RECORDER_PING_TIMEOUT_MS)
+			return
+		write_event("ping", list("status" = "timeout", "world_ds" = game_ds, "sent_world_ds" = ping_sent_world_ds, "sent_ms" = ping_sent_ms, "elapsed_ms" = elapsed_ms))
+		pending_ping_token = null
+
+	if(!can_send)
+		return
+	ping_sent_ms = wall_ms
+	ping_sent_world_ds = game_ds
+	pending_ping_token = "[capture_id]-[++ping_sequence]"
+	return pending_ping_token
+
+/datum/lag_recorder/proc/record_ping_reply(reply_ckey, token, wall_ms, game_ds)
+	if(reply_ckey != ping_ckey || !pending_ping_token || token != pending_ping_token || wall_ms >= LAG_RECORDER_DURATION_MS)
+		return
+	pending_ping_token = null
+	write_event("ping", list("status" = "ok", "world_ds" = game_ds, "sent_world_ds" = ping_sent_world_ds, "sent_ms" = ping_sent_ms, "rtt_ms" = wall_ms - ping_sent_ms))
 
 /datum/lag_recorder/proc/record_sample(kind, label, cost_ms, tick_time, list/details)
 	history[history_cursor] = list("kind" = kind, "label" = label, "ms" = round(cost_ms, 0.1), "world_ds" = tick_time, "details" = details)
@@ -101,11 +144,12 @@
 		to_chat(src, span_notice("Lag Recorder stopped. Look for LAGTRACE in memory_stats.log."))
 		return
 	rustg_time_reset("lag_recorder")
-	Master.lag_recorder = new
+	Master.lag_recorder = new(ckey)
 	Master.lag_recorder.write_event("started", list("world_ds" = world.time, "duration_ms" = LAG_RECORDER_DURATION_MS))
-	to_chat(src, span_notice("Lag Recorder enabled for 15 minutes. Spikes are written to memory_stats.log."))
+	to_chat(src, span_notice("Lag Recorder enabled for 15 minutes. Spikes and your connection ping are written to memory_stats.log."))
 
 #undef LAG_RECORDER_HISTORY
 #undef LAG_RECORDER_WORK_HISTORY
 #undef LAG_RECORDER_DURATION_MS
 #undef LAG_RECORDER_COOLDOWN_MS
+#undef LAG_RECORDER_PING_TIMEOUT_MS

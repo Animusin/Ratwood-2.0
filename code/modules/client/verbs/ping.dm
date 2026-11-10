@@ -21,3 +21,13 @@
 	set name = "Ping"
 	set category = "Options"
 	winset(src, null, "command=.display_ping+[world.time+world.tick_lag*TICK_USAGE_REAL/100]")
+
+/// Round-trip over the native client command channel, without involving the chat panel.
+/client/verb/lag_recorder_ping(token as text)
+	set name = ".lag_recorder_ping"
+	set hidden = TRUE
+	set instant = TRUE
+
+	var/datum/lag_recorder/recorder = Master?.lag_recorder
+	if(recorder)
+		recorder.record_ping_reply(ckey, token, rustg_time_milliseconds("lag_recorder"), world.time)

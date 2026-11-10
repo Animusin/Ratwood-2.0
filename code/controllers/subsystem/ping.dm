@@ -14,6 +14,7 @@ SUBSYSTEM_DEF(ping)
 /datum/controller/subsystem/ping/fire(resumed = 0)
 	if (!resumed)
 		src.currentrun = GLOB.clients.Copy()
+		Master?.lag_recorder?.poll_ping()
 
 	//cache for sanic speed (lists are references anyways)
 	var/list/currentrun = src.currentrun

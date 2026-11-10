@@ -1,5 +1,7 @@
 /datum/asset/spritesheet/anvil_recipes
 	name = "anvil_recipes"
+	// Build the recipe icons during startup so opening the anvil cannot force a cold build.
+	load_immediately = TRUE
 
 /datum/asset/spritesheet/anvil_recipes/create_spritesheets()
 	for(var/datum/anvil_recipe/recipe as anything in GLOB.anvil_recipes)

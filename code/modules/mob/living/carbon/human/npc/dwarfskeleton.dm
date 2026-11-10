@@ -39,7 +39,7 @@ GLOBAL_LIST_INIT(dwarfskeleton_aggro, world.file2list("strings/rt/dskeletonaggro
 		src.dna.species.species_traits |= NOBLOOD
 		src.dna.species.soundpack_m = new /datum/voicepack/skeleton()
 	if(src.charflaw)
-		QDEL_NULL(src.charflaw)
+		src.delete_legacy_charflaw()
 	mob_biotypes = MOB_UNDEAD
 	job = "Dwarf Skeleton"
 	real_name = "Dwarven Skeleton"

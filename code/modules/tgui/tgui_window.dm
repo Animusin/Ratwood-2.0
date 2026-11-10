@@ -393,8 +393,6 @@
 			client << link(href_list["url"])
 		if("cacheReloaded")
 			reinitialize()
-		// if("chat/resend")
-		// 	SSchat.handle_resend(client, payload)
 		if("oversizedPayloadRequest")
 			var/payload_id = payload["id"]
 			var/chunk_count = payload["chunkCount"]

@@ -138,12 +138,17 @@
 	var roundend_music = pick('sound/music/roundend.ogg','sound/music/roundend2.ogg','sound/music/roundend3.ogg')
 	var/list/key_list = list()
 	for(var/client/C in GLOB.clients)
+		if(!C)
+			continue
 		if(C.mob)
 			SSdroning.kill_droning(C)
 			C.mob.playsound_local(C.mob, roundend_music, 100, FALSE)
 		if(isliving(C.mob) && C.ckey)
 			key_list += C.ckey
+		CHECK_TICK
 	for(var/mob/living/carbon/human/H in GLOB.player_list)
+		if(QDELETED(H))
+			continue
 		if(H.stat != DEAD)
 			if(H.get_triumphs() < 0)
 				H.adjust_triumphs(1)
@@ -158,15 +163,20 @@
 				if(job && job.round_contrib_points)
 					to_chat(H, "\n<font color='purple'><b>[job.round_contrib_points]</b> ROUND CONTRIBUTOR POINTS AWARDED. Thank you for playing!</font>")
 					add_roundpoints(job.round_contrib_points, H.ckey)
+		CHECK_TICK
 	add_roundplayed(key_list)
 	update_god_rankings()
 
 	for(var/mob/M in GLOB.mob_list)
-		M.do_game_over()
+		if(!QDELETED(M))
+			M.do_game_over()
+		CHECK_TICK
 
 	for(var/I in round_end_events)
 		var/datum/callback/cb = I
-		cb.InvokeAsync()
+		if(!QDELETED(cb))
+			cb.InvokeAsync()
+		CHECK_TICK
 	LAZYCLEARLIST(round_end_events)
 
 	to_chat(world, "Round ID: [GLOB.rogue_round_id]")

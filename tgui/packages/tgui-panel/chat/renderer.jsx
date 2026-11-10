@@ -137,6 +137,7 @@ class ChatRenderer {
     /** @type {HTMLElement} */
     this.scrollNode = null;
     this.scrollTracking = true;
+    this.scrollScheduled = false;
     this.lastScrollHeight = 0;
     this.handleScroll = (type) => {
       const node = this.scrollNode;
@@ -353,7 +354,7 @@ class ChatRenderer {
       if (prepend) {
         this.queue = [...batch, ...this.queue];
       } else {
-        this.queue = [...this.queue, ...batch];
+        this.queue.push(...batch);
       }
       return;
     }
@@ -507,8 +508,12 @@ class ChatRenderer {
       } else {
         this.rootNode.appendChild(fragment);
       }
-      if (this.scrollTracking) {
-        setTimeout(() => this.scrollToBottom());
+      if (this.scrollTracking && !this.scrollScheduled) {
+        this.scrollScheduled = true;
+        setTimeout(() => {
+          this.scrollScheduled = false;
+          this.ensureScrollTracking();
+        });
       }
     }
     // Notify listeners that we have processed the batch

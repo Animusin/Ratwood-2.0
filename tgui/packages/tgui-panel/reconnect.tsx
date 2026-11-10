@@ -2,19 +2,22 @@ import { Button } from 'tgui-core/components';
 
 let url: string | null = null;
 
-setInterval(() => {
+const rememberServerUrl = (attempts = 3) => {
   Byond.winget('', 'url').then((currentUrl) => {
-    // Sometimes, for whatever reason, BYOND will give an IP with a :0 port.
-    if (currentUrl && !currentUrl.match(/:0$/)) {
+    // A disconnected client can report an address with no usable port.
+    if (currentUrl && !currentUrl.endsWith(':0')) {
       url = currentUrl;
+    } else if (attempts > 1) {
+      setTimeout(() => rememberServerUrl(attempts - 1), 1000);
     }
   });
-}, 5000);
+};
+
+if (Byond.IS_BYOND) {
+  rememberServerUrl();
+}
 
 export const ReconnectButton = () => {
-  if (!url) {
-    return null;
-  }
   return (
     <>
       <Button
@@ -25,16 +28,18 @@ export const ReconnectButton = () => {
       >
         Reconnect
       </Button>
-      <Button
-        color="white"
-        icon="power-off"
-        tooltip="Relaunch game"
-        tooltipPosition="bottom-end"
-        onClick={() => {
-          location.href = `byond://${url}`;
-          Byond.command('.quit');
-        }}
-      />
+      {url && (
+        <Button
+          color="white"
+          icon="power-off"
+          tooltip="Relaunch game"
+          tooltipPosition="bottom-end"
+          onClick={() => {
+            location.href = `byond://${url}`;
+            Byond.command('.quit');
+          }}
+        />
+      )}
     </>
   );
 };

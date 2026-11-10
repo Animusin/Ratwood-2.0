@@ -110,6 +110,7 @@
 #include "health_movespeed.dm"
 #include "health_transform.dm"
 #include "human_retention_extra.dm"
+#include "lag_cleanup.dm"
 #include "lag_recorder.dm"
 #include "legacy_spell_cleanup.dm"
 #include "market_daily_recovery.dm"

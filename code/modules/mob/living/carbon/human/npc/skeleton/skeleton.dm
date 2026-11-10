@@ -44,7 +44,7 @@
 		src.dna.species.soundpack_m = new /datum/voicepack/skeleton()
 		src.dna.species.soundpack_f = new /datum/voicepack/skeleton()
 	if(src.charflaw)
-		QDEL_NULL(src.charflaw)
+		src.delete_legacy_charflaw()
 	faction |= list("undead")
 	name = "Skeleton"
 	real_name = "Skeleton"

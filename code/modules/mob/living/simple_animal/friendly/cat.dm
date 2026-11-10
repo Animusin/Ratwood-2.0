@@ -264,9 +264,14 @@
 					if(!M.dead)
 						walk_towards(src, M, 1)
 						sleep(3)
-						visible_message("<span class='notice'>\The [src] kills the rat!</span>")
-						M.obj_destruction()
+						if(QDELETED(src))
+							return
+						// A native walk retains its destination until it is stopped.
+						walk(src, 0)
 						stop_automated_movement = 0
+						if(!QDELETED(M) && !M.dead)
+							visible_message("<span class='notice'>\The [src] kills the rat!</span>")
+							M.obj_destruction()
 						break
 
 

@@ -103,7 +103,7 @@
 	L.faction = list("undead")
 
 	if (L.charflaw && !preserve_character)
-		QDEL_NULL(L.charflaw)
+		L.delete_legacy_charflaw()
 
 	L.mob_biotypes |= MOB_UNDEAD
 	replace_eyes(L)
@@ -278,7 +278,7 @@
 	old_body.mind.transfer_to(new_body)
 
 	if (new_body.charflaw)
-		QDEL_NULL(new_body.charflaw)
+		new_body.delete_legacy_charflaw()
 
 	new_body.real_name = old_body.name
 	new_body.dna.real_name = old_body.real_name

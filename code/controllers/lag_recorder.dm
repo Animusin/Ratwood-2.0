@@ -1,11 +1,17 @@
 #define LAG_RECORDER_HISTORY 32
+#define LAG_RECORDER_WORK_HISTORY 16
 #define LAG_RECORDER_DURATION_MS 900000
 #define LAG_RECORDER_COOLDOWN_MS 2000
 
 /// Bounded capture of synchronous work. Uses the existing downloadable memory_stats.log.
 /datum/lag_recorder
+	var/static/last_capture_id = 0
+	/// Scalar identifier so a sleeping handler never retains the recorder.
+	var/capture_id
 	var/list/history = new(LAG_RECORDER_HISTORY)
 	var/history_cursor = 1
+	var/list/work_history = new(LAG_RECORDER_WORK_HISTORY)
+	var/work_cursor = 1
 	var/previous_wall_ms
 	var/previous_world_time
 	var/window_wall_ms
@@ -13,10 +19,21 @@
 	var/next_report_ms = 0
 	var/slow_sample = FALSE
 
+/datum/lag_recorder/New()
+	. = ..()
+	capture_id = ++last_capture_id
+
 /datum/lag_recorder/proc/record_sample(kind, label, cost_ms, tick_time, list/details)
 	history[history_cursor] = list("kind" = kind, "label" = label, "ms" = round(cost_ms, 0.1), "world_ds" = tick_time, "details" = details)
 	history_cursor = history_cursor % LAG_RECORDER_HISTORY + 1
 	if(cost_ms >= 80)
+		slow_sample = TRUE
+
+/// Work spans are inclusive and can overlap, such as a click that invokes a callback.
+/datum/lag_recorder/proc/record_work(kind, label, cost_ms, tick_time, before_controller, target_type, proc_name)
+	work_history[work_cursor] = list("kind" = kind, "label" = label, "ms" = round(cost_ms, 0.1), "world_ds" = tick_time, "before_controller" = before_controller, "target_type" = target_type ? "[target_type]" : null, "proc" = proc_name ? copytext("[proc_name]", 1, 129) : null)
+	work_cursor = work_cursor % LAG_RECORDER_WORK_HISTORY + 1
+	if(cost_ms >= (before_controller ? 25 : 50))
 		slow_sample = TRUE
 
 /datum/lag_recorder/proc/record_mob_slice(slice_ms, list/type_costs, processed, slowest_type, slowest_phase, slowest_ms)
@@ -62,7 +79,12 @@
 		var/list/entry = history[(history_cursor + offset - 1) % LAG_RECORDER_HISTORY + 1]
 		if(entry && game_ds - entry["world_ds"] <= 2 SECONDS)
 			recent += list(entry)
-	write_event("spike", list("world_ds" = game_ds, "gap_excess_ms" = excess_ms, "window_excess_ms" = window_excess_ms, "tick_start_pct" = starting_usage, "tick_budget_ms" = world.tick_lag * 100, "cpu_pct" = world.cpu, "map_cpu_pct" = world.map_cpu, "samples" = recent))
+	var/list/recent_work = list()
+	for(var/offset in 0 to LAG_RECORDER_WORK_HISTORY - 1)
+		var/list/entry = work_history[(work_cursor + offset - 1) % LAG_RECORDER_WORK_HISTORY + 1]
+		if(entry && game_ds - entry["world_ds"] <= 2 SECONDS)
+			recent_work += list(entry)
+	write_event("spike", list("world_ds" = game_ds, "gap_excess_ms" = excess_ms, "window_excess_ms" = window_excess_ms, "tick_start_pct" = starting_usage, "tick_budget_ms" = world.tick_lag * 100, "cpu_pct" = world.cpu, "map_cpu_pct" = world.map_cpu, "samples" = recent, "work_samples" = recent_work))
 	return TRUE
 
 /datum/lag_recorder/proc/write_event(kind, list/data)
@@ -84,5 +106,6 @@
 	to_chat(src, span_notice("Lag Recorder enabled for 15 minutes. Spikes are written to memory_stats.log."))
 
 #undef LAG_RECORDER_HISTORY
+#undef LAG_RECORDER_WORK_HISTORY
 #undef LAG_RECORDER_DURATION_MS
 #undef LAG_RECORDER_COOLDOWN_MS

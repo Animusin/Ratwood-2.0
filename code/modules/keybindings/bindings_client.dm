@@ -1,9 +1,6 @@
 // Clients aren't datums so we have to define these procs indpendently.
 // These verbs are called for all key press and release events
-/client/verb/keyDown(_key as text)
-	set instant = TRUE
-	set hidden = TRUE
-
+/client/proc/handle_key_down(_key)
 	client_keysend_amount += 1
 
 	var/cache = client_keysend_amount
@@ -83,10 +80,7 @@
 	mob.focus?.key_down(_key, src)
 	mob.update_mouse_pointer()
 
-/client/verb/keyUp(_key as text)
-	set instant = TRUE
-	set hidden = TRUE
-
+/client/proc/handle_key_up(_key)
 	client_keysend_amount += 1
 
 	var/cache = client_keysend_amount

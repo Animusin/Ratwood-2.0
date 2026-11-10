@@ -3797,4 +3797,5 @@
 #include "modular_twilight_axis\code\game\objects\items\scabbard.dm"
 #include "modular_twilight_axis\code\modules\bildings\blueprint_planner.dm"
 #include "modular_twilight_axis\code\modules\structures\cannon.dm"
+#include "code\controllers\lag_recorder_hooks.dm"
 // END_INCLUDE

@@ -52,3 +52,23 @@
 	var/list/deletion = samples[1]
 	TEST_ASSERT_EQUAL(deletion["kind"], "hard_delete", "The source of the measured delay must be preserved.")
 	TEST_ASSERT_EQUAL(deletion["ms"], 90, "The report must retain the measured time.")
+
+/// Early work should trigger a microstall report without displacing subsystem samples.
+/datum/unit_test/lag_recorder_early_work/Run()
+	var/datum/lag_recorder/test_probe/recorder = new
+	allocated += recorder
+	recorder.observe_tick(0, 400, 0)
+	recorder.record_sample("subsystem", "Input", 5, 400)
+	recorder.record_work("player", "Move", 30, 400.5, TRUE, null, null)
+	recorder.record_work("callback", "InvokeAsync", 6, 400.5, TRUE, "global", /proc/stoplag)
+	recorder.observe_tick(50, 400.5, 0)
+	TEST_ASSERT_EQUAL(length(recorder.events), 1, "An expensive early handler must trigger without a wall-clock gap.")
+	var/list/samples = recorder.last_report["samples"]
+	var/list/work = recorder.last_report["work_samples"]
+	TEST_ASSERT_EQUAL(length(samples), 1, "Subsystem samples must retain their own space.")
+	TEST_ASSERT_EQUAL(length(work), 2, "Both work spans must survive in the report.")
+	var/list/handler = work[1]
+	var/list/callback = work[2]
+	TEST_ASSERT_EQUAL(handler["label"], "Move", "The player handler must be named.")
+	TEST_ASSERT(handler["before_controller"], "Early work must be marked explicitly.")
+	TEST_ASSERT_EQUAL(callback["proc"], "/proc/stoplag", "The callback must identify the delegated procedure.")

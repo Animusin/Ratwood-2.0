@@ -36,12 +36,16 @@ import { decodeChatHistory, encodeChatHistory } from './history';
 import { createMessage, serializeMessage } from './model';
 import { chatRenderer } from './renderer';
 import { selectChat, selectCurrentChatPage } from './selectors';
+import { createSequenceHistory } from './sequenceHistory';
 
 // List of blacklisted tags
 const FORBID_TAGS = ['a', 'iframe', 'link', 'video'];
 
 const CHAT_HISTORY_KEY = 'chat-messages';
 const COMPRESSED_CHAT_HISTORY_KEY = 'chat-messages-gzip';
+const MESSAGES_PER_FRAME = 64;
+
+type ChatMessage = { html?: string };
 
 const loadChatHistory = async () => {
   try {
@@ -56,7 +60,10 @@ const loadChatHistory = async () => {
   return storage.get(CHAT_HISTORY_KEY).then(decodeChatHistory);
 };
 
-const loadChatFromStorage = async (store: Store) => {
+const loadChatFromStorage = async (
+  store: Store,
+  restoreHistory: (messages: ChatMessage[]) => void,
+) => {
   const [state, messages] = await Promise.all([
     storage.get('chat-state'),
     loadChatHistory(),
@@ -67,22 +74,10 @@ const loadChatFromStorage = async (store: Store) => {
     return;
   }
   if (messages) {
-    for (const message of messages) {
-      if (message.html) {
-        message.html = DOMPurify.sanitize(message.html, {
-          FORBID_TAGS,
-        });
-      }
-    }
-    const batch = [
+    restoreHistory([
       ...messages,
-      createMessage({
-        type: 'internal/reconnected',
-      }),
-    ];
-    chatRenderer.processBatch(batch, {
-      prepend: true,
-    });
+      createMessage({ type: 'internal/reconnected' }),
+    ]);
   }
   store.dispatch(loadChat(state));
 };
@@ -92,12 +87,74 @@ export const chatMiddleware = (store: Store) => {
   let loaded = false;
   let saving = false;
   let restarting = false;
+  let scheduled: number | null = null;
+  let scheduledAsFrame = false;
+  let historyPending: ChatMessage[] = [];
+  const messagesPending: ChatMessage[] = [];
+  const acceptSequence = createSequenceHistory();
 
-  const saveChatToStorage = async (immediate = false) => {
-    if (!loaded || (!immediate && (saving || restarting))) {
+  const pendingCount = () => historyPending.length + messagesPending.length;
+
+  const flushMessages = (limit = pendingCount()) => {
+    if (!loaded || !chatRenderer.isReady()) {
       return;
     }
 
+    if (historyPending.length) {
+      const batch = historyPending.splice(0, limit);
+      for (const message of batch) {
+        if (message.html) {
+          message.html = DOMPurify.sanitize(message.html, { FORBID_TAGS });
+        }
+      }
+      chatRenderer.processBatch(batch, { notifyListeners: false });
+      limit -= batch.length;
+    }
+
+    if (limit > 0 && messagesPending.length) {
+      chatRenderer.processBatch(messagesPending.splice(0, limit));
+    }
+  };
+
+  const scheduleMessages = () => {
+    if (!loaded || scheduled !== null || !pendingCount()) {
+      return;
+    }
+    const flushFrame = () => {
+      scheduled = null;
+      flushMessages(MESSAGES_PER_FRAME);
+      scheduleMessages();
+    };
+    scheduledAsFrame = !document.hidden;
+    scheduled = scheduledAsFrame
+      ? requestAnimationFrame(flushFrame)
+      : window.setTimeout(flushFrame, 16);
+  };
+
+  document.addEventListener('visibilitychange', () => {
+    if (scheduled !== null) {
+      if (scheduledAsFrame) {
+        cancelAnimationFrame(scheduled);
+      } else {
+        clearTimeout(scheduled);
+      }
+      scheduled = null;
+    }
+    scheduleMessages();
+  });
+
+  const saveChatToStorage = async (immediate = false) => {
+    if (
+      !loaded ||
+      !chatRenderer.isReady() ||
+      (!immediate && (saving || restarting || historyPending.length))
+    ) {
+      return;
+    }
+
+    if (immediate) {
+      flushMessages();
+    }
     const state = selectChat(store.getState());
     const messages = chatRenderer.messages
       .slice(-MAX_PERSISTED_MESSAGES)
@@ -138,8 +195,6 @@ export const chatMiddleware = (store: Store) => {
     }
   };
 
-  const sequences: number[] = [];
-  const sequences_requested: number[] = [];
   chatRenderer.events.on('batchProcessed', (countByType) => {
     // Use this flag to workaround unread messages caused by
     // loading them from storage. Side effect of that, is that
@@ -158,7 +213,9 @@ export const chatMiddleware = (store: Store) => {
     if (!initialized && settings.initialized) {
       setInterval(() => saveChatToStorage(), MESSAGE_SAVE_INTERVAL);
       initialized = true;
-      loadChatFromStorage(store);
+      loadChatFromStorage(store, (history) => {
+        historyPending = history;
+      });
     }
     if (type === 'chat/message') {
       let payload_obj;
@@ -168,35 +225,10 @@ export const chatMiddleware = (store: Store) => {
         return;
       }
 
-      const sequence: number = payload_obj.sequence;
-      if (sequences.includes(sequence)) {
-        return;
+      if (payload_obj?.content && acceptSequence(payload_obj.sequence)) {
+        messagesPending.push(payload_obj.content);
+        scheduleMessages();
       }
-
-      const sequence_count = sequences.length;
-      seq_check: if (sequence_count > 0) {
-        if (sequences_requested.includes(sequence)) {
-          sequences_requested.splice(sequences_requested.indexOf(sequence), 1);
-          // if we are receiving a message we requested, we can stop reliability checks
-          break seq_check;
-        }
-
-        // cannot do reliability if we don't have any messages
-        const expected_sequence = sequences[sequence_count - 1] + 1;
-        if (sequence !== expected_sequence) {
-          for (
-            let requesting = expected_sequence;
-            requesting < sequence;
-            requesting++
-          ) {
-            sequences_requested.push(requesting);
-            Byond.sendMessage('chat/resend', requesting);
-          }
-        }
-      }
-
-      chatRenderer.processBatch([payload_obj.content]);
-      sequences.push(sequence);
       return;
     }
     if (type === loadChat.type) {
@@ -205,6 +237,7 @@ export const chatMiddleware = (store: Store) => {
       chatRenderer.changePage(page);
       chatRenderer.onStateLoaded();
       loaded = true;
+      scheduleMessages();
       return;
     }
     if (
@@ -215,12 +248,14 @@ export const chatMiddleware = (store: Store) => {
       type === moveChatPageLeft.type ||
       type === moveChatPageRight.type
     ) {
+      flushMessages();
       next(action);
       const page = selectCurrentChatPage(store.getState());
       chatRenderer.changePage(page);
       return;
     }
     if (type === rebuildChat.type) {
+      flushMessages();
       chatRenderer.rebuildChat();
       return next(action);
     }
@@ -233,6 +268,7 @@ export const chatMiddleware = (store: Store) => {
       type === updateHighlightSetting.type ||
       type === importSettings.type
     ) {
+      flushMessages();
       next(action);
       const nextSettings = selectSettings(store.getState());
       chatRenderer.setHighlight(
@@ -248,10 +284,12 @@ export const chatMiddleware = (store: Store) => {
       return next(action);
     }
     if (type === saveChatToDisk.type) {
+      flushMessages();
       chatRenderer.saveToDisk();
       return;
     }
     if (type === clearChat.type) {
+      flushMessages();
       chatRenderer.clearChat();
       return;
     }

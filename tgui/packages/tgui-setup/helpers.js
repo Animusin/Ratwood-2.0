@@ -57,7 +57,8 @@
   Byond.strictMode = Boolean(Number(parseMetaTag('tgui:strictMode')));
 
   // Callbacks for asynchronous calls
-  Byond.__callbacks__ = [];
+  Byond.__callbacks__ = {};
+  var nextCallback = 0;
 
   // Reviver for BYOND JSON
   var byondJsonReviver = function (key, value) {
@@ -114,9 +115,12 @@
     if (!window.Promise) {
       throw new Error('Async calls require API level of ES2015 or later.');
     }
-    var index = Byond.__callbacks__.length;
+    var index = nextCallback++;
     var promise = new window.Promise(function (resolve) {
-      Byond.__callbacks__.push(resolve);
+      Byond.__callbacks__[index] = function (result) {
+        delete Byond.__callbacks__[index];
+        resolve(result);
+      };
     });
     Byond.call(
       path,

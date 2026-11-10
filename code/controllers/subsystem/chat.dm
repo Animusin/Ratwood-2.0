@@ -13,37 +13,21 @@ SUBSYSTEM_DEF(chat)
 	/// Assosciates a ckey with a list of messages to send to them.
 	var/list/list/datum/chat_payload/client_to_payloads = list()
 
-	/// Associates a ckey with an assosciative list of their last CHAT_RELIABILITY_HISTORY_SIZE messages.
-	var/list/list/datum/chat_payload/client_to_reliability_history = list()
 
 	/// Assosciates a ckey with their next sequence number.
 	var/list/client_to_sequence_number = list()
 
-/datum/controller/subsystem/chat/proc/generate_payload(client/target, message_data)
-	var/sequence = client_to_sequence_number[target.ckey]
-	client_to_sequence_number[target.ckey] += 1
-
+/datum/controller/subsystem/chat/proc/generate_payload(target_ckey, encoded_content, legacy_message)
 	var/datum/chat_payload/payload = new
-	payload.sequence = sequence
-	payload.content = message_data
-
-	if(!(target.ckey in client_to_reliability_history))
-		client_to_reliability_history[target.ckey] = list()
-	var/list/client_history = client_to_reliability_history[target.ckey]
-	client_history["[sequence]"] = payload
-
-	if(length(client_history) > CHAT_RELIABILITY_HISTORY_SIZE)
-		var/oldest = text2num(client_history[1])
-		for(var/index in 2 to length(client_history))
-			var/test = text2num(client_history[index])
-			if(test < oldest)
-				oldest = test
-		client_history -= "[oldest]"
+	payload.sequence = client_to_sequence_number[target_ckey] || 0
+	client_to_sequence_number[target_ckey] = payload.sequence + 1
+	payload.encoded_content = encoded_content
+	payload.legacy_message = legacy_message
 	return payload
 
 /datum/controller/subsystem/chat/proc/send_payload_to_client(client/target, datum/chat_payload/payload)
 	target.tgui_panel.window.send_message("chat/message", payload.into_message())
-	SEND_TEXT(target, payload.get_content_as_html())
+	SEND_TEXT(target, payload.legacy_message)
 
 /datum/controller/subsystem/chat/fire()
 	for(var/ckey in client_to_payloads)
@@ -52,47 +36,42 @@ SUBSYSTEM_DEF(chat)
 			LAZYREMOVE(client_to_payloads, ckey)
 			continue
 
-		for(var/datum/chat_payload/payload as anything in client_to_payloads[ckey])
-			send_payload_to_client(target, payload)
+		var/list/payloads = client_to_payloads[ckey]
+		for(var/index in 1 to length(payloads))
+			send_payload_to_client(target, payloads[index])
+			if(index % 8 == 0 && index < length(payloads) && MC_TICK_CHECK)
+				// Keep unsent messages in order and give the next client the first turn.
+				payloads.Cut(1, index + 1)
+				client_to_payloads -= ckey
+				client_to_payloads[ckey] = payloads
+				return
 		LAZYREMOVE(client_to_payloads, ckey)
 
 		if(MC_TICK_CHECK)
 			return
 
 /datum/controller/subsystem/chat/proc/queue(queue_target, list/message_data)
-	var/list/targets = islist(queue_target) ? queue_target : list(queue_target)
-	for(var/target in targets)
-		var/client/client = CLIENT_FROM_VAR(target)
-		if(isnull(client))
-			continue
-		LAZYADDASSOCLIST(client_to_payloads, client.ckey, generate_payload(client, message_data))
+	dispatch_message(queue_target, message_data)
 
 /datum/controller/subsystem/chat/proc/send_immediate(send_target, list/message_data)
+	dispatch_message(send_target, message_data, immediate = TRUE)
+
+/datum/controller/subsystem/chat/proc/dispatch_message(send_target, list/message_data, immediate = FALSE)
 	var/list/targets = islist(send_target) ? send_target : list(send_target)
+	var/encoded_content
+	var/legacy_message
 	for(var/target in targets)
 		var/client/client = CLIENT_FROM_VAR(target)
 		if(isnull(client))
 			continue
-		send_payload_to_client(client, generate_payload(client, message_data))
 
-/datum/controller/subsystem/chat/proc/handle_resend(client/client, sequence)
-	var/list/client_history = client_to_reliability_history[client.ckey]
-	sequence = "[sequence]"
-	if(isnull(client_history) || !(sequence in client_history))
-		return
+		// A broadcast has the same content for every recipient.
+		if(isnull(encoded_content))
+			encoded_content = json_encode(message_data)
+			legacy_message = message_to_html(message_data)
 
-	var/datum/chat_payload/payload = client_history[sequence]
-	if(payload.resends > CHAT_RELIABILITY_MAX_RESENDS)
-		return // we tried but byond said no
-
-	payload.resends += 1
-	send_payload_to_client(client, client_history[sequence])
-	SSblackbox.record_feedback(
-		"nested tally",
-		"chat_resend_byond_version",
-		1,
-		list(
-			"[client.byond_version]",
-			"[client.byond_build]",
-		),
-	)
+		var/datum/chat_payload/payload = generate_payload(client.ckey, encoded_content, legacy_message)
+		if(immediate)
+			send_payload_to_client(client, payload)
+		else
+			LAZYADDASSOCLIST(client_to_payloads, client.ckey, payload)

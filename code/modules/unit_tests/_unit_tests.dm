@@ -104,6 +104,7 @@
 #include "family_retention.dm"
 #include "focus_only_tests.dm"
 #include "fulmenor_chair.dm"
+#include "gc_failure_policy.dm"
 #include "ghost_protection.dm"
 #include "harddels.dm"
 #include "health_mobility.dm"

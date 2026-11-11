@@ -96,6 +96,7 @@ SUBSYSTEM_DEF(memory_stats)
 
 	// garbage: failed hard deletes pin memory; a growing queue means qdel's harddelling too much
 	out += "gc_totaldels=[SSgarbage.totaldels]"
+	out += "gc_totalleaks=[SSgarbage.totalleaks]"
 	out += "gc_totalgcs=[SSgarbage.totalgcs]"
 	for(var/i in 1 to length(SSgarbage.queues))
 		out += "gc_queue[i]=[length(SSgarbage.queues[i])]"

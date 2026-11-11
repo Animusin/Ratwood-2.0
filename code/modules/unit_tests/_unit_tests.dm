@@ -184,6 +184,7 @@
 #include "species_whitelists.dm"
 #include "speech_mannerisms.dm"
 #include "subsystem_init.dm"
+#include "surgery_diagnosis.dm"
 #include "tgui_assets.dm"
 #include "timer_sanity.dm"
 #include "timers.dm"

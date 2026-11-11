@@ -708,6 +708,7 @@
 	valid_blades = list(
 		/obj/item/rogueweapon/sword/short/kazengun,
 		/obj/item/rogueweapon/sword/sabre/mulyeog,
+		/obj/item/rogueweapon/sword/sabre/mulyeog/silver,
 		/obj/item/rogueweapon/sword/sabre/mulyeog/rumahench,
 		/obj/item/rogueweapon/sword/sabre/mulyeog/rumacaptain,
 		/obj/item/rogueweapon/sword/sabre/hook
@@ -731,7 +732,8 @@
 		/obj/item/rogueweapon/sword/sabre/mulyeog/rumahench,
 		/obj/item/rogueweapon/sword/sabre/mulyeog/rumacaptain,
 		/obj/item/rogueweapon/sword/sabre/hook,
-		/obj/item/rogueweapon/sword/long/kriegmesser/ssangsudo
+		/obj/item/rogueweapon/sword/long/kriegmesser/ssangsudo,
+		/obj/item/rogueweapon/sword/long/kriegmesser/silver/ssangsudo
 	)
 	can_parry = FALSE
 
@@ -742,10 +744,12 @@
 	valid_blades = list(
 		/obj/item/rogueweapon/sword/short/kazengun,
 		/obj/item/rogueweapon/sword/sabre/mulyeog,
+		/obj/item/rogueweapon/sword/sabre/mulyeog/silver,
 		/obj/item/rogueweapon/sword/sabre/mulyeog/rumahench,
 		/obj/item/rogueweapon/sword/sabre/mulyeog/rumacaptain,
 		/obj/item/rogueweapon/sword/sabre/hook,
-		/obj/item/rogueweapon/sword/long/kriegmesser/ssangsudo
+		/obj/item/rogueweapon/sword/long/kriegmesser/ssangsudo,
+		/obj/item/rogueweapon/sword/long/kriegmesser/silver/ssangsudo
 	)
 
 /obj/item/rogueweapon/scabbard/sword/kazengun/steel
@@ -792,6 +796,7 @@
 	// Only accept Kazengun swords (kodachi variant)
 	valid_blades = list(
 		/obj/item/rogueweapon/sword/short/kazengun,
+		/obj/item/rogueweapon/sword/short/silver/kazengun,
 		/obj/item/rogueweapon/sword/sabre/mulyeog,
 		/obj/item/rogueweapon/sword/sabre/mulyeog/rumahench,
 		/obj/item/rogueweapon/sword/sabre/mulyeog/rumacaptain,
@@ -807,7 +812,8 @@
 	fallback_sheathe_icon = "tanto"
 	// Only accept Kazengun daggers
 	valid_blades = list(
-		/obj/item/rogueweapon/huntingknife/idagger/steel/kazengun
+		/obj/item/rogueweapon/huntingknife/idagger/steel/kazengun,
+		/obj/item/rogueweapon/huntingknife/idagger/silver/kazengun
 	)
 	associated_skill = /datum/skill/combat/knives
 	possible_item_intents = list(SHIELD_BASH, SHIELD_BLOCK)

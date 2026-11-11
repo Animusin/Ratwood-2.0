@@ -1416,32 +1416,141 @@ GLOBAL_LIST_EMPTY(loadout_selected_advclasses)
 	set name = "Display del() Log"
 	set desc = ""
 
-	var/recorder_start = Master.lag_recorder ? TICK_USAGE : 0
-	var/list/dellog = list("<B>List of things that have gone through qdel this round</B><BR><BR><ol>")
-	sortTim(SSgarbage.items, cmp=/proc/cmp_qdel_item_time, associative = TRUE)
-	for(var/path in SSgarbage.items)
-		var/datum/qdel_item/I = SSgarbage.items[path]
-		dellog += "<li><u>[path]</u><ul>"
-		if (I.failures)
-			dellog += "<li>Failures: [I.failures]</li>"
-		dellog += "<li>qdel() Count: [I.qdels]</li>"
-		dellog += "<li>Destroy() Cost: [I.destroy_time]ms</li>"
-		if (I.hard_deletes)
-			dellog += "<li>Total Hard Deletes [I.hard_deletes]</li>"
-			dellog += "<li>Time Spent Hard Deleting: [I.hard_delete_time]ms</li>"
-		if (I.slept_destroy)
-			dellog += "<li>Sleeps: [I.slept_destroy]</li>"
-		if (I.no_respect_force)
-			dellog += "<li>Ignored force: [I.no_respect_force]</li>"
-		if (I.no_hint)
-			dellog += "<li>No hint: [I.no_hint]</li>"
+	if(!check_rights(R_DEBUG) || del_log_building)
+		return
+	del_log_building = TRUE
+	var/datum/qdel_report/report = new
+	report.build(SSgarbage.items)
+	// Building may yield. A disconnected viewer must not leave a report holding any clients or mobs.
+	if(!src)
+		qdel(report)
+		return
+	del_log_building = FALSE
+	if(!holder?.check_for_rights(R_DEBUG))
+		qdel(report)
+		return
+	QDEL_NULL(del_log_report)
+	del_log_report = report
+	report.show_page(src)
+
+/client
+	var/datum/qdel_report/del_log_report
+	var/del_log_building = FALSE
+
+/// A viewer's numeric snapshot. It never owns the viewer or the live garbage statistics.
+/datum/qdel_report
+	var/list/rows = list()
+	var/page_size = 100
+	var/snapshot_time
+
+/datum/qdel_report/Destroy()
+	rows = null
+	return ..()
+
+/datum/qdel_report/proc/build(list/items)
+	snapshot_time = world.time
+	rows = list()
+	var/slice_start = TICK_USAGE
+	// New types may be added while this yields; do not reorder the live subsystem's associative list.
+	var/list/snapshot = items.Copy()
+	for(var/path in snapshot)
+		var/datum/qdel_item/item = snapshot[path]
+		rows += list(list(
+			"path" = "[path]",
+			"failures" = item.failures,
+			"qdels" = item.qdels,
+			"destroy_time" = item.destroy_time,
+			"hard_deletes" = item.hard_deletes,
+			"hard_delete_time" = item.hard_delete_time,
+			"slept_destroy" = item.slept_destroy,
+			"no_respect_force" = item.no_respect_force,
+			"no_hint" = item.no_hint,
+		))
+		if(rows.len % 32 == 0)
+			if(TICK_CHECK || TICK_USAGE_TO_MS(slice_start) >= 4)
+				stoplag()
+				slice_start = TICK_USAGE
+	snapshot = null
+	sort_rows(slice_start)
+
+/// Bottom-up stable merge: local arrays allow yielding without corrupting GLOB.sortInstance.
+/datum/qdel_report/proc/sort_rows(slice_start = TICK_USAGE)
+	var/count = length(rows)
+	if(count < 2)
+		return
+	var/list/source = rows
+	var/list/destination = new /list(count)
+	for(var/width = 1, width < count, width *= 2)
+		for(var/start = 1, start <= count, start += width * 2)
+			var/middle = min(start + width, count + 1)
+			var/end = min(start + width * 2, count + 1)
+			var/left = start
+			var/right = middle
+			for(var/index = start, index < end, index++)
+				if(left < middle && (right >= end || cmp_qdel_report_rows(source[left], source[right]) <= 0))
+					destination[index] = source[left++]
+				else
+					destination[index] = source[right++]
+				if(index % 32 == 0)
+					if(TICK_CHECK || TICK_USAGE_TO_MS(slice_start) >= 4)
+						stoplag()
+						slice_start = TICK_USAGE
+		var/list/previous = source
+		source = destination
+		destination = previous
+	rows = source
+
+/// Keep the same priority and tie breakers as cmp_qdel_item_time.
+/proc/cmp_qdel_report_rows(list/first, list/second)
+	. = second["hard_delete_time"] - first["hard_delete_time"]
+	if(!.)
+		. = second["destroy_time"] - first["destroy_time"]
+	if(!.)
+		. = second["failures"] - first["failures"]
+	if(!.)
+		. = second["qdels"] - first["qdels"]
+
+/datum/qdel_report/proc/page_html(page = 1)
+	var/page_count = max(1, CEILING(length(rows) / page_size, 1))
+	page = clamp(round(page), 1, page_count)
+	var/list/dellog = list("<b>List of things that have gone through qdel this round</b><br><br>", "[length(rows)] types. Page [page] of [page_count].<br>")
+	if(page > 1)
+		dellog += "<a href='?src=[REF(src)];page=[page - 1]'>Previous</a> "
+	if(page < page_count)
+		dellog += "<a href='?src=[REF(src)];page=[page + 1]'>Next</a>"
+	dellog += "<p>Snapshot. Reopen Display del() Log to refresh.</p><ol start='[(page - 1) * page_size + 1]'>"
+	for(var/index = (page - 1) * page_size + 1, index <= min(page * page_size, length(rows)), index++)
+		var/list/row = rows[index]
+		dellog += "<li><u>[html_encode(row["path"])]</u><ul>"
+		if(row["failures"])
+			dellog += "<li>Failures: [row["failures"]]</li>"
+		dellog += "<li>qdel() Count: [row["qdels"]]</li><li>Destroy() Cost: [row["destroy_time"]]ms</li>"
+		if(row["hard_deletes"])
+			dellog += "<li>Total Hard Deletes [row["hard_deletes"]]</li><li>Time Spent Hard Deleting: [row["hard_delete_time"]]ms</li>"
+		if(row["slept_destroy"])
+			dellog += "<li>Sleeps: [row["slept_destroy"]]</li>"
+		if(row["no_respect_force"])
+			dellog += "<li>Ignored force: [row["no_respect_force"]]</li>"
+		if(row["no_hint"])
+			dellog += "<li>No hint: [row["no_hint"]]</li>"
 		dellog += "</ul></li>"
-
 	dellog += "</ol>"
+	return dellog.Join()
 
-	usr << browse(dellog.Join(), "window=dellog")
-	if(Master.lag_recorder && TICK_USAGE_TO_MS(recorder_start) >= 4)
-		Master.lag_recorder.record_sample("admin", "Display del() Log", TICK_USAGE_TO_MS(recorder_start), world.time)
+/datum/qdel_report/proc/show_page(client/viewer, page = 1)
+	var/start_tick = world.time
+	var/recorder_start = Master.lag_recorder ? TICK_USAGE : 0
+	viewer << browse(page_html(page), "window=dellog")
+	if(Master.lag_recorder && world.time == start_tick && TICK_USAGE_TO_MS(recorder_start) >= 4)
+		Master.lag_recorder.record_sample("admin", "Display del() Log", TICK_USAGE_TO_MS(recorder_start), start_tick)
+
+/datum/qdel_report/Topic(href, list/href_list)
+	. = ..()
+	var/client/viewer = usr?.client
+	if(viewer?.del_log_report != src || !check_rights(R_DEBUG))
+		return
+	if(href_list["page"])
+		show_page(viewer, text2num(href_list["page"]))
 
 /client/proc/cmd_display_overlay_log()
 	set category = "Debug"

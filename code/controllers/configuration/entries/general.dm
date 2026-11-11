@@ -547,3 +547,8 @@
 	default = 100
 	min_val = 0
 	max_val = 100
+
+/// Hard delete objects that fail to garbage collect. Off by default: every del() makes BYOND walk
+/// the whole world for references, which freezes a populated server for 0.2-1 s per object.
+/// With this off a failure is logged to qdel.log and left to its remaining references.
+/datum/config_entry/flag/gc_failure_hard_deletes

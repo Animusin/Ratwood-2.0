@@ -638,6 +638,7 @@ GLOBAL_LIST_EMPTY(external_rsc_urls)
 */
 	if(player_details)
 		player_details.achievements.save()
+	prefs?.release_savefile()
 
 	GLOB.ahelp_tickets.ClientLogout(src)
 	GLOB.directory -= ckey

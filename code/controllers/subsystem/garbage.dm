@@ -36,6 +36,8 @@ SUBSYSTEM_DEF(garbage)
 	var/gcedlasttick = 0			// number of things that gc'ed last tick
 	var/totaldels = 0
 	var/totalgcs = 0
+	/// GC failures left alive instead of hard deleted. See [/datum/config_entry/flag/gc_failure_hard_deletes].
+	var/totalleaks = 0
 
 	var/highest_del_time = 0
 	var/highest_del_tickusage = 0
@@ -76,7 +78,7 @@ SUBSYSTEM_DEF(garbage)
 	else
 		msg += "[round((gcedlasttick/(delslasttick+gcedlasttick))*100, 0.01)]%|"
 
-	msg += "TD:[totaldels]|TG:[totalgcs]|"
+	msg += "TD:[totaldels]|TG:[totalgcs]|TL:[totalleaks]|"
 	if (!(totaldels+totalgcs))
 		msg += "n/a|"
 	else
@@ -216,6 +218,14 @@ SUBSYSTEM_DEF(garbage)
 				testing("GC: -- \ref[D] | [type] was unable to be GC'd --")
 				#endif
 				trash.failures++
+				if(leave_failure_alive(D, refcount(D) - REFS_WE_EXPECT))
+					#ifdef REFERENCE_TRACKING
+					if(ref_searching)
+						return
+					#endif
+					if (MC_TICK_CHECK)
+						return
+					continue
 			if (GC_QUEUE_HARDDELETE)
 				HardDelete(D)
 				if (MC_TICK_CHECK)
@@ -249,6 +259,81 @@ SUBSYSTEM_DEF(garbage)
 	var/list/queue = queues[level]
 	// we add gc_destroyed so that we can rule out false matches
 	queue[++queue.len] = list(queue_time, D, D.gc_destroyed) // not += for byond reasons
+
+/// del() makes the engine walk every object in the world to clear the dangling references. On a
+/// populated server that is a 0.2-1 s freeze per object, so by default a collection failure is
+/// logged and left to its remaining references instead. It has been through Destroy() already,
+/// and BYOND still frees it if those references ever go away. Returns TRUE when left alive.
+/datum/controller/subsystem/garbage/proc/leave_failure_alive(datum/failed, dangling_references)
+	if(CONFIG_GET(flag/gc_failure_hard_deletes))
+		return FALSE
+	++totalleaks
+	var/list/clues = failed.gc_failure_clues()
+	log_qdel("GC failure left alive: [failed.type] ([text_ref(failed)]), [dangling_references] dangling reference(s)[length(clues) ? "; [clues.Join("; ")]" : ""]; world.time=[world.time].")
+	return TRUE
+
+#define GC_CLUE_LIMIT 5
+
+/// Cheap facts about a destroyed object that hint at what still refers to it. Reads the object only,
+/// nothing here searches the world. A listener or timer added after Destroy() is the usual culprit:
+/// the other side of each of these keeps a reference back to this object.
+/datum/proc/gc_failure_clues()
+	. = list()
+	if(length(signal_procs))
+		var/list/targets = list()
+		for(var/datum/target as anything in signal_procs)
+			if(length(targets) >= GC_CLUE_LIMIT)
+				break
+			var/list/signals = signal_procs[target]
+			targets += "[target?.type] ([islist(signals) ? signals.Join(",") : ""])"
+		. += "still listening to [length(signal_procs)] target(s): [targets.Join(", ")]"
+	if(length(comp_lookup))
+		var/list/signals = list()
+		for(var/signal in comp_lookup)
+			if(length(signals) >= GC_CLUE_LIMIT)
+				break
+			signals += "[signal]"
+		. += "still has [length(comp_lookup)] signal(s) listened to: [signals.Join(",")]"
+	if(length(active_timers))
+		var/list/callbacks = list()
+		for(var/datum/timedevent/timer as anything in active_timers)
+			if(length(callbacks) >= GC_CLUE_LIMIT)
+				break
+			callbacks += "[timer?.callBack?.delegate]"
+		. += "[length(active_timers)] timer(s): [callbacks.Join(",")]"
+	if(length(datum_components))
+		. += "[length(datum_components)] component slot(s)"
+	if(length(open_uis))
+		. += "[length(open_uis)] open ui(s)"
+
+/atom/gc_failure_clues()
+	. = ..()
+	if(loc)
+		. += "inside [loc.type]"
+	if(length(contents))
+		. += "holds [length(contents)] object(s)"
+	if(orbiters)
+		. += "has orbiters"
+
+/atom/movable/gc_failure_clues()
+	. = ..()
+	if(pulledby)
+		. += "pulled by [pulledby.type]"
+	if(length(vis_locs))
+		. += "in vis_contents of [length(vis_locs)] atom(s)"
+
+/mob/gc_failure_clues()
+	. = ..()
+	if(key)
+		. += "has a key"
+	if(client)
+		. += "has a client"
+	if(mind)
+		. += "mind attached[mind.current == src ? " as its current body" : ""]"
+	if(buckled)
+		. += "buckled to [buckled.type]"
+
+#undef GC_CLUE_LIMIT
 
 //this is mainly to separate things profile wise.
 /datum/controller/subsystem/garbage/proc/HardDelete(datum/to_delete)

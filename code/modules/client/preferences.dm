@@ -6,6 +6,8 @@ GLOBAL_LIST_EMPTY(chosen_names)
 
 /datum/preferences
 	var/client/parent
+	/// Keeps the savefile loaded while the player is connected. See [/datum/preferences/proc/hold_savefile].
+	var/savefile/held_savefile
 	//doohickeys for savefiles
 	var/path
 	var/default_slot = 1				//Holder so it doesn't default to slot 1, rather the last one used

@@ -536,3 +536,8 @@ DEFAULT_VIEW_SQUARE 15x15
 ## 1 Puts Border Control into 'learning mode' and will have it automatically whitelist new connections
 ## 2 Puts Border Control into 'enforcing mode' and will have it deny connections that are not already whitelisted.
 BORDER_CONTROL 0
+
+## An object that fails to garbage collect is logged to qdel.log and left alive by default, because a hard
+## delete freezes the whole server while BYOND searches every object for references to it.
+## Uncomment to hard delete GC failures again, for example while hunting leaks on a test server.
+#GC_FAILURE_HARD_DELETES

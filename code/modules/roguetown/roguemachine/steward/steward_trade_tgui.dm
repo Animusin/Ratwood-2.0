@@ -607,7 +607,6 @@ GLOBAL_LIST_INIT(steward_trade_sequestration_locked_actions, list(
 							playsound(src, 'sound/misc/coindispense.ogg', 60, FALSE, -1)
 						else
 							COOLDOWN_START(src, fulfill_retry_cooldown, STANDING_ORDER_FULFILL_RETRY_COOLDOWN)
-					SStgui.update_uis(src)
 					return TRUE
 				if(islist(result) && result["status"] == "full")
 					var/q_delta = result["quality_delta"]
@@ -620,33 +619,26 @@ GLOBAL_LIST_INIT(steward_trade_sequestration_locked_actions, list(
 					playsound(src, 'sound/misc/coindispense.ogg', 60, FALSE, -1)
 				else
 					COOLDOWN_START(src, fulfill_retry_cooldown, STANDING_ORDER_FULFILL_RETRY_COOLDOWN)
-			SStgui.update_uis(src)
 			return TRUE
 		if("trade_import")
 			handle_trade_import(usr, params["region_id"], params["good_id"], params["quantity"])
 			last_trade_quote -= usr.ckey
-			SStgui.update_uis(src)
 			return TRUE
 		if("trade_export")
 			handle_trade_export(usr, params["region_id"], params["good_id"], params["quantity"])
 			last_trade_quote -= usr.ckey
-			SStgui.update_uis(src)
 			return TRUE
 		if("trade_quote")
 			last_trade_quote[usr.ckey] = quote_trade(usr, params["side"], params["region_id"], params["good_id"], params["quantity"])
-			SStgui.update_uis(src)
 			return TRUE
 		if("trade_quote_close")
 			last_trade_quote -= usr.ckey
-			SStgui.update_uis(src)
 			return TRUE
 		if("trade_region_import")
 			handle_trade_region_import(usr, params["region_id"])
-			SStgui.update_uis(src)
 			return TRUE
 		if("trade_region_export")
 			handle_trade_region_export(usr, params["region_id"])
-			SStgui.update_uis(src)
 			return TRUE
 		if("toggle_auto_import")
 			if(SScity_assembly?.is_alderman(usr))
@@ -654,13 +646,11 @@ GLOBAL_LIST_INIT(steward_trade_sequestration_locked_actions, list(
 			var/good_id = params["good_id"]
 			if(good_id)
 				SStreasury.set_auto_import(good_id, !SStreasury.is_auto_import_active(good_id))
-			SStgui.update_uis(src)
 			return TRUE
 		if("kill_switch_auto_import")
 			if(SScity_assembly?.is_alderman(usr))
 				return TRUE
 			SStreasury.kill_switch_auto_import()
-			SStgui.update_uis(src)
 			return TRUE
 		if("set_auto_import_purse_floor")
 			if(SScity_assembly?.is_alderman(usr))
@@ -668,7 +658,6 @@ GLOBAL_LIST_INIT(steward_trade_sequestration_locked_actions, list(
 			var/amount = text2num("[params["amount"]]")
 			if(!isnull(amount))
 				SStreasury.set_auto_import_purse_floor(amount)
-			SStgui.update_uis(src)
 			return TRUE
 		// ── Stockpile management. Steward-only — Aldermen see the data but can't edit. ──
 		if("toggle_auto_price")
@@ -679,7 +668,6 @@ GLOBAL_LIST_INIT(steward_trade_sequestration_locked_actions, list(
 				D.automatic_price = !D.automatic_price
 				if(D.automatic_price)
 					D.snap_auto_prices()
-			SStgui.update_uis(src)
 			return TRUE
 		if("toggle_auto_limit")
 			if(SScity_assembly?.is_alderman(usr))
@@ -700,7 +688,6 @@ GLOBAL_LIST_INIT(steward_trade_sequestration_locked_actions, list(
 						D.stockpile_limit = max(STOCKPILE_LIMIT_MIN, CEILING(total_demand * pop_mult * STOCKPILE_AUTO_LIMIT_DAYS, 1))
 					else
 						D.stockpile_limit = max(STOCKPILE_LIMIT_MIN, D.stockpile_limit)
-			SStgui.update_uis(src)
 			return TRUE
 		if("toggle_stockpile_accept")
 			if(SScity_assembly?.is_alderman(usr))
@@ -709,7 +696,6 @@ GLOBAL_LIST_INIT(steward_trade_sequestration_locked_actions, list(
 			if(D)
 				D.accept_toggle_enabled = !D.accept_toggle_enabled
 				SStreasury.dirty_market_view()
-			SStgui.update_uis(src)
 			return TRUE
 		if("toggle_withdraw_disabled")
 			if(SScity_assembly?.is_alderman(usr))
@@ -718,7 +704,6 @@ GLOBAL_LIST_INIT(steward_trade_sequestration_locked_actions, list(
 			if(D)
 				D.withdraw_disabled = !D.withdraw_disabled
 				SStreasury.dirty_market_view()
-			SStgui.update_uis(src)
 			return TRUE
 		if("set_buy_price")
 			if(SScity_assembly?.is_alderman(usr))
@@ -733,7 +718,6 @@ GLOBAL_LIST_INIT(steward_trade_sequestration_locked_actions, list(
 			if(!isnull(price))
 				D.payout_price = clamp(round(price), 0, 9999)
 				D.automatic_price = FALSE
-			SStgui.update_uis(src)
 			return TRUE
 		if("set_sell_price")
 			if(SScity_assembly?.is_alderman(usr))
@@ -747,7 +731,6 @@ GLOBAL_LIST_INIT(steward_trade_sequestration_locked_actions, list(
 			if(!isnull(price))
 				D.withdraw_price = clamp(round(price), 0, 9999)
 				D.automatic_price = FALSE
-			SStgui.update_uis(src)
 			return TRUE
 		if("set_stockpile_limit")
 			if(SScity_assembly?.is_alderman(usr))
@@ -761,7 +744,6 @@ GLOBAL_LIST_INIT(steward_trade_sequestration_locked_actions, list(
 			if(!isnull(lim))
 				D.stockpile_limit = clamp(round(lim), 0, 9999)
 				D.automatic_limit = FALSE
-			SStgui.update_uis(src)
 			return TRUE
 		if("autoprice_all")
 			if(SScity_assembly?.is_alderman(usr))
@@ -769,7 +751,6 @@ GLOBAL_LIST_INIT(steward_trade_sequestration_locked_actions, list(
 			for(var/datum/roguestock/stockpile/A in SStreasury.stockpile_datums)
 				A.automatic_price = TRUE
 				A.snap_auto_prices()
-			SStgui.update_uis(src)
 			return TRUE
 		if("autolimit_all")
 			if(SScity_assembly?.is_alderman(usr))
@@ -777,7 +758,6 @@ GLOBAL_LIST_INIT(steward_trade_sequestration_locked_actions, list(
 			for(var/datum/roguestock/A in SStreasury.stockpile_datums)
 				A.automatic_limit = TRUE
 			SStreasury.autoset_stockpile_limits()
-			SStgui.update_uis(src)
 			return TRUE
 		if("autoprice_category")
 			if(SScity_assembly?.is_alderman(usr))
@@ -793,7 +773,6 @@ GLOBAL_LIST_INIT(steward_trade_sequestration_locked_actions, list(
 					continue
 				A.automatic_price = TRUE
 				A.snap_auto_prices()
-			SStgui.update_uis(src)
 			return TRUE
 		if("autolimit_category")
 			if(SScity_assembly?.is_alderman(usr))
@@ -809,7 +788,6 @@ GLOBAL_LIST_INIT(steward_trade_sequestration_locked_actions, list(
 					continue
 				A.automatic_limit = TRUE
 			SStreasury.autoset_stockpile_limits()
-			SStgui.update_uis(src)
 			return TRUE
 		if("accept_category")
 			if(SScity_assembly?.is_alderman(usr))
@@ -825,7 +803,6 @@ GLOBAL_LIST_INIT(steward_trade_sequestration_locked_actions, list(
 					continue
 				A.accept_toggle_enabled = TRUE
 			SStreasury.dirty_market_view()
-			SStgui.update_uis(src)
 			return TRUE
 		if("reject_category")
 			if(SScity_assembly?.is_alderman(usr))
@@ -841,7 +818,6 @@ GLOBAL_LIST_INIT(steward_trade_sequestration_locked_actions, list(
 					continue
 				A.accept_toggle_enabled = FALSE
 			SStreasury.dirty_market_view()
-			SStgui.update_uis(src)
 			return TRUE
 		if("allow_withdraw_category", "bar_withdraw_category")
 			if(SScity_assembly?.is_alderman(usr))
@@ -858,7 +834,6 @@ GLOBAL_LIST_INIT(steward_trade_sequestration_locked_actions, list(
 					continue
 				A.withdraw_disabled = barred
 			SStreasury.dirty_market_view()
-			SStgui.update_uis(src)
 			return TRUE
 		if("allow_autoexport_category", "bar_autoexport_category")
 			if(SScity_assembly?.is_alderman(usr))
@@ -875,7 +850,6 @@ GLOBAL_LIST_INIT(steward_trade_sequestration_locked_actions, list(
 					continue
 				A.autoexport_disabled = barred
 			SStreasury.dirty_market_view()
-			SStgui.update_uis(src)
 			return TRUE
 		if("bar_autoexport_shortages")
 			if(SScity_assembly?.is_alderman(usr))
@@ -895,7 +869,6 @@ GLOBAL_LIST_INIT(steward_trade_sequestration_locked_actions, list(
 				to_chat(usr, span_info("Autoexport barred on [barred_count] good\s under shortage."))
 			else
 				to_chat(usr, span_warning("No shortage goods left to bar."))
-			SStgui.update_uis(src)
 			return TRUE
 		if("allow_autoexport_all")
 			if(SScity_assembly?.is_alderman(usr))
@@ -903,7 +876,6 @@ GLOBAL_LIST_INIT(steward_trade_sequestration_locked_actions, list(
 			for(var/datum/roguestock/A as anything in SStreasury.stockpile_datums)
 				A.autoexport_disabled = FALSE
 			SStreasury.dirty_market_view()
-			SStgui.update_uis(src)
 			return TRUE
 		if("toggle_autoexport_disabled")
 			if(SScity_assembly?.is_alderman(usr))
@@ -912,7 +884,6 @@ GLOBAL_LIST_INIT(steward_trade_sequestration_locked_actions, list(
 			if(D)
 				D.autoexport_disabled = !D.autoexport_disabled
 				SStreasury.dirty_market_view()
-			SStgui.update_uis(src)
 			return TRUE
 		if("multiply_all_buy")
 			if(SScity_assembly?.is_alderman(usr))
@@ -926,7 +897,6 @@ GLOBAL_LIST_INIT(steward_trade_sequestration_locked_actions, list(
 				A.refresh_auto_price()
 				A.payout_price = max(1, round(A.payout_price * mult))
 				A.automatic_price = FALSE
-			SStgui.update_uis(src)
 			return TRUE
 		if("multiply_all_sell")
 			if(SScity_assembly?.is_alderman(usr))
@@ -940,7 +910,6 @@ GLOBAL_LIST_INIT(steward_trade_sequestration_locked_actions, list(
 				A.refresh_auto_price()
 				A.withdraw_price = max(1, round(A.withdraw_price * mult))
 				A.automatic_price = FALSE
-			SStgui.update_uis(src)
 			return TRUE
 		if("multiply_category_buy")
 			if(SScity_assembly?.is_alderman(usr))
@@ -963,7 +932,6 @@ GLOBAL_LIST_INIT(steward_trade_sequestration_locked_actions, list(
 				A.refresh_auto_price()
 				A.payout_price = max(1, round(A.payout_price * mult))
 				A.automatic_price = FALSE
-			SStgui.update_uis(src)
 			return TRUE
 		if("multiply_category_sell")
 			if(SScity_assembly?.is_alderman(usr))
@@ -986,7 +954,6 @@ GLOBAL_LIST_INIT(steward_trade_sequestration_locked_actions, list(
 				A.refresh_auto_price()
 				A.withdraw_price = max(1, round(A.withdraw_price * mult))
 				A.automatic_price = FALSE
-			SStgui.update_uis(src)
 			return TRUE
 		if("set_autoexport_percentage")
 			if(SScity_assembly?.is_alderman(usr))
@@ -998,7 +965,6 @@ GLOBAL_LIST_INIT(steward_trade_sequestration_locked_actions, list(
 				return TRUE
 			pct = clamp(round(pct), 0, 100)
 			SStreasury.autoexport_percentage = pct * 0.01
-			SStgui.update_uis(src)
 			return TRUE
 		if("export_surplus_all")
 			if(SScity_assembly?.is_alderman(usr))
@@ -1014,7 +980,6 @@ GLOBAL_LIST_INIT(steward_trade_sequestration_locked_actions, list(
 				to_chat(usr, span_notice(line))
 			to_chat(usr, span_notice("<b>Total: [units] units exported for [revenue]m.</b>"))
 			playsound(src, 'sound/misc/coindispense.ogg', 60, FALSE, -1)
-			SStgui.update_uis(src)
 			return TRUE
 		if("export_surplus_category")
 			if(SScity_assembly?.is_alderman(usr))
@@ -1064,7 +1029,6 @@ GLOBAL_LIST_INIT(steward_trade_sequestration_locked_actions, list(
 				to_chat(usr, span_notice(line))
 			to_chat(usr, span_notice("<b>Total: [total_units] units exported for [total_revenue]m.</b>"))
 			playsound(src, 'sound/misc/coindispense.ogg', 60, FALSE, -1)
-			SStgui.update_uis(src)
 			return TRUE
 		if("petition_for_order")
 			if(SScity_assembly?.is_alderman(usr))
@@ -1079,7 +1043,6 @@ GLOBAL_LIST_INIT(steward_trade_sequestration_locked_actions, list(
 				var/datum/economic_region/region = GLOB.economic_regions[region_id]
 				playsound(src, 'sound/items/inqslip_sealed.ogg', 70, FALSE, -1)
 				visible_message(span_notice("[src] stamps a freshly sealed writ. The wax bears the mark of the [region?.name] trade hall."))
-			SStgui.update_uis(src)
 			return TRUE
 		if("take_atc_loan")
 			if(SScity_assembly?.is_alderman(usr))
@@ -1094,7 +1057,6 @@ GLOBAL_LIST_INIT(steward_trade_sequestration_locked_actions, list(
 			if(SStreasury.take_atc_loan(amount, usr))
 				playsound(src, 'sound/items/inqslip_sealed.ogg', 70, FALSE, -1)
 				visible_message(span_notice("[src] stamps a sealed writ. The wax bears the mark of the Ferentian Trading Company."))
-			SStgui.update_uis(src)
 			return TRUE
 		if("set_royal_custom_margin")
 			if(!SStreasury.royal_custom_unlocked)
@@ -1104,7 +1066,6 @@ GLOBAL_LIST_INIT(steward_trade_sequestration_locked_actions, list(
 			var/n = text2num("[params["value"]]")
 			if(isnum(n))
 				SStreasury.royal_custom_margin = clamp(round(n), 0, 500)
-			SStgui.update_uis(src)
 			return TRUE
 		if("ledger_open")
 			ledger_view[usr.ckey] = list("open" = TRUE, "page" = 1, "filter" = "")

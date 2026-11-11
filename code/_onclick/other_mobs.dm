@@ -337,7 +337,7 @@
 */
 
 /mob/living/simple_animal/hostile/UnarmedAttack(atom/A)
-	target = A
+	set_combat_target(A)
 	if(dextrous && !ismob(A))
 		..()
 	else

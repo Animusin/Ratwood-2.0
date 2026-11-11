@@ -41,6 +41,74 @@
 	var/datum/candidate = locate(identity[1])
 	return candidate && candidate.type == identity[2] && candidate.gc_destroyed == identity[3]
 
+/datum/unit_test/lag_combat_target_subscription/Run()
+	var/mob/living/simple_animal/hostile/retaliate/rogue/wolf/lag_subscription_test/animal = allocate(/mob/living/simple_animal/hostile/retaliate/rogue/wolf/lag_subscription_test)
+	animal.toggle_ai(AI_OFF)
+	var/mob/living/carbon/human/consistent/first = allocate(/mob/living/carbon/human/consistent)
+	var/mob/living/carbon/human/consistent/second = allocate(/mob/living/carbon/human/consistent)
+	var/runtimes_before = GLOB.total_runtimes
+	animal.set_enemy(first, TRUE)
+	animal.GiveTarget(first)
+	// New-style AI attacks use UnarmedAttack while legacy retaliation still uses GiveTarget.
+	animal.UnarmedAttack(second)
+	TEST_ASSERT_EQUAL(animal.attacked_target, second, "Unarmed attacks must still act on the newly selected target.")
+	animal.GiveTarget(first)
+	TEST_ASSERT_EQUAL(GLOB.total_runtimes, runtimes_before, "Returning to the earlier combat target after an unarmed attack must not register it twice.")
+	// Legacy control paths can replace target without invoking the setter.
+	animal.target = null
+	animal.GiveTarget(first)
+	TEST_ASSERT_EQUAL(GLOB.total_runtimes, runtimes_before, "Reacquiring a directly cleared target must not register its deletion signal twice.")
+	animal.target = second
+	animal.GiveTarget(second)
+	var/datum/component/hostile_combat_target/tracker = animal.combat_target_tracker
+	TEST_ASSERT(!tracker.signal_procs[first], "Changing targets must release the previous subscription even after a direct assignment.")
+	TEST_ASSERT(tracker.signal_procs[second], "The replacement target must have deletion cleanup.")
+	qdel(first)
+	TEST_ASSERT_EQUAL(animal.target, second, "Deleting a previous target must not cancel the new pursuit.")
+	TEST_ASSERT(!(first in animal.enemies), "Combat subscription cleanup must leave enemy-list cleanup intact.")
+	for(var/i in 1 to 5)
+		animal.LoseTarget()
+		TEST_ASSERT(!length(tracker.signal_procs), "Losing a target must release the listener's target references.")
+		animal.GiveTarget(second)
+	second.death()
+	TEST_ASSERT_EQUAL(animal.target, second, "Death without deletion must retain normal combat targeting.")
+	qdel(second)
+	TEST_ASSERT_NULL(animal.target, "Deleting the replacement target must cancel pursuit.")
+	TEST_ASSERT(!length(tracker.signal_procs), "Deleting a target must release its subscription.")
+	TEST_ASSERT_EQUAL(GLOB.total_runtimes, runtimes_before, "Repeated targeting must not emit runtime warnings.")
+
+/// Exercise real target routing without rolling attack damage or killing either fixture.
+/mob/living/simple_animal/hostile/retaliate/rogue/wolf/lag_subscription_test
+	var/atom/attacked_target
+
+/mob/living/simple_animal/hostile/retaliate/rogue/wolf/lag_subscription_test/AttackingTarget()
+	attacked_target = target
+	return TRUE
+
+/mob/living/simple_animal/hostile/retaliate/rogue/wolf/lag_subscription_test/Destroy()
+	attacked_target = null
+	return ..()
+
+/datum/unit_test/lag_mirespider_follower_cleanup/Run()
+	var/mob/living/simple_animal/hostile/rogue/mirespider_lurker/leader = allocate(/mob/living/simple_animal/hostile/rogue/mirespider_lurker)
+	var/mob/living/simple_animal/hostile/retaliate/rogue/mirespider/orphan = allocate(/mob/living/simple_animal/hostile/retaliate/rogue/mirespider)
+	var/mob/living/simple_animal/hostile/retaliate/rogue/mirespider/follower = allocate(/mob/living/simple_animal/hostile/retaliate/rogue/mirespider)
+	var/mob/living/simple_animal/hostile/retaliate/rogue/mirespider/deleted = allocate(/mob/living/simple_animal/hostile/retaliate/rogue/mirespider)
+	QDEL_NULL(orphan.ai_controller)
+	var/datum/ai_controller/controller = follower.ai_controller
+	TEST_ASSERT_NOTNULL(controller, "A normal follower must have its AI controller.")
+	controller.set_blackboard_key(BB_FOLLOW_TARGET, leader)
+	controller.set_blackboard_key(BB_TRAVEL_DESTINATION, run_loc_floor_bottom_left)
+	controller.set_blackboard_key(BB_BASIC_MOB_CURRENT_TARGET, leader)
+	leader.followers = list(orphan, follower, deleted)
+	qdel(deleted)
+	leader.clear_followers_if_any()
+	TEST_ASSERT(!length(leader.followers), "Cleanup must release all followers, including those with deleted controllers.")
+	TEST_ASSERT_NULL(controller.blackboard[BB_FOLLOW_TARGET], "A controllerless follower must not prevent the next follower from losing its leader.")
+	TEST_ASSERT_NULL(controller.blackboard[BB_TRAVEL_DESTINATION], "Cleanup must clear the remaining follower's travel destination.")
+	TEST_ASSERT_NULL(controller.blackboard[BB_BASIC_MOB_CURRENT_TARGET], "Cleanup must clear the remaining follower's combat target.")
+	leader.clear_followers_if_any()
+
 /datum/unit_test/lag_legacy_vice_cleanup/Run()
 	var/mob/living/carbon/human/consistent/character = allocate(/mob/living/carbon/human/consistent)
 	var/datum/charflaw/first = new /datum/charflaw/addiction/sadist

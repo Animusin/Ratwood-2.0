@@ -132,6 +132,7 @@
 #include "performance_cleanup_tracks.dm"
 #include "performance_cleanup_visuals.dm"
 #include "pollution_processing.dm"
+#include "qdel_report.dm"
 #include "reagent_id_typos.dm"
 #include "reagent_recipe_collisions.dm"
 #include "reported_bugs.dm"

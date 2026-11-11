@@ -25,6 +25,8 @@
 	var/pending_ping_token
 	var/ping_sent_ms
 	var/ping_sent_world_ds
+	/// Numeric span identifiers only; lifecycle probes never retain the departing client or body.
+	var/lifecycle_sequence = 0
 
 /datum/lag_recorder/New(ping_ckey)
 	. = ..()
@@ -65,6 +67,20 @@
 		return
 	pending_ping_token = null
 	write_event("ping", list("status" = "ok", "world_ds" = game_ds, "sent_world_ds" = ping_sent_world_ds, "sent_ms" = ping_sent_ms, "rtt_ms" = wall_ms - ping_sent_ms))
+
+/// These delimit DM handlers, not the engine's entire disconnect or native reference cleanup.
+/datum/lag_recorder/proc/begin_lifecycle(phase, target_type, wall_ms, game_ds)
+	if(wall_ms >= LAG_RECORDER_DURATION_MS)
+		return null
+	var/span_id = ++lifecycle_sequence
+	write_event("lifecycle", list("capture_id" = capture_id, "span_id" = span_id, "phase" = phase, "edge" = "begin", "target_type" = target_type, "wall_ms" = wall_ms, "world_ds" = game_ds))
+	return span_id
+
+/// Elapsed wall time may include sleeps. A missing end marks an interrupted handler or capture.
+/datum/lag_recorder/proc/end_lifecycle(expected_capture_id, span_id, phase, target_type, start_wall_ms, wall_ms, game_ds)
+	if(expected_capture_id != capture_id || !span_id || span_id > lifecycle_sequence)
+		return
+	write_event("lifecycle", list("capture_id" = capture_id, "span_id" = span_id, "phase" = phase, "edge" = "end", "target_type" = target_type, "wall_ms" = wall_ms, "world_ds" = game_ds, "elapsed_ms" = wall_ms - start_wall_ms))
 
 /datum/lag_recorder/proc/record_sample(kind, label, cost_ms, tick_time, list/details)
 	history[history_cursor] = list("kind" = kind, "label" = label, "ms" = round(cost_ms, 0.1), "world_ds" = tick_time, "details" = details)

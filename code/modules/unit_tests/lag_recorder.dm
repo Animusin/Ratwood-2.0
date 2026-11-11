@@ -1,10 +1,12 @@
 /datum/lag_recorder/test_probe
 	var/list/events = list()
 	var/list/last_report
+	var/list/reports = list()
 
 /datum/lag_recorder/test_probe/write_event(kind, list/data)
 	events += kind
 	last_report = data
+	reports += list(data)
 
 /// A short stall should keep recent entries in chronological order without flooding the log.
 /datum/unit_test/lag_recorder_gap_and_history/Run()
@@ -101,3 +103,78 @@
 	TEST_ASSERT_NULL(recorder.begin_ping(24500, 345, FALSE), "A disconnected client cannot receive another ping.")
 	TEST_ASSERT_EQUAL(length(recorder.events), 3, "The outstanding request must time out even if the client has disconnected.")
 	TEST_ASSERT_NULL(recorder.begin_ping(900000, 300), "Do not send another ping after capture expiry.")
+
+/// Nested lifecycle phases need independent scalar IDs and a capture guard across stop/restart.
+/datum/unit_test/lag_recorder_lifecycle_events/Run()
+	var/datum/lag_recorder/test_probe/recorder = new
+	var/datum/lag_recorder/test_probe/replacement = new
+	allocated += list(recorder, replacement)
+	var/outer = recorder.begin_lifecycle("living_logout_dm", "/mob/living/carbon/human", 100, 10)
+	var/inner = recorder.begin_lifecycle("mob_logout_dm", "/mob/living/carbon/human", 102, 10)
+	TEST_ASSERT(outer && inner && outer != inner, "Nested DM phases must receive separate numeric span IDs.")
+	recorder.end_lifecycle(recorder.capture_id, inner, "mob_logout_dm", "/mob/living/carbon/human", 102, 112, 10)
+	TEST_ASSERT_EQUAL(recorder.last_report["elapsed_ms"], 10, "The end must preserve elapsed wall time for that phase.")
+	TEST_ASSERT_EQUAL(recorder.last_report["span_id"], inner, "The end must pair with its own begin.")
+	recorder.end_lifecycle(recorder.capture_id, outer, "living_logout_dm", "/mob/living/carbon/human", 100, 250, 11)
+	TEST_ASSERT_EQUAL(recorder.last_report["elapsed_ms"], 150, "A yielding phase must remain elapsed wall time, not be discarded or called CPU time.")
+	replacement.begin_lifecycle("client_del_dm", "/client", 0, 11)
+	replacement.end_lifecycle(recorder.capture_id, outer, "living_logout_dm", "/mob/living/carbon/human", 100, 200, 11)
+	TEST_ASSERT_EQUAL(length(replacement.events), 1, "A previous capture's end must never be written into the next capture.")
+	TEST_ASSERT_NULL(recorder.begin_lifecycle("client_del_dm", "/client", 900000, 11), "Do not start a phase after capture expiry.")
+	for(var/list/report as anything in recorder.reports)
+		TEST_ASSERT(isnum(report["capture_id"]) && isnum(report["span_id"]) && istext(report["target_type"]), "Only scalar IDs and a type string may identify a lifecycle event.")
+		TEST_ASSERT(!("ckey" in report) && !("key" in report) && !("ref" in report), "Lifecycle output must not contain player identities or object references.")
+
+/// Exercise real nested Logout handlers with capture off and on, including return and body preservation.
+/datum/unit_test/lag_recorder_logout_handlers/Run()
+	var/mob/living/carbon/human/consistent/body = allocate(/mob/living/carbon/human/consistent)
+	var/datum/lag_recorder/test_probe/recorder = new
+	allocated += recorder
+	var/datum/lag_recorder/previous = Master.lag_recorder
+	Master.lag_recorder = null
+	var/unrecorded_result = body.Logout()
+	var/body_location = body.loc
+	var/body_status = body.stat
+	rustg_time_reset("lag_recorder")
+	Master.lag_recorder = recorder
+	var/recorded_result = body.Logout()
+	Master.lag_recorder = previous
+	TEST_ASSERT_EQUAL(recorded_result, unrecorded_result, "Recording must preserve Logout's return value.")
+	TEST_ASSERT(!QDELETED(body) && body.loc == body_location && body.stat == body_status, "Recording a logout must not remove, move or kill its body.")
+	TEST_ASSERT_EQUAL(length(recorder.reports), 4, "A living body's logout must record both nested begins and ends.")
+	var/list/outer_begin = recorder.reports[1]
+	var/list/inner_begin = recorder.reports[2]
+	var/list/inner_end = recorder.reports[3]
+	var/list/outer_end = recorder.reports[4]
+	TEST_ASSERT_EQUAL(outer_begin["phase"], "living_logout_dm", "The living wrapper must begin before the base mob handler.")
+	TEST_ASSERT_EQUAL(inner_begin["phase"], "mob_logout_dm", "The base mob handler must remain separately measurable.")
+	TEST_ASSERT_EQUAL(inner_begin["span_id"], inner_end["span_id"], "The base mob handler must close its own span.")
+	TEST_ASSERT_EQUAL(outer_begin["span_id"], outer_end["span_id"], "The living handler must close after its base handler.")
+	TEST_ASSERT_EQUAL(inner_end["edge"], "end", "The base handler must return normally.")
+	TEST_ASSERT_EQUAL(outer_end["edge"], "end", "The living handler must return normally.")
+
+/datum/lag_lifecycle_capture_switch
+	var/datum/lag_recorder/replacement
+
+/datum/lag_lifecycle_capture_switch/proc/on_logout()
+	SIGNAL_HANDLER
+	Master.lag_recorder = replacement
+
+/// A real logout callback can stop capture; neither enclosing handler may write into its replacement.
+/datum/unit_test/lag_recorder_logout_capture_switch/Run()
+	var/mob/living/carbon/human/consistent/body = allocate(/mob/living/carbon/human/consistent)
+	var/datum/lag_recorder/test_probe/recorder = new
+	var/datum/lag_recorder/test_probe/replacement = new
+	var/datum/lag_lifecycle_capture_switch/switcher = new
+	allocated += list(recorder, replacement, switcher)
+	switcher.replacement = replacement
+	switcher.RegisterSignal(body, COMSIG_MOB_LOGOUT, TYPE_PROC_REF(/datum/lag_lifecycle_capture_switch, on_logout))
+	var/datum/lag_recorder/previous = Master.lag_recorder
+	rustg_time_reset("lag_recorder")
+	Master.lag_recorder = recorder
+	body.Logout()
+	Master.lag_recorder = previous
+	switcher.UnregisterSignal(body, COMSIG_MOB_LOGOUT)
+	switcher.replacement = null
+	TEST_ASSERT_EQUAL(length(recorder.reports), 2, "The original capture must retain only the two begins emitted before it stopped.")
+	TEST_ASSERT_EQUAL(length(replacement.reports), 0, "Interrupted spans must not leak their ends into a new capture.")

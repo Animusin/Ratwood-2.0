@@ -311,27 +311,41 @@
 /mob/living/simple_animal/hostile/proc/set_combat_target(atom/new_target)
 	if(QDELETED(new_target))
 		new_target = null
-	if(target == new_target)
-		return
-	if(target)
-		combat_target_tracker?.UnregisterSignal(target, COMSIG_QDELETING)
-		walk(src, 0)
-	target = new_target
-	if(target)
-		if(!combat_target_tracker)
-			combat_target_tracker = AddComponent(/datum/component/hostile_combat_target)
-		combat_target_tracker.track_target(target)
+	if(target != new_target)
+		if(target)
+			walk(src, 0)
+		target = new_target
+	if(target && !combat_target_tracker)
+		combat_target_tracker = AddComponent(/datum/component/hostile_combat_target)
+	combat_target_tracker?.track_target(target)
 
 /// A separate signal listener lets combat tracking coexist with the mob's enemy list.
+/datum/component/hostile_combat_target
+	/// Keep the subscription independent of legacy callers that assign the mob's target directly.
+	var/atom/tracked_target
+
 /datum/component/hostile_combat_target/Initialize()
 	if(!istype(parent, /mob/living/simple_animal/hostile))
 		return COMPONENT_INCOMPATIBLE
 
-/datum/component/hostile_combat_target/proc/track_target(atom/target)
-	RegisterSignal(target, COMSIG_QDELETING, PROC_REF(on_combat_target_deleted))
+/datum/component/hostile_combat_target/Destroy(force, silent)
+	track_target(null)
+	return ..()
+
+/datum/component/hostile_combat_target/proc/track_target(atom/new_target)
+	if(QDELETED(new_target))
+		new_target = null
+	if(tracked_target == new_target)
+		return
+	if(tracked_target)
+		UnregisterSignal(tracked_target, COMSIG_QDELETING)
+	tracked_target = new_target
+	if(tracked_target)
+		RegisterSignal(tracked_target, COMSIG_QDELETING, PROC_REF(on_combat_target_deleted))
 
 /datum/component/hostile_combat_target/proc/on_combat_target_deleted(atom/source)
 	SIGNAL_HANDLER
+	track_target(null)
 	var/mob/living/simple_animal/hostile/hunter = parent
 	if(hunter?.target == source)
 		hunter.LoseTarget()

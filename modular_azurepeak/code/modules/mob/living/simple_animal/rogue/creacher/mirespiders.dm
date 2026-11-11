@@ -251,13 +251,16 @@
 	if (!followers || !length(followers))
 		return
 
-	for (var/mob/living/simple_animal/hostile/retaliate/rogue/mirespider/follower in followers)
+	var/list/previous_followers = followers
+	followers = list()
+	for (var/mob/living/simple_animal/hostile/retaliate/rogue/mirespider/follower in previous_followers)
+		if(QDELETED(follower) || QDELETED(follower.ai_controller))
+			continue
 		follower.ai_controller.clear_blackboard_key(BB_FOLLOW_TARGET)
 		follower.ai_controller.clear_blackboard_key(BB_TRAVEL_DESTINATION)
 		follower.ai_controller.clear_blackboard_key(BB_BASIC_MOB_CURRENT_TARGET)
 		follower.ai_controller.clear_blackboard_key(BB_BASIC_MOB_RETALIATE_LIST)
 		follower.ai_controller.CancelActions()
-	followers.Cut()
 
 /mob/living/simple_animal/hostile/rogue/mirespider_paralytic
 	icon = 'modular_hearthstone/icons/mob/mirespider_small.dmi'

@@ -16,6 +16,28 @@
 
 #define LAG_RECORD_HANDLER(KIND, LABEL, TARGET_TYPE, PROC_NAME) LAG_RECORD_CALL(KIND, LABEL, TARGET_TYPE, PROC_NAME, ..())
 
+// Snapshot only scalars before the parent can destroy src. In BYOND, client.Del can finish
+// before the engine calls mob.Logout; keep their phases separate instead of timing a whole disconnect.
+#define LAG_RECORD_LIFECYCLE(PHASE) \
+	var/lifecycle_capture_id = Master?.lag_recorder?.capture_id; \
+	if(!lifecycle_capture_id) { return ..(); } \
+	var/lifecycle_type = "[type]"; \
+	var/lifecycle_start_ms = rustg_time_milliseconds("lag_recorder"); \
+	var/lifecycle_span_id = Master.lag_recorder.begin_lifecycle(PHASE, lifecycle_type, lifecycle_start_ms, world.time); \
+	. = ..(); \
+	if(lifecycle_span_id && Master?.lag_recorder?.capture_id == lifecycle_capture_id) { \
+		Master.lag_recorder.end_lifecycle(lifecycle_capture_id, lifecycle_span_id, PHASE, lifecycle_type, lifecycle_start_ms, rustg_time_milliseconds("lag_recorder"), world.time); \
+	}
+
+/client/Del()
+	LAG_RECORD_LIFECYCLE("client_del_dm")
+
+/mob/Logout()
+	LAG_RECORD_LIFECYCLE("mob_logout_dm")
+
+/mob/living/Logout()
+	LAG_RECORD_LIFECYCLE("living_logout_dm")
+
 /client/Click(atom/object, atom/location, control, params)
 	LAG_RECORD_HANDLER("player", "Click", object?.type, null)
 
@@ -74,3 +96,4 @@
 
 #undef LAG_RECORD_HANDLER
 #undef LAG_RECORD_CALL
+#undef LAG_RECORD_LIFECYCLE

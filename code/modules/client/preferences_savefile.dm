@@ -207,11 +207,30 @@ SAVEFILE UPDATING/VERSIONING - 'Simplified', or rather, more coder-friendly ~Car
 		return
 	path = "data/player_saves/[copytext(ckey,1,2)]/[ckey]/[filename]"
 
+/// BYOND parses a whole savefile on the first access after opening it: over 100 ms for an account
+/// with many character slots, and a save used to pay that twice because preferences and the character
+/// each open the file. While this object is alive the file stays loaded and every other open of the
+/// same path costs nothing, so it is held for as long as the player is connected.
+/datum/preferences/proc/hold_savefile(require_client = TRUE)
+	if(held_savefile || !path || (require_client && !parent) || !fexists(path))
+		return
+	held_savefile = new /savefile(path)
+
+/// Writes made through another savefile object for a held path are only certain to be on disk once
+/// the held object is flushed. Every proc that writes ends with this.
+/datum/preferences/proc/flush_savefile()
+	held_savefile?.Flush()
+
+/// The last object for the path closes the file, which also writes it out.
+/datum/preferences/proc/release_savefile()
+	held_savefile = null
+
 /datum/preferences/proc/load_preferences()
 	if(!path)
 		return FALSE
 	if(!fexists(path))
 		return FALSE
+	hold_savefile()
 
 	var/savefile/S = new /savefile(path)
 	if(!S)
@@ -428,6 +447,11 @@ SAVEFILE UPDATING/VERSIONING - 'Simplified', or rather, more coder-friendly ~Car
 	DIRECT_OUTPUT(src, ftp(exportable_file, file_name))
 
 /datum/preferences/proc/save_preferences()
+	hold_savefile()
+	. = write_preferences()
+	flush_savefile()
+
+/datum/preferences/proc/write_preferences()
 	if(!path)
 		return FALSE
 	var/savefile/S = new /savefile(path)
@@ -873,6 +897,11 @@ SAVEFILE UPDATING/VERSIONING - 'Simplified', or rather, more coder-friendly ~Car
 
 
 /datum/preferences/proc/load_character(slot)
+	hold_savefile()
+	. = read_character(slot)
+	flush_savefile()
+
+/datum/preferences/proc/read_character(slot)
 	if(!path)
 		return FALSE
 	if(!fexists(path))
@@ -1133,6 +1162,11 @@ SAVEFILE UPDATING/VERSIONING - 'Simplified', or rather, more coder-friendly ~Car
 	return TRUE
 
 /datum/preferences/proc/save_character()
+	hold_savefile()
+	. = write_character()
+	flush_savefile()
+
+/datum/preferences/proc/write_character()
 	if(!path)
 		return FALSE
 	var/savefile/S = new /savefile(path)

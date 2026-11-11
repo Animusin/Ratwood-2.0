@@ -3,6 +3,10 @@
 #define LAG_RECORDER_DURATION_MS 900000
 #define LAG_RECORDER_COOLDOWN_MS 2000
 #define LAG_RECORDER_PING_TIMEOUT_MS 10000
+#define LAG_PROFILE_MIN_SELF 0.05
+#define LAG_PROFILE_MIN_TOTAL 0.25
+#define LAG_PROFILE_ROWS 150
+#define LAG_PROFILE_CHUNK 25
 
 /// Bounded capture of synchronous work. Uses the existing downloadable memory_stats.log.
 /datum/lag_recorder
@@ -27,11 +31,35 @@
 	var/ping_sent_world_ds
 	/// Numeric span identifiers only; lifecycle probes never retain the departing client or body.
 	var/lifecycle_sequence = 0
+	/// BYOND's own profiler runs for the length of the capture.
+	var/profiling = FALSE
 
 /datum/lag_recorder/New(ping_ckey)
 	. = ..()
 	capture_id = ++last_capture_id
 	src.ping_ckey = ping_ckey
+	start_profiler()
+
+/datum/lag_recorder/Destroy()
+	finish_profiler()
+	return ..()
+
+/// The sampled spans above only see synchronous work of 4 ms and longer inside wrapped entry points.
+/// The engine profiler attributes every proc call, sleeping procs and verbs included, and SendMaps.
+/datum/lag_recorder/proc/start_profiler()
+	world.Profile(PROFILE_RESTART)
+	world.Profile(PROFILE_RESTART, type = "sendmaps")
+	profiling = TRUE
+
+/datum/lag_recorder/proc/finish_profiler()
+	if(!profiling)
+		return
+	profiling = FALSE
+	var/proc_json = world.Profile(PROFILE_REFRESH, format = "json")
+	var/sendmaps_json = world.Profile(PROFILE_REFRESH, type = "sendmaps", format = "json")
+	world.Profile(PROFILE_STOP)
+	world.Profile(PROFILE_STOP, type = "sendmaps")
+	write_lag_profile(capture_id, proc_json, sendmaps_json)
 
 /datum/lag_recorder/proc/poll_ping()
 	if(!ping_ckey)
@@ -149,6 +177,61 @@
 /datum/lag_recorder/proc/write_event(kind, list/data)
 	WRITE_LOG(GLOB.world_mem_log, "LAGTRACE [kind] [json_encode(data)]")
 
+/proc/cmp_lag_profile_self_dsc(list/first, list/second)
+	return second["self"] - first["self"]
+
+/proc/cmp_lag_profile_total_dsc(list/first, list/second)
+	return second["total"] - first["total"]
+
+/// Keeps the complete profiles beside the round logs and a ranked digest in memory_stats.log.
+/// Runs detached from the recorder, which is already gone by the time the digest is built.
+/proc/write_lag_profile(capture_id, proc_json, sendmaps_json)
+	set waitfor = FALSE
+	if(GLOB.log_directory)
+		if(length(proc_json))
+			rustg_file_write(proc_json, "[GLOB.log_directory]/lag_profile_[capture_id].json")
+		if(length(sendmaps_json))
+			rustg_file_write(sendmaps_json, "[GLOB.log_directory]/lag_sendmaps_[capture_id].json")
+	sleep(world.tick_lag)
+
+	var/list/sendmaps = length(sendmaps_json) ? safe_json_decode(sendmaps_json) : null
+	if(islist(sendmaps))
+		write_lag_profile_rows(capture_id, "sendmaps", sendmaps)
+	sleep(world.tick_lag)
+
+	var/list/entries = length(proc_json) ? safe_json_decode(proc_json) : null
+	if(!islist(entries))
+		WRITE_LOG(GLOB.world_mem_log, "LAGTRACE profile [json_encode(list("capture_id" = capture_id, "section" = "error", "rows" = list()))]")
+		return
+	sleep(world.tick_lag)
+	// Seconds over the whole capture. Anything below these cannot explain a lag complaint.
+	var/list/by_self = list()
+	var/list/by_total = list()
+	var/scanned = 0
+	for(var/list/entry as anything in entries)
+		if(!islist(entry))
+			continue
+		if(entry["self"] >= LAG_PROFILE_MIN_SELF)
+			by_self += list(entry)
+		if(entry["total"] >= LAG_PROFILE_MIN_TOTAL)
+			by_total += list(entry)
+		if(!(++scanned % 2000))
+			sleep(world.tick_lag)
+	sortTim(by_self, GLOBAL_PROC_REF(cmp_lag_profile_self_dsc))
+	sleep(world.tick_lag)
+	sortTim(by_total, GLOBAL_PROC_REF(cmp_lag_profile_total_dsc))
+	sleep(world.tick_lag)
+	by_self.Cut(min(length(by_self), LAG_PROFILE_ROWS) + 1)
+	by_total.Cut(min(length(by_total), LAG_PROFILE_ROWS) + 1)
+	write_lag_profile_rows(capture_id, "self", by_self)
+	write_lag_profile_rows(capture_id, "total", by_total)
+
+/proc/write_lag_profile_rows(capture_id, section, list/rows)
+	var/total = length(rows)
+	for(var/start in 1 to total step LAG_PROFILE_CHUNK)
+		var/list/chunk = rows.Copy(start, min(start + LAG_PROFILE_CHUNK, total + 1))
+		WRITE_LOG(GLOB.world_mem_log, "LAGTRACE profile [json_encode(list("capture_id" = capture_id, "section" = section, "first" = start, "of" = total, "rows" = chunk))]")
+
 /client/proc/toggle_lag_recorder()
 	set category = "Debug"
 	set name = "Toggle Lag Recorder"
@@ -157,15 +240,19 @@
 	if(Master.lag_recorder)
 		Master.lag_recorder.write_event("stopped", list("world_ds" = world.time))
 		QDEL_NULL(Master.lag_recorder)
-		to_chat(src, span_notice("Lag Recorder stopped. Look for LAGTRACE in memory_stats.log."))
+		to_chat(src, span_notice("Lag Recorder stopped. Look for LAGTRACE in memory_stats.log; the full proc and SendMaps profiles are lag_profile_*.json and lag_sendmaps_*.json in the round's log folder."))
 		return
 	rustg_time_reset("lag_recorder")
 	Master.lag_recorder = new(ckey)
 	Master.lag_recorder.write_event("started", list("world_ds" = world.time, "duration_ms" = LAG_RECORDER_DURATION_MS))
-	to_chat(src, span_notice("Lag Recorder enabled for 15 minutes. Spikes and your connection ping are written to memory_stats.log."))
+	to_chat(src, span_notice("Lag Recorder enabled for 15 minutes. Spikes, your connection ping and a proc profile are written to memory_stats.log."))
 
 #undef LAG_RECORDER_HISTORY
 #undef LAG_RECORDER_WORK_HISTORY
 #undef LAG_RECORDER_DURATION_MS
 #undef LAG_RECORDER_COOLDOWN_MS
 #undef LAG_RECORDER_PING_TIMEOUT_MS
+#undef LAG_PROFILE_MIN_SELF
+#undef LAG_PROFILE_MIN_TOTAL
+#undef LAG_PROFILE_ROWS
+#undef LAG_PROFILE_CHUNK

@@ -3,6 +3,10 @@
 	var/list/last_report
 	var/list/reports = list()
 
+/// Scripted recorders must not restart or dump the engine profiler.
+/datum/lag_recorder/test_probe/start_profiler()
+	return
+
 /datum/lag_recorder/test_probe/write_event(kind, list/data)
 	events += kind
 	last_report = data
@@ -178,3 +182,23 @@
 	switcher.replacement = null
 	TEST_ASSERT_EQUAL(length(recorder.reports), 2, "The original capture must retain only the two begins emitted before it stopped.")
 	TEST_ASSERT_EQUAL(length(replacement.reports), 0, "Interrupted spans must not leak their ends into a new capture.")
+
+/// A capture must leave the engine's proc and SendMaps profiles beside the round logs.
+/datum/unit_test/lag_recorder_profile_dump/Run()
+	var/datum/lag_recorder/recorder = new
+	var/capture_id = recorder.capture_id
+	TEST_ASSERT(recorder.profiling, "Starting a capture must start the engine profiler.")
+	var/busy = 0
+	for(var/i in 1 to 20000)
+		busy += sqrt(i)
+	qdel(recorder)
+	var/proc_path = "[GLOB.log_directory]/lag_profile_[capture_id].json"
+	var/sendmaps_path = "[GLOB.log_directory]/lag_sendmaps_[capture_id].json"
+	TEST_ASSERT(fexists(proc_path), "The proc profile must be written when the capture ends.")
+	TEST_ASSERT(fexists(sendmaps_path), "The SendMaps profile must be written when the capture ends.")
+	var/list/entries = safe_json_decode(file2text(proc_path))
+	TEST_ASSERT(islist(entries) && length(entries), "The proc profile must be a non-empty JSON list.")
+	var/list/first = entries[1]
+	TEST_ASSERT(istext(first["name"]) && isnum(first["self"]) && isnum(first["total"]), "Profile rows must carry the fields the digest ranks by.")
+	fdel(proc_path)
+	fdel(sendmaps_path)

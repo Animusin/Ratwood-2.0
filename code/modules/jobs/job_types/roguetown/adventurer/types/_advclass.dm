@@ -166,7 +166,7 @@
 	H.finish_admin_antag_setup()
 
 /datum/advclass/proc/post_equip(mob/living/carbon/human/H)
-	addtimer(CALLBACK(H,TYPE_PROC_REF(/mob/living/carbon/human, add_credit), TRUE), 20)
+	SScrediticons.queue_capture(H)
 	if(cmode_music)
 		H.cmode_music = cmode_music
 

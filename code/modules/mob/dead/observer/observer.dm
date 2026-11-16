@@ -588,6 +588,10 @@ This is the proc mobs get to turn into a ghost. Forked from ghostize due to comp
 		return
 
 	client.verbs -= GLOB.ghost_verbs
+	if(istype(src, /mob/dead/observer/rogue) && !istype(src, /mob/dead/observer/rogue/arcaneeye) && isliving(mind?.current))
+		var/mob/living/body = mind.current
+		if(!body.key)
+			body.record_respawn_departure(client.ckey)
 	M.key = key
 	return
 

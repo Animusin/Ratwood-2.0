@@ -68,6 +68,26 @@
 	TEST_ASSERT_EQUAL(state.revision, first_revision, "An unchanged dead body must not become a different life")
 	TEST_ASSERT_EQUAL(get_respawn_time_left_for_ckey(account), 25 MINUTES, "Opening respawn later must count the time already spent dead")
 
+/datum/unit_test/respawn_living_departure/Run()
+	var/datum/respawn_test_accounts/accounts = allocate(/datum/respawn_test_accounts)
+	var/account = accounts.track("respawn_test_living_departure")
+	var/mob/living/body = allocate(/mob/living)
+	var/datum/respawn_state/state = body.register_respawn_body(account)
+	TEST_ASSERT(!body.record_respawn_departure("another_account"), "A different account must not end this life.")
+	TEST_ASSERT_EQUAL(state.get_time_left(), -1, "The current life must still block entry.")
+	TEST_ASSERT(body.record_respawn_departure(account), "Leaving a living body for the lobby must start the wait.")
+	TEST_ASSERT(body.stat != DEAD, "Leaving must not kill the body.")
+	TEST_ASSERT_EQUAL(state.get_time_left(), RESPAWNTIME, "Leaving must start the normal respawn wait.")
+	state.death_time = world.time - 5 MINUTES
+	body.death(FALSE, TRUE)
+	TEST_ASSERT_EQUAL(state.get_time_left(), RESPAWNTIME - 5 MINUTES, "The old body's later death must not restart the wait.")
+
+	var/mob/living/waived_body = allocate(/mob/living)
+	var/datum/respawn_state/waived_state = waived_body.register_respawn_body(account)
+	waived_state.waive()
+	TEST_ASSERT(!waived_body.record_respawn_departure(account), "Leaving must respect a waiver already granted.")
+	TEST_ASSERT_EQUAL(waived_state.get_time_left(), 0, "A waived departure must still allow entry.")
+
 /datum/unit_test/respawn_revival_second_life/Run()
 	var/datum/respawn_test_accounts/accounts = allocate(/datum/respawn_test_accounts)
 	var/account = accounts.track("respawn_test_revival")

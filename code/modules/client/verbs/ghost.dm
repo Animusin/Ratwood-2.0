@@ -81,6 +81,9 @@ GLOBAL_LIST_INIT(ghost_verbs, list(
 		return
 
 	client?.verbs -= GLOB.ghost_verbs
+	if(isliving(src))
+		var/mob/living/body = src
+		body.record_respawn_departure(client.ckey)
 	M.key = key
 	if(istype(src, /mob/dead/observer)) //Be rid of clogging ghost shades
 		qdel(src)

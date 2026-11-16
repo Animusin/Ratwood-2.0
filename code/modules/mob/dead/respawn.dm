@@ -121,6 +121,14 @@ GLOBAL_LIST_EMPTY(respawn_states)
 	respawn_state.start_life(src)
 	return TRUE
 
+/// A player who leaves a living character for the lobby starts the same wait as on death.
+/mob/living/proc/record_respawn_departure(account_key)
+	if(stat == DEAD || !account_key || respawn_state?.player_ckey != account_key)
+		return FALSE
+	if(respawn_state.waived || !respawn_state.is_current_body(src))
+		return FALSE
+	return respawn_state.start_death(world.time)
+
 /// A shapeshift or mind transfer follows the playable body; the abandoned shell loses authority.
 /mob/living/proc/transfer_respawn_body(mob/living/new_body)
 	if(!istype(new_body) || QDELETED(new_body) || new_body == src)

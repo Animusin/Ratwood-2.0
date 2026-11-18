@@ -12,7 +12,7 @@
 	always_show_on_latechoices = TRUE
 	tutorial = "You hold the trust and responsibility of being the baron's closest confidant. You are tasked with protecting the baron and advising him on any matter he deems necessary. You enjoy the benefits of living in relative luxury and the status that comes with your position, although the higher nobility of the keep look down on you as a minor functionary."
 	display_order = JDO_RETAINER
-	whitelist_req = FALSE
+	whitelist_req = TRUE
 	outfit = /datum/outfit/job/roguetown/baron_retainer
 	advclass_cat_rolls = list(CTAG_RETAINER = 20)
 	give_bank_account = 30

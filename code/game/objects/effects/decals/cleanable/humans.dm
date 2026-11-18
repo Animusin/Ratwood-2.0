@@ -30,7 +30,7 @@
 	bloodiness = BLOOD_AMOUNT_PER_DECAL
 	beauty = -100
 	alpha = 200
-	mouse_opacity = MOUSE_OPACITY_TRANSPARENT
+	mouse_opacity = MOUSE_OPACITY_ICON
 	appearance_flags = NO_CLIENT_COLOR
 	var/blood_timer
 	/// Compatibility flag for forensic freshness; kept in sync with the visual dried state.
@@ -87,6 +87,14 @@
 	else if(bleed_rate >= 5)
 		severity = FORENSIC_BLEED_SIGNIFICANT
 	forensic_bleed_severity = max(forensic_bleed_severity, severity)
+
+/obj/effect/decal/cleanable/blood/attack_hand(mob/living/user)
+	. = ..()
+	if(ishuman(user))
+		var/mob/living/carbon/human/H = user
+		to_chat(H, "<span class='notice'>I get my hands bloody.</span>")
+		H.bloody_hands++
+		H.update_inv_gloves()
 
 /obj/effect/decal/cleanable/blood/proc/become_dry()
 	blood_timer = null

@@ -96,6 +96,7 @@ GLOBAL_LIST_EMPTY(priest_swap_timers)
 		/datum/skill/magic/holy = SKILL_LEVEL_MASTER,
 		/datum/skill/craft/alchemy = SKILL_LEVEL_JOURNEYMAN,
 	)
+	pure_heart = TRUE
 	subclass_stashed_items = list(
 		"The Verses and Acts of the Ten" = /obj/item/book/rogue/bibble,
 	)
@@ -562,10 +563,8 @@ code\modules\admin\verbs\divinewrath.dm has a variant with all the gods so keep 
 	var/curse_type = curse_choices[curse_pick]
 
 	if (H.real_name == target_name)
-		var/datum/curse/temp = new curse_type()
-
-		if (H.is_cursed(temp))
-			H.remove_curse(temp)
+		if (H.is_cursed(curse_type))
+			H.remove_curse(curse_type)
 			priority_announce("[real_name] has lifted [curse_pick] from [H.real_name]! They are once again part of the flock!", title = "REDEMPTION", sound = 'sound/misc/bell.ogg')
 			message_admins("DIVINE CURSE: [real_name] ([ckey]) has removed [curse_pick] from [H.real_name]) ") //[ADMIN_LOOKUPFLW(user)] Maybe add this here if desirable but dunno.
 			log_game("DIVINE CURSE: [real_name] ([ckey]) has removed [curse_pick] from [H.real_name])")

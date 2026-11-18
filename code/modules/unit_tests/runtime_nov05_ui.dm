@@ -76,7 +76,7 @@
 /mob/living/runtime_nov05_button_user
 	var/datum/action/action_to_delete_on_sound
 
-/mob/living/runtime_nov05_button_user/playsound_local(atom/turf_source, soundin, vol, vary, frequency, falloff, channel, pressure_affected = TRUE, sound/S, repeat, muffled)
+/mob/living/runtime_nov05_button_user/playsound_local(turf/turf_source, soundin, vol, vary, frequency, falloff_exponent, channel, pressure_affected, sound/S, max_distance, falloff_distance, distance_multiplier, use_reverb, muffled, min_volume, travel, floor_volume, erp, volume_pref)
 	QDEL_NULL(action_to_delete_on_sound)
 
 /datum/unit_test/runtime_action_late_click/Run()

@@ -307,6 +307,8 @@ GLOBAL_LIST_EMPTY(external_rsc_urls)
 	if(connection != "seeker" && connection != "web")//Invalid connection type.
 		return null
 
+	// Before GLOB.clients, which is where point ambience first finds a client
+	point_ambience = new
 	GLOB.clients += src
 	GLOB.directory[ckey] = src
 
@@ -653,6 +655,7 @@ GLOBAL_LIST_EMPTY(external_rsc_urls)
 /client/Destroy()
 	. = ..() //Even though we're going to be hard deleted there are still some things that want to know the destroy is happening
 	QDEL_NULL(droning_sound)
+	QDEL_NULL(point_ambience?.head_watch)
 	last_droning_sound = null
 	if(mob)
 		mob.become_uncliented()

@@ -14,7 +14,7 @@
 		/datum/round_modifier/vampire = "ignored",
 		/datum/round_modifier/vampirelord = "ignored",
 		/datum/round_modifier/assassin = "ignored",
-		/datum/round_modifier/rebel = "ignored",
+		/datum/round_modifier/zizocult = "ignored",
 		/datum/round_modifier/dreamwalker = "ignored",
 		/datum/round_modifier/clear = "inherited",
 		/datum/round_modifier/fog = "inherited",
@@ -35,6 +35,7 @@
 		/datum/round_event_control/antagonist/solo/vampires = "wrapped",
 		/datum/round_event_control/antagonist/solo/vampires_and_werewolves = "ignored",
 		/datum/round_event_control/antagonist/solo/werewolf = "wrapped",
+		/datum/round_event_control/antagonist/solo/zizo_cult = "ignored",
 		/datum/round_event_control/antagonist/solo/aspirants = "ignored",
 	)
 

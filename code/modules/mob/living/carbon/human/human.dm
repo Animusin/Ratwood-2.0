@@ -121,6 +121,7 @@
 	AddComponent(/datum/component/personal_crafting)
 	AddComponent(/datum/component/footstep, footstep_type, 1, 2)
 	GLOB.human_list += src
+	unarmed_special = new /datum/special_intent/upper_cut()
 	update_tongue_noise_verbs()
 	update_keen_ears_verb()
 
@@ -192,6 +193,7 @@
 /mob/living/carbon/human/Destroy()
 	set_tracking_mark(null)
 	QDEL_NULL(skin_armor)
+	QDEL_NULL(unarmed_special)
 	if(SScity_assembly?.is_alderman(src))
 		var/departing_name = real_name
 		var/departing_job = job
@@ -1424,6 +1426,7 @@
 	vocal_speed = client.prefs.bark_speed
 	vocal_pitch = client.prefs.bark_pitch
 	vocal_pitch_range = client.prefs.bark_variance
+	vocal_volume = client.prefs.bark_volume
 	apply_voicepacks(src, client)
 	return TRUE
 

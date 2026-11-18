@@ -128,6 +128,7 @@
 	var/mob/living/carbon/carbon_owner
 	var/mob/living/carbon/human/human_owner
 	var/sleptonground = FALSE
+	var/nightmare_time = 0
 
 /datum/status_effect/incapacitating/sleeping/on_creation(mob/living/new_owner, updating_canmove)
 	. = ..()
@@ -142,6 +143,8 @@
 			carbon_owner = owner
 		if(ishuman(owner))
 			human_owner = owner
+			if(prob(50) && has_world_trait(/datum/world_trait/zizo_strand) && !is_zizo(owner) && !owner.has_status_effect(/datum/status_effect/dream_teleport))
+				nightmare_time = world.time + rand(5 SECONDS, 30 SECONDS)
 
 /datum/status_effect/incapacitating/sleeping/on_remove()
 	if(human_owner && human_owner.client)
@@ -155,6 +158,10 @@
 	return ..()
 
 /datum/status_effect/incapacitating/sleeping/tick()
+	if(nightmare_time && world.time >= nightmare_time)
+		nightmare_time = 0
+		send_to_dream(human_owner, /datum/status_effect/dream_teleport/strand/nightmare)
+		return
 	if(owner.maxHealth)
 		var/health_ratio = owner.health / owner.maxHealth
 		var/healing = -0.2

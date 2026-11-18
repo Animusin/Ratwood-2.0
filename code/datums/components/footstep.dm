@@ -132,14 +132,15 @@
 	if(HAS_TRAIT(human_parent, TRAIT_SOFT_FOOTED))
 		used_volume *= 0.7
 		used_extra_range -= 1
-	// this is fine without an explicit copy because it doesn't mutate the existing list
-	var/list/fresh_steps = used_footsteps - last_sound
-	if(length(fresh_steps))
-		used_sound = pick(fresh_steps)
-	else // a one-sound set that just played (or an empty set): pick() would runtime on the empty difference
-		used_sound = safepick(used_footsteps)
-	if(!used_sound)
+	// Exclude the previous footstep by index, avoiding a temporary list while keeping other choices equally likely
+	var/count = length(used_footsteps)
+	if(!count)
 		return
+	var/last_index = (count > 1) ? used_footsteps.Find(last_sound) : 0
+	var/index = rand(1, last_index ? count - 1 : count)
+	if(last_index && index >= last_index)
+		index++
+	used_sound = used_footsteps[index]
 	last_sound = used_sound
 
 	if(humshoes)

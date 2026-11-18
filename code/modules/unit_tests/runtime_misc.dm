@@ -43,12 +43,9 @@
 /datum/unit_test/runtime_condensed_light/Run()
 	var/runtimes_before = GLOB.total_runtimes
 	var/obj/item/flashlight/flare/light/orb = allocate(/obj/item/flashlight/flare/light)
-	var/datum/looping_sound/torchloop/loop = orb.soundloop
-	TEST_ASSERT_EQUAL(loop.parent, orb, "The condensed light sound loop must be attached to its orb.")
-	TEST_ASSERT(loop.channel, "A correctly initialized loop must reserve its sound channel.")
+	TEST_ASSERT(orb in SSobj.processing, "The condensed light must start processing.")
 	qdel(orb)
-	TEST_ASSERT(QDELETED(loop), "Deleting the orb must release its looping sound.")
-	TEST_ASSERT_NULL(loop.channel, "Deleting the loop must release its reserved channel.")
+	TEST_ASSERT(!(orb in SSobj.processing), "Deleting the orb must stop processing.")
 	TEST_ASSERT_EQUAL(GLOB.total_runtimes, runtimes_before, "Orb creation and destruction must not produce runtime warnings.")
 
 /datum/unit_test/runtime_golden_spectacles/Run()

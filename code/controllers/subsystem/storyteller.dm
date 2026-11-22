@@ -309,7 +309,7 @@ SUBSYSTEM_DEF(gamemode)
 		return roundstart_cap_snapshot
 	var/cap_population = get_antag_cap_population()
 	if(round_modifier_policy_name == "ratwood")
-		return calculate_ratwood_antag_cap(cap_population, chaos_divisor)
+		return calculate_ratwood_antag_cap(cap_population, chaos_divisor, chaos_mode_name)
 	return calculate_antag_cap_from_population(cap_population, ANTAG_CAP_DENOMINATOR)
 
 /// Gets the population used by the live antagonist cap after roundstart allocation.
@@ -844,7 +844,7 @@ SUBSYSTEM_DEF(gamemode)
 		if(antagonists_disabled)
 			dat += "<BR>Roundstart Snapshot: [roundstart_population_snapshot] online; antagonists disabled = 0"
 		else
-			dat += "<BR>Roundstart Snapshot: [roundstart_population_snapshot] online / [chaos_divisor] + [ANTAG_CAP_FLAT] = [roundstart_cap_snapshot]"
+			dat += "<BR>Roundstart Snapshot: [roundstart_population_snapshot] online / [chaos_divisor] + [get_ratwood_antag_cap_flat(chaos_mode_name)] = [roundstart_cap_snapshot]"
 		dat += "<BR>Roundstart Allocation Complete: [roundstart_antag_allocation_complete ? "Yes" : "No"]"
 		dat += "<BR>Outstanding Major Reserve: [roundstart_reserved_antag_weight]"
 	var/chaos_name = "Medium"

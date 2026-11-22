@@ -3,6 +3,7 @@
 #define RATWOOD_CHAOS_HIGH "High Chaos"
 #define RATWOOD_LOW_DIVISOR 15
 #define RATWOOD_HIGH_DIVISOR 7
+#define RATWOOD_LOW_CAP_FLAT 1
 
 /datum/round_modifier_policy
 	var/id = "upstream"
@@ -34,7 +35,7 @@
 	// Snapshot all connected players. The live cap switches back to the same online-player
 	// formula after roundstart allocation finishes.
 	mode.roundstart_population_snapshot = length(GLOB.clients)
-	mode.roundstart_cap_snapshot = calculate_roundstart_cap(mode.roundstart_population_snapshot, mode.chaos_divisor)
+	mode.roundstart_cap_snapshot = calculate_ratwood_antag_cap(mode.roundstart_population_snapshot, mode.chaos_divisor, mode.chaos_mode_name)
 	mode.roundstart_antag_allocation_complete = FALSE
 	mode.roundstart_reserved_antag_weight = 0
 	mode.planned_villain_counts = list()
@@ -89,15 +90,14 @@
 	if(ispath(weather_type))
 		mode.active_modifiers += new weather_type
 
-/// Kept pure for unit tests and for admin tooling.
-/proc/calculate_roundstart_cap(online_players, divisor)
-	return calculate_ratwood_antag_cap(online_players, divisor)
+/proc/get_ratwood_antag_cap_flat(chaos_mode)
+	return chaos_mode == RATWOOD_CHAOS_LOW ? RATWOOD_LOW_CAP_FLAT : ANTAG_CAP_FLAT
 
-/// Ratwood uses the online population ratio plus the shared flat antagonist allowance.
-/proc/calculate_ratwood_antag_cap(online_players, divisor)
+/// Use the same population formula at roundstart and when updating the live cap.
+/proc/calculate_ratwood_antag_cap(online_players, divisor, chaos_mode)
 	if(divisor <= 0)
 		return 0
-	return FLOOR(max(online_players, 0) / divisor, 1) + ANTAG_CAP_FLAT
+	return FLOOR(max(online_players, 0) / divisor, 1) + get_ratwood_antag_cap_flat(chaos_mode)
 
 /proc/calculate_antag_cap_from_population(cap_population, divisor)
 	return FLOOR(max(cap_population, 0) / divisor, 1) + ANTAG_CAP_FLAT
@@ -300,3 +300,4 @@
 #undef RATWOOD_CHAOS_HIGH
 #undef RATWOOD_LOW_DIVISOR
 #undef RATWOOD_HIGH_DIVISOR
+#undef RATWOOD_LOW_CAP_FLAT

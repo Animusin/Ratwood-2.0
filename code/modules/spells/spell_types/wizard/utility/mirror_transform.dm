@@ -812,7 +812,7 @@
 			if(new_size)
 				var/obj/item/organ/penis/penis = H.getorganslot(ORGAN_SLOT_PENIS)
 				if(penis)
-					penis.penis_size = GLOB.named_penis_sizes[new_size]
+					penis.set_penis_size(GLOB.named_penis_sizes[new_size])
 					H.update_body()
 					should_update = TRUE
 

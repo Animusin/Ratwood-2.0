@@ -99,7 +99,8 @@ for code_file in scannable_files:
         if(dm_path == file_reference_basename):
             continue
 
-        if(dm_path in excluded_files):
+        relative_path = os.path.relpath(code_file, scannable_directory).replace(os.sep, '/')
+        if(dm_path in excluded_files or relative_path in excluded_files):
             continue
 
         post_error(f"Missing include for {dm_path}.")

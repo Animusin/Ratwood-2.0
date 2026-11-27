@@ -85,6 +85,7 @@
 #define AHELP_ACTIVE 1
 #define AHELP_CLOSED 2
 #define AHELP_RESOLVED 3
+#define HERALD_AHELP_REPLY_COOLDOWN_SECONDS 20
 
 /// Amount of time (in deciseconds) after the rounds starts, that the player disconnect report is issued.
 #define ROUNDSTART_LOGOUT_REPORT_TIME	6000

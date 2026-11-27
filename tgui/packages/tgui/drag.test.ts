@@ -1,8 +1,9 @@
-import { beforeAll, beforeEach, describe, expect, test } from 'bun:test';
+import { afterAll, beforeAll, beforeEach, describe, expect, test } from 'bun:test';
 
 const windowUpdates: Record<string, string>[] = [];
 let drag: typeof import('./drag');
 let storage: typeof import('common/storage').storage;
+let previousByond: PropertyDescriptor | undefined;
 
 beforeAll(async () => {
   Object.defineProperty(window, 'devicePixelRatio', {
@@ -19,6 +20,7 @@ beforeAll(async () => {
     value: 540,
     configurable: true,
   });
+  previousByond = Object.getOwnPropertyDescriptor(globalThis, 'Byond');
   Object.defineProperty(globalThis, 'Byond', {
     value: {
       windowId: 'geometry-test',
@@ -33,6 +35,14 @@ beforeAll(async () => {
   ({ storage } = await import('common/storage'));
   drag = await import('./drag');
   await drag.setupDrag();
+});
+
+afterAll(() => {
+  if (previousByond) {
+    Object.defineProperty(globalThis, 'Byond', previousByond);
+  } else {
+    Reflect.deleteProperty(globalThis, 'Byond');
+  }
 });
 
 beforeEach(async () => {

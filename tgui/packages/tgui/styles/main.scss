@@ -34,6 +34,9 @@
 @include meta.load-css('./interfaces/AudioSettings.scss');
 @include meta.load-css('./components/DragSlider.scss');
 @include meta.load-css('./interfaces/Changelog.scss');
+@include meta.load-css('./interfaces/CharacterGallery.scss');
+@include meta.load-css('./interfaces/ExamineGallery.scss');
+@include meta.load-css('./interfaces/ExamineGalleryArt.scss');
 @include meta.load-css('./interfaces/ContractLedger.scss');
 @include meta.load-css('./interfaces/CrewManifest.scss');
 @include meta.load-css('./interfaces/Emojipedia.scss');
@@ -62,6 +65,8 @@
 @include meta.load-css('./interfaces/DetectiveBoard.scss');
 
 @include meta.load-css('./interfaces/BuildMode.scss');
+// Components
+@include meta.load-css('./components/CardBackground.scss');
 
 // Layouts
 @include meta.load-css('./layouts/Layout.scss');

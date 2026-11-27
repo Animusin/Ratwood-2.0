@@ -1,5 +1,4 @@
 // Explicitly enabled autonomous replies only. No punishment or general proccall.
-#define HERALD_AHELP_REPLY_COOLDOWN_SECONDS 20
 /datum/config_entry/flag/herald_duty_enabled
 
 /proc/herald_duty_now()

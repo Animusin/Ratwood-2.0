@@ -41,7 +41,7 @@
 /datum/element/tipped_item/proc/try_inject(obj/item/source, mob/living/user, obj/item/bodypart/affecting, intent, mob/living/victim, selzone, thrown)
 	SIGNAL_HANDLER
 
-	if(!can_inject_with_attack(source, user, thrown) || !source.reagents?.total_volume)
+	if(!isliving(victim) || !can_inject_with_attack(source, user, thrown) || !source.reagents?.total_volume)
 		return
 	log_combat(user, victim, "poisoned", addition="with [source.reagents]")
 	source.reagents.trans_to(victim, 1, transfered_by = user)

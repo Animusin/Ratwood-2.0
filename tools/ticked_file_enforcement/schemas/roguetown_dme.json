@@ -1,0 +1,10 @@
+{
+	"file": "roguetown.dme",
+	"scannable_directory": "code/",
+	"subdirectories": true,
+	"excluded_files": ["controllers/lag_recorder_hooks.dm"],
+	"forbidden_includes": [
+		"code/modules/tgs/**/*.dm",
+		"code/modules/unit_tests/[!_]*.dm"
+	]
+}
